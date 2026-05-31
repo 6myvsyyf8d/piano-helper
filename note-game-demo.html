@@ -25,12 +25,12 @@ body{
 .combo{font-size:.78rem;color:var(--green);margin-top:2px}
 .stage{
   background:#fff;border-radius:var(--radius);padding:8px;margin-bottom:12px;
-  overflow:hidden;
+  overflow:hidden;height:160px;position:relative;z-index:1;
 }
-.stage svg{display:block;margin:0 auto}
+.stage svg{display:block;margin:0 auto;pointer-events:none}
 .question{font-size:1.05rem;margin:6px 0 2px;font-weight:600}
 .octave-hint{font-size:.78rem;color:var(--text2)}
-.answers{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.answers{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;position:relative;z-index:2}
 .ans-btn{
   padding:12px 6px;border-radius:var(--radius);border:1px solid var(--border);
   background:rgba(255,255,255,.06);color:var(--text);font-size:.88rem;
@@ -65,12 +65,10 @@ body{
   </div>
 
   <div class="settings">
-    <label>范围:</label>
-    <select id="rangeSelect" onchange="restart()">
-      <option value="treble">高音谱号 · 宝宝+妈妈+奶奶</option>
-      <option value="both" selected>高音+低音 · 爸爸~奶奶</option>
-      <option value="bass">低音谱号 · 爷爷+爸爸</option>
-    </select>
+    <button id="modePractice" onclick="switchMode('practice')" style="font-size:.72rem;padding:4px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;opacity:.4">📝 练习</button>
+    <button id="modeChallenge" onclick="switchMode('challenge')" style="font-size:.72rem;padding:4px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer">⚡ 挑战</button>
+    <select id="levelSelect" onchange="switchLevel()" style="margin-left:6px"></select>
+    <div style="font-size:.68rem;color:var(--text2);margin-top:4px" id="todayStats"></div>
   </div>
 
   <div class="stage" id="stage"></div>
@@ -85,6 +83,7 @@ body{
     <div class="final" id="finalScore">0</div>
     <p>答对 <span id="finalCorrect">0</span> 题</p>
     <p>最高连击 <span id="finalCombo">0</span></p>
+    <p style="font-size:.8rem"><span id="todayStatsEnd"></span></p>
     <button class="btn" onclick="restart()">再来一次</button>
   </div>
 </div>
@@ -104,8 +103,45 @@ var SOLFEGE = ['do','re','mi','fa','sol','la','si'];
 var NOTE_NAMES = ['C','D','E','F','G','A','B'];
 var NOTE_KEYS = ['c','d','e','f','g','a','b'];
 
+// ===== SOUND ENGINE =====
+var audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playNote(midi, duration) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+function playCorrect() { playNote(currentNote ? currentNote.midi : 60, 0.4); }
+function playWrong() {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator(); var gain = audioCtx.createGain();
+  osc.type = 'square'; osc.frequency.value = 200;
+  gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+}
+
+// ===== DIFFICULTY LEVELS =====
+var LEVELS = [
+  { name:'入门', desc:'宝宝 octave · 5个音', families:[{label:'宝宝',midiBase:60}], notes:[0,1,2,3,4], clef:'treble' },
+  { name:'初级', desc:'宝宝 完整八度 · 7个音', families:[{label:'宝宝',midiBase:60}], notes:[0,1,2,3,4,5,6], clef:'treble' },
+  { name:'中级', desc:'宝宝+妈妈 · 高音谱号', families:[{label:'宝宝',midiBase:60},{label:'妈妈',midiBase:72}], notes:[0,1,2,3,4,5,6], clef:'treble' },
+  { name:'进阶', desc:'爸爸+宝宝 · 高音+低音', families:[{label:'爸爸',midiBase:48},{label:'宝宝',midiBase:60}], notes:[0,1,2,3,4,5,6], clef:'both' },
+  { name:'挑战', desc:'爸爸~奶奶 · 全部音域', families:FAMILIES.slice(1), notes:[0,1,2,3,4,5,6], clef:'both' },
+];
+var currentLevel = 0;
+
+// ===== GAME STATE =====
+var GAME_MODE = 'challenge'; // 'practice' | 'challenge'
 var timerSec = 300, timerInterval = null;
-var score = 0, combo = 0, maxCombo = 0, correctCount = 0;
+var score = 0, combo = 0, maxCombo = 0, correctCount = 0, wrongCount = 0;
 var currentNote = null, gameRunning = false, answering = false;
 
 function renderNote(note) {
@@ -156,9 +192,7 @@ function newQuestion() {
 
   renderNote(currentNote);
 
-  document.getElementById('octaveHint').innerHTML =
-    '<span style="font-size:1.4rem;font-weight:700">' + currentNote.family + '</span> 八度 · ' +
-    currentNote.noteName + '（' + currentNote.solfege + '）';
+  document.getElementById('octaveHint').textContent = '哪个唱名？';
   document.getElementById('feedback').textContent = '';
   answering = false;
   var btns = document.querySelectorAll('.ans-btn');
@@ -167,6 +201,7 @@ function newQuestion() {
 
 function checkAnswer(noteIdx, btn) {
   if (!gameRunning || answering || !currentNote) return;
+  initAudio();
   answering = true;
   if (noteIdx === currentNote.noteIdx) {
     btn.classList.add('correct');
@@ -175,46 +210,75 @@ function checkAnswer(noteIdx, btn) {
     document.getElementById('score').textContent = score;
     document.getElementById('combo').textContent = combo > 1 ? '🔥 '+combo+' 连击！' : '';
     document.getElementById('feedback').innerHTML =
-      '<span style="color:var(--green)">✅ 对啦！' + currentNote.fullLabel + '</span>';
+      '<span style="color:var(--green)">✅ 对啦！' + currentNote.family + '八度 · ' + currentNote.noteName + '（' + currentNote.solfege + '）</span>';
+    playCorrect();
+    saveStats();
   } else {
     btn.classList.add('wrong');
-    combo = 0;
+    combo = 0; wrongCount++;
     document.getElementById('combo').textContent = '';
     document.getElementById('feedback').innerHTML =
-      '<span style="color:var(--red)">✗ ' + currentNote.fullLabel + '</span>';
+      '<span style="color:var(--red)">✗ 应该是 ' + currentNote.family + '八度 · ' + currentNote.noteName + '（' + currentNote.solfege + '）</span>';
     var btns = document.querySelectorAll('.ans-btn');
     for (var i = 0; i < btns.length; i++) {
       if (parseInt(btns[i].dataset.note) === currentNote.noteIdx) btns[i].classList.add('correct');
     }
+    playWrong();
   }
-  setTimeout(newQuestion, 1000);
+  setTimeout(newQuestion, GAME_MODE === 'challenge' ? 800 : 1200);
 }
 
 function updateTimer() {
+  if (GAME_MODE === 'practice') { document.getElementById('timer').textContent = '∞'; return; }
   var m = Math.floor(timerSec/60), s = timerSec%60;
   document.getElementById('timer').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
   if (timerSec <= 0) { endGame(); return; }
   timerSec--;
 }
 
+function saveStats() {
+  var d = new Date().toISOString().slice(0,10);
+  var stats = JSON.parse(localStorage.getItem('note_game_stats') || '{}');
+  if (!stats[d]) stats[d] = {correct:0, wrong:0, maxCombo:0};
+  stats[d].correct = (stats[d].correct||0) + 1;
+  stats[d].maxCombo = Math.max(stats[d].maxCombo||0, combo);
+  localStorage.setItem('note_game_stats', JSON.stringify(stats));
+}
+
+function loadStats() {
+  var d = new Date().toISOString().slice(0,10);
+  var stats = JSON.parse(localStorage.getItem('note_game_stats') || '{}');
+  return stats[d] || {correct:0, wrong:0, maxCombo:0};
+}
+
 function startGame() {
-  score=0; combo=0; maxCombo=0; correctCount=0; timerSec=300;
+  score=0; combo=0; maxCombo=0; correctCount=0; wrongCount=0; timerSec=300;
   document.getElementById('score').textContent='0';
   document.getElementById('combo').textContent='';
-  document.getElementById('timer').textContent='05:00';
+  document.getElementById('timer').textContent = GAME_MODE === 'practice' ? '∞' : '05:00';
   document.getElementById('stage').style.display='block';
   document.getElementById('answers').style.display='grid';
   document.getElementById('over').style.display='none';
   document.getElementById('feedback').textContent='';
+  // Build level selector
+  var sel = document.getElementById('levelSelect');
+  var lvlHTML = '';
+  for (var li = 0; li < LEVELS.length; li++) {
+    lvlHTML += '<option value="'+li+'"'+(li===currentLevel?' selected':'')+'>'+LEVELS[li].name+' · '+LEVELS[li].desc+'</option>';
+  }
+  if (sel) sel.innerHTML = lvlHTML;
   var html = '';
   for (var i = 0; i < SOLFEGE.length; i++) {
     html += '<button class="ans-btn" data-note="'+i+'" onclick="checkAnswer('+i+',this)">'+SOLFEGE[i]+'<br><span style="font-size:.65rem;font-weight:400;color:var(--text3)">'+NOTE_NAMES[i]+'</span></button>';
   }
   document.getElementById('answers').innerHTML = html;
+  // Show today stats
+  var today = loadStats();
+  document.getElementById('todayStats').textContent = '今日 ✅'+today.correct+' ✗'+today.wrong+' 🔥'+today.maxCombo;
   gameRunning=true;
   clearInterval(timerInterval);
   timerInterval=setInterval(updateTimer,1000);
-  setTimeout(newQuestion, 300); // wait for VF CDN to be ready
+  newQuestion();
 }
 
 function endGame() {
@@ -226,10 +290,22 @@ function endGame() {
   document.getElementById('finalCorrect').textContent=correctCount;
   document.getElementById('finalCombo').textContent=maxCombo;
   document.getElementById('feedback').textContent='';
+  var today = loadStats();
+  document.getElementById('todayStatsEnd').textContent = '今日累计 ✅'+today.correct+' ✗'+today.wrong+' 🔥'+today.maxCombo;
 }
 
 function restart(){ clearInterval(timerInterval); startGame(); }
-startGame(); // wait for CDN script to load
+function switchMode(mode) {
+  GAME_MODE = mode;
+  document.getElementById('modePractice').style.opacity = mode==='practice' ? '1' : '.4';
+  document.getElementById('modeChallenge').style.opacity = mode==='challenge' ? '1' : '.4';
+  restart();
+}
+function switchLevel() {
+  currentLevel = parseInt(document.getElementById('levelSelect').value);
+  restart();
+}
+startGame();
 </script>
 </body>
 </html>
