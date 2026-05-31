@@ -1,11 +1,11 @@
 // Service Worker for 哆哩的钢琴助手
 const CACHE = 'piano-v2';
 const FILES = [
-  '/piano-helper/',
-  '/piano-helper/piano-helper.html',
-  '/piano-helper/manifest.json',
-  '/piano-helper/icon-192.png',
-  '/piano-helper/icon-512.png',
+  '/',
+  '/piano-helper.html',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', e => {

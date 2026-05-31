@@ -151,6 +151,27 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET static files (PWA resources: sw.js, manifest.json, icons)
+  const staticMime = {
+    '.js': 'application/javascript; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.png': 'image/png',
+  };
+  if (req.method === 'GET') {
+    const ext = path.extname(url.pathname);
+    if (staticMime[ext]) {
+      try {
+        const filePath = path.join(__dirname, url.pathname.slice(1));
+        const content = fs.readFileSync(filePath);
+        res.writeHead(200, { 'Content-Type': staticMime[ext] });
+        res.end(content);
+      } catch {
+        sendJSON(res, 404, { ok: false, error: 'File not found: ' + url.pathname });
+      }
+      return;
+    }
+  }
+
   // 404
   sendJSON(res, 404, { ok: false, error: 'Not found' });
 });

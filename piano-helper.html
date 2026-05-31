@@ -40,7 +40,7 @@ body{
   background:linear-gradient(170deg, #1A1D35 0%, #1F2545 25%, #1C2845 50%, #1E2340 75%, #1A1D35 100%);
   background-attachment:fixed;
   color:var(--text); line-height:1.5;
-  min-height:100dvh; display:flex; justify-content:center;
+  min-height:100vh;min-height:100dvh; display:flex; justify-content:center;
   -webkit-font-smoothing:antialiased;
   position:relative;overflow-x:hidden;
 }
@@ -74,7 +74,7 @@ body::after{
   background:radial-gradient(circle, rgba(80,120,220,.15), transparent 70%);
   top:20%;left:-10%;filter:blur(40px);
 }
-.app{width:100%;max-width:100%;min-height:100dvh;display:flex;flex-direction:column;position:relative;z-index:1}
+.app{width:100%;max-width:100%;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;position:relative;z-index:1}
 @media (min-width:600px){
   .app{padding:0 max(16px, 3vw)}
 }
@@ -106,14 +106,15 @@ body::after{
   display:flex;align-items:center;gap:4px;
 }
 .sync-btn{
-  position:absolute;top:10px;right:80px;
-  width:34px;height:34px;border-radius:50%;border:none;
-  background:var(--bg);color:var(--text2);font-size:.9rem;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:all .2s;
+  position:absolute;top:10px;right:68px;
+  height:34px;border-radius:17px;border:none;
+  background:var(--primary-soft);color:var(--primary);
+  font-size:.78rem;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;
+  transition:all .2s;padding:0 12px;
 }
-.sync-btn:active{transform:scale(.9);background:var(--border)}
-.sync-btn.synced{background:var(--green-soft);color:var(--green)}
+.sync-btn:active{transform:scale(.95)}
+.sync-btn.logged-in{background:var(--green-soft);color:var(--green)}
 
 /* ===== Tabs — bottom on mobile ===== */
 .tab-bar{
@@ -589,7 +590,7 @@ textarea.form-input{resize:vertical;min-height:60px}
     </div>
     <h1>哆哩的钢琴助手 <span style="font-size:.55rem;color:var(--text3);font-weight:400">v2.0</span></h1>
     <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
-    <button class="sync-btn" id="syncBtn" onclick="showSyncPanel()" title="同步">🔄</button>
+    <button class="sync-btn" id="syncBtn" onclick="showSyncPanel()" title="云端同步">🔑 登录同步</button>
     <div class="streak-badge" id="streakBadge">🔥 0 天</div>
   </div>
 
@@ -960,6 +961,7 @@ window.toggleParentPanel = function() {
 
 // ==================== TODAY'S PRACTICE STATE ====================
 let pieceStates = {};
+let todayMood = '';
 let timerSec = 0, timerInterval = null;
 
 function resetPracticeState() {
@@ -1726,8 +1728,7 @@ async function cloudUpload() {
     if (res.ok) {
       cfg.lastSync = new Date().toISOString();
       saveSyncConfig(cfg);
-      document.getElementById('syncBtn').classList.add('synced');
-      setTimeout(() => document.getElementById('syncBtn').classList.remove('synced'), 2000);
+      updateSyncButtonState();
       return true;
     }
   } catch(e) {}
@@ -1786,8 +1787,19 @@ window.showSyncPanel = function() {
         </div>
         ${cfg.lastSync ? '<p class="text-sm mb-12">上次同步：' + new Date(cfg.lastSync).toLocaleString('zh-CN') + '</p>' : ''}
         <button class="btn btn-primary mt-12" id="btnCloudSave" style="width:100%">💾 保存并同步</button>
+
+        <hr style="border-color:var(--border);margin:20px 0">
+
+        <h3 style="font-size:.9rem;margin-bottom:8px">📥 从旧版导入数据</h3>
+        <p class="text-sm mb-8">如果你之前用局域网同步服务器，数据在电脑上。运行以下命令复制数据：</p>
+        <div style="background:rgba(0,0,0,.3);border-radius:var(--radius-sm);padding:10px 14px;font-size:.75rem;font-family:monospace;color:var(--mint);word-break:break-all;margin-bottom:8px;user-select:all;cursor:pointer" onclick="navigator.clipboard.writeText(this.textContent);alert('已复制！粘贴到下面文本框即可')">cat ~/.piano-sync/data.json | pbcopy</div>
+        <label class="text-sm">粘贴 JSON 数据：</label>
+        <textarea class="form-input" id="importData" placeholder='粘贴 data.json 的内容...' style="min-height:80px;font-size:.78rem;font-family:monospace"></textarea>
+        <button class="btn btn-secondary mt-8" id="btnImport" style="width:100%">📥 导入数据</button>
+        <p class="text-sm mt-8" style="color:var(--red)">⚠️ 导入会覆盖现有数据，请先备份</p>
       </div>
     </div>`;
+
   document.getElementById('btnCloudSave').addEventListener('click', async () => {
     const token = document.getElementById('cloudToken').value.trim();
     cfg.token = token; saveSyncConfig(cfg);
@@ -1797,7 +1809,24 @@ window.showSyncPanel = function() {
       else alert('⚠️ 云端暂无数据，请先上传');
       await cloudUpload();
     }
+    updateSyncButtonState();
     closeModal();
+  });
+
+  document.getElementById('btnImport').addEventListener('click', () => {
+    const raw = document.getElementById('importData').value.trim();
+    if (!raw) { alert('请先粘贴数据'); return; }
+    try {
+      const data = JSON.parse(raw);
+      if (!data.lessons && !data.logs) { alert('数据格式不正确，需要包含 lessons 或 logs'); return; }
+      if (data.lessons) DB.saveLessons(data.lessons);
+      if (data.logs) DB.saveLogs(data.logs);
+      alert('✅ 导入成功！课程 ' + (data.lessons||[]).length + ' 条，练习 ' + (data.logs||[]).length + ' 条');
+      closeModal();
+      renderAll();
+    } catch(e) {
+      alert('❌ JSON 格式错误：' + e.message);
+    }
   });
 };
 
@@ -1805,9 +1834,15 @@ function updateSyncButtonState() {
   var btn = document.getElementById('syncBtn');
   if (!btn) return;
   var cfg = getSyncConfig();
-  btn.textContent = cfg.token ? '☁️' : '☁️';
-  btn.title = cfg.token ? '云端同步已配置' : '设置云端同步';
-  btn.style.opacity = cfg.token ? '1' : '.5';
+  if (cfg.token) {
+    btn.innerHTML = '☁️ 已同步';
+    btn.className = 'sync-btn logged-in';
+    btn.title = '云端同步已配置 · 点击管理';
+  } else {
+    btn.innerHTML = '🔑 登录同步';
+    btn.className = 'sync-btn';
+    btn.title = '设置 GitHub 云端同步';
+  }
 }
 
 async function startupSync() {
@@ -1822,14 +1857,24 @@ async function startupSync() {
 })();
 
 // ==================== INIT ====================
-initRepertoire();
-loadLogo();
-renderAll();
+(function init() {
+  try {
+    initRepertoire();
+    loadLogo();
+    renderAll();
 
-// Register Service Worker for PWA offline support
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(function(){});
-}
+    // Register Service Worker for PWA offline support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    }
+  } catch (e) {
+    var page = document.getElementById('page-today');
+    if (page) {
+      page.innerHTML = '<div class="card" style="background:rgba(232,160,160,.2);border-color:var(--red)"><h3>⚠️ 启动错误</h3><p style="font-size:.85rem;color:var(--red);word-break:break-all">' + e.message + '</p><p class="text-sm mt-8">请刷新页面重试，如果问题持续，检查浏览器控制台 (F12)</p></div>';
+    }
+    console.error('Piano app init error:', e);
+  }
+})();
 </script>
 </body>
 </html>
