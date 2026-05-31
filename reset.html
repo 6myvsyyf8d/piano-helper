@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>更新钢琴助手</title></head>
+<body style="background:#1A1D35;color:#E8E8EE;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center">
+<div>
+  <h1 style="font-size:3rem">🔧</h1>
+  <p style="font-size:1.2rem" id="status">正在清除旧缓存…</p>
+</div>
+<script>
+(async function(){
+  var msg = document.getElementById('status');
+  // 注销所有 Service Worker
+  if ('serviceWorker' in navigator) {
+    var regs = await navigator.serviceWorker.getRegistrations();
+    for (var r of regs) {
+      await r.unregister();
+    }
+    msg.textContent = '✅ 旧缓存已清除！跳转中…';
+  }
+  // 清除所有缓存
+  if ('caches' in window) {
+    var keys = await caches.keys();
+    for (var k of keys) { await caches.delete(k); }
+  }
+  // 跳转到新版
+  setTimeout(function(){
+    location.href = 'https://6myvsyyf8d.github.io/piano-helper/piano-helper.html';
+  }, 800);
+})();
+</script>
+</body>
+</html>
