@@ -1702,269 +1702,122 @@ document.querySelector('.tab-bar').addEventListener('click', e => {
   if (btn.dataset.tab === 'repertoire') renderRepertoire();
 });
 
-// ==================== SYNC ====================
-const SYNC_CONFIG_KEY = 'piano_sync_config';
+// ==================== CLOUD SYNC (GitHub Gist) ====================
+const GIST_ID = '6441ba40b32a4f439bef121319a8c459';
+const SYNC_KEY = 'piano_cloud';
 
-function loadSyncConfig() {
+function getSyncConfig() {
+  try { return JSON.parse(localStorage.getItem(SYNC_KEY)) || { token:'', lastSync:null }; }
+  catch { return { token:'', lastSync:null }; }
+}
+function saveSyncConfig(c) { localStorage.setItem(SYNC_KEY, JSON.stringify(c)); }
+
+async function cloudUpload() {
+  const cfg = getSyncConfig();
+  if (!cfg.token) return false;
   try {
-    return JSON.parse(localStorage.getItem(SYNC_CONFIG_KEY)) || { serverUrl: '', autoSync: true, lastSync: null };
-  } catch { return { serverUrl: '', autoSync: true, lastSync: null }; }
-}
-
-function saveSyncConfig(cfg) {
-  localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cfg));
-}
-
-function getAutoServerUrl() {
-  // If opened from sync server, auto-detect
-  if (window.location.origin.startsWith('http://') || window.location.origin.startsWith('https://')) {
-    if (window.location.origin.includes('localhost') || /^\d+\.\d+\.\d+\.\d+/.test(window.location.hostname)) {
-      return window.location.origin;
-    }
-  }
-  return '';
-}
-
-async function pingServer(url) {
-  try {
-    const res = await fetch(url + '/ping', { signal: AbortSignal.timeout(3000) });
-    const data = await res.json();
-    return data.ok === true;
-  } catch { return false; }
-}
-
-async function syncToServer() {
-  const cfg = loadSyncConfig();
-  const serverUrl = cfg.serverUrl || getAutoServerUrl();
-  if (!serverUrl) return { ok: false, error: '未配置服务器地址' };
-
-  try {
-    const localData = {
-      lessons: DB.lessons(),
-      logs: DB.logs(),
-    };
-    const res = await fetch(serverUrl + '/merge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(localData),
-      signal: AbortSignal.timeout(5000),
+    const data = { lessons: DB.lessons(), logs: DB.logs(), _ts: new Date().toISOString() };
+    const res = await fetch('https://api.github.com/gists/' + GIST_ID, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'token ' + cfg.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { 'piano-data.json': { content: JSON.stringify(data) } } }),
+      signal: AbortSignal.timeout(8000),
     });
-    const result = await res.json();
-    if (result.ok) {
-      cfg.lastSync = result.time;
+    if (res.ok) {
+      cfg.lastSync = new Date().toISOString();
       saveSyncConfig(cfg);
-      updateSyncIndicator(true);
+      document.getElementById('syncBtn').classList.add('synced');
+      setTimeout(() => document.getElementById('syncBtn').classList.remove('synced'), 2000);
+      return true;
     }
-    return result;
-  } catch (e) {
-    updateSyncIndicator(false);
-    return { ok: false, error: e.message };
-  }
+  } catch(e) {}
+  return false;
 }
 
-async function syncFromServer() {
-  const cfg = loadSyncConfig();
-  const serverUrl = cfg.serverUrl || getAutoServerUrl();
-  if (!serverUrl) return { ok: false, error: '未配置服务器地址' };
-
+async function cloudDownload() {
+  const cfg = getSyncConfig();
+  if (!cfg.token) return null;
   try {
-    const res = await fetch(serverUrl + '/data', { signal: AbortSignal.timeout(5000) });
-    const serverData = await res.json();
-
-    // Merge: union by id, server version for same-id conflicts (since we're "pulling")
-    const lessonMap = new Map();
-    for (const l of DB.lessons()) lessonMap.set(l.id, l);
-    for (const l of (serverData.lessons || [])) lessonMap.set(l.id, l); // server wins
-
-    const logMap = new Map();
-    for (const l of DB.logs()) logMap.set(l.id, l);
-    for (const l of (serverData.logs || [])) logMap.set(l.id, l); // server wins
-
-    DB.saveLessons([...lessonMap.values()]);
-    DB.saveLogs([...logMap.values()]);
-
-    cfg.lastSync = new Date().toISOString();
-    saveSyncConfig(cfg);
-    updateSyncIndicator(true);
-    renderAll();
-
-    return {
-      ok: true,
-      lessons: [...lessonMap.values()].length,
-      logs: [...logMap.values()].length,
-    };
-  } catch (e) {
-    updateSyncIndicator(false);
-    return { ok: false, error: e.message };
-  }
+    const res = await fetch('https://api.github.com/gists/' + GIST_ID, {
+      headers: { 'Authorization': 'token ' + cfg.token },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const gist = await res.json();
+    const raw = gist.files['piano-data.json']?.content;
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    // Merge: union by id
+    const lm = new Map(); DB.lessons().forEach(l => lm.set(l.id, l));
+    (data.lessons||[]).forEach(l => lm.set(l.id, l));
+    const lgm = new Map(); DB.logs().forEach(l => lgm.set(l.id, l));
+    (data.logs||[]).forEach(l => lgm.set(l.id, l));
+    DB.saveLessons([...lm.values()]); DB.saveLogs([...lgm.values()]);
+    cfg.lastSync = new Date().toISOString(); saveSyncConfig(cfg);
+    renderAll(); return true;
+  } catch(e) { return null; }
 }
 
-function updateSyncIndicator(ok) {
-  const btn = document.getElementById('syncBtn');
-  if (btn) {
-    if (ok) {
-      btn.classList.add('synced');
-      setTimeout(() => btn.classList.remove('synced'), 2000);
-    }
-  }
+function autoSync() {
+  const cfg = getSyncConfig();
+  if (cfg.token) cloudUpload(); // fire and forget
 }
 
-// Auto-sync after save
+// Update autoSyncAfterSave calls to use cloud
 async function autoSyncAfterSave() {
-  const cfg = loadSyncConfig();
-  if (!cfg.autoSync) return;
-  const serverUrl = cfg.serverUrl || getAutoServerUrl();
-  if (!serverUrl) return;
-  await syncToServer();
+  const cfg = getSyncConfig();
+  if (cfg.token) await cloudUpload();
 }
 
-window.showSyncPanel = async function() {
-  const cfg = loadSyncConfig();
-  const autoUrl = getAutoServerUrl();
-  const serverUrl = cfg.serverUrl || autoUrl;
-  const isReachable = serverUrl ? await pingServer(serverUrl) : false;
-
+window.showSyncPanel = function() {
+  const cfg = getSyncConfig();
   const modal = document.getElementById('modalContainer');
   modal.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
         <div class="modal-header">
-          <h2>🔄 数据同步</h2>
+          <h2>☁️ GitHub 云端同步</h2>
           <button class="btn-icon del" onclick="closeModal()" style="border-radius:50%">✕</button>
         </div>
-
         <div class="form-group">
-          <label>📡 服务器地址</label>
-          <input class="form-input" type="text" id="syncServerUrl"
-            placeholder="http://192.168.x.x:3456"
-            value="${esc(serverUrl)}">
-          ${autoUrl ? `<p class="text-sm mt-8">✅ 已自动检测到服务器地址</p>` : ''}
-          <div class="text-sm mt-8" id="syncStatus">
-            ${serverUrl
-              ? (isReachable ? '🟢 服务器已连接' : '🔴 无法连接到服务器（请确保电脑开机且同一 WiFi）')
-              : '⚪ 请设置服务器地址'}
-          </div>
+          <label>🔑 GitHub Token</label>
+          <input class="form-input" type="password" id="cloudToken" placeholder="ghp_..." value="${esc(cfg.token)}">
+          <p class="text-sm mt-8">在 <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--primary)">github.com/settings/tokens</a> 创建 token，勾选 gist 权限</p>
         </div>
-
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="syncAutoToggle" ${cfg.autoSync ? 'checked' : ''}
-              style="width:auto;margin-right:8px">
-            🔄 保存时自动同步
-          </label>
-        </div>
-
-        ${cfg.lastSync ? `<div class="text-sm mb-12">上次同步：${new Date(cfg.lastSync).toLocaleString('zh-CN')}</div>` : ''}
-
-        <div class="gap-8">
-          <button class="btn btn-primary" id="btnSyncUpload" style="flex:1" ${isReachable ? '' : 'disabled'}>
-            ⬆ 上传到服务器
-          </button>
-          <button class="btn btn-secondary" id="btnSyncDownload" style="flex:1" ${isReachable ? '' : 'disabled'}>
-            ⬇ 从服务器下载
-          </button>
-        </div>
-
-        <button class="btn btn-primary mt-12" id="btnSyncSave" style="width:100%">💾 保存设置</button>
+        ${cfg.lastSync ? '<p class="text-sm mb-12">上次同步：' + new Date(cfg.lastSync).toLocaleString('zh-CN') + '</p>' : ''}
+        <button class="btn btn-primary mt-12" id="btnCloudSave" style="width:100%">💾 保存并同步</button>
       </div>
     </div>`;
-
-  // Bind events
-  document.getElementById('btnSyncSave').addEventListener('click', () => {
-    const newUrl = document.getElementById('syncServerUrl').value.trim();
-    const autoSync = document.getElementById('syncAutoToggle').checked;
-    cfg.serverUrl = newUrl;
-    cfg.autoSync = autoSync;
-    saveSyncConfig(cfg);
+  document.getElementById('btnCloudSave').addEventListener('click', async () => {
+    const token = document.getElementById('cloudToken').value.trim();
+    cfg.token = token; saveSyncConfig(cfg);
+    if (token) {
+      const ok = await cloudDownload();
+      if (ok) alert('✅ 已同步！云端数据已合并');
+      else alert('⚠️ 云端暂无数据，请先上传');
+      await cloudUpload();
+    }
     closeModal();
-  });
-
-  document.getElementById('btnSyncUpload').addEventListener('click', async () => {
-    const btn = document.getElementById('btnSyncUpload');
-    btn.textContent = '⏳ 上传中...';
-    btn.disabled = true;
-    const result = await syncToServer();
-    if (result.ok) {
-      alert('✅ 上传成功！\n' +
-        '上课记录：' + (result.mergedRecords?.lessons || '?') + ' 条\n' +
-        '练琴记录：' + (result.mergedRecords?.logs || '?') + ' 条');
-      closeModal();
-    } else {
-      alert('❌ 上传失败：' + (result.error || '未知错误'));
-    }
-    btn.textContent = '⬆ 上传到服务器';
-    btn.disabled = false;
-  });
-
-  document.getElementById('btnSyncDownload').addEventListener('click', async () => {
-    const btn = document.getElementById('btnSyncDownload');
-    btn.textContent = '⏳ 下载中...';
-    btn.disabled = true;
-    const result = await syncFromServer();
-    if (result.ok) {
-      alert('✅ 下载并合并成功！\n' +
-        '上课记录：' + result.lessons + ' 条\n' +
-        '练琴记录：' + result.logs + ' 条');
-      closeModal();
-    } else {
-      alert('❌ 下载失败：' + (result.error || '未知错误'));
-    }
-    btn.textContent = '⬇ 从服务器下载';
-    btn.disabled = false;
   });
 };
 
-// Update sync button visual state
-let _syncOnline = null; // null=unknown, true=reachable, false=unreachable
-async function updateSyncButtonState() {
-  const btn = document.getElementById('syncBtn');
+function updateSyncButtonState() {
+  var btn = document.getElementById('syncBtn');
   if (!btn) return;
-  const cfg = loadSyncConfig();
-  const serverUrl = cfg.serverUrl || getAutoServerUrl();
-  if (!serverUrl) {
-    btn.textContent = '☁️';
-    btn.title = '设置同步';
-    btn.style.opacity = '0.5';
-    return;
-  }
-  // Throttle: only check every 10 seconds
-  if (_syncOnline !== null && _syncOnline !== undefined) {
-    btn.textContent = _syncOnline ? '🔄' : '⚠️';
-    btn.title = _syncOnline ? '同步正常' : '服务器不可达';
-    btn.style.opacity = _syncOnline ? '1' : '0.7';
-    return;
-  }
-  pingServer(serverUrl).then(ok => {
-    _syncOnline = ok;
-    updateSyncButtonState();
-  });
+  var cfg = getSyncConfig();
+  btn.textContent = cfg.token ? '☁️' : '☁️';
+  btn.title = cfg.token ? '云端同步已配置' : '设置云端同步';
+  btn.style.opacity = cfg.token ? '1' : '.5';
 }
 
-// Auto-sync on startup if server is reachable
 async function startupSync() {
-  const cfg = loadSyncConfig();
-  const serverUrl = cfg.serverUrl || getAutoServerUrl();
-  if (!serverUrl || !cfg.autoSync) return;
-  const ok = await pingServer(serverUrl);
-  _syncOnline = ok;
-  updateSyncButtonState();
-  if (!ok) return;
-  // Pull from server if: first time ever, or last sync > 1 hour ago
-  const lastSync = cfg.lastSync ? new Date(cfg.lastSync).getTime() : 0;
-  if (Date.now() - lastSync > 3600000) {
-    await syncFromServer();
-  }
+  var cfg = getSyncConfig();
+  if (!cfg.token) return;
+  var ls = cfg.lastSync ? new Date(cfg.lastSync).getTime() : 0;
+  if (Date.now() - ls > 600000) await cloudDownload(); // 10min throttle
 }
 
-// Check auto URL on startup — if found and no saved URL, auto-configure
-(function initSyncConfig() {
-  const cfg = loadSyncConfig();
-  const autoUrl = getAutoServerUrl();
-  if (autoUrl && !cfg.serverUrl) {
-    cfg.serverUrl = autoUrl;
-    saveSyncConfig(cfg);
-  }
-  // Run startup sync
+(function initCloudSync() {
   startupSync();
 })();
 
