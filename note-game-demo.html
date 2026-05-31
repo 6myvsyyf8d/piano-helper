@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>🎵 识谱练习</title>
+<script src="vexflow.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1A1D35; --text:#E8E8EE; --text2:#9898A8; --border:rgba(255,255,255,.15);
+  --green:#8ED4A6; --red:#E8A0A0; --primary:#F5A098; --radius:16px;
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:linear-gradient(170deg,#1A1D35,#1F2545,#1C2845,#1E2340,#1A1D35);
+  background-attachment:fixed; color:var(--text);
+  min-height:100dvh; display:flex; justify-content:center; align-items:center;
+  -webkit-font-smoothing:antialiased;
+}
+.app{width:100%;max-width:520px;padding:16px;text-align:center}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.timer{font-size:1.7rem;font-weight:800;color:var(--primary)}
+.score{font-size:.88rem;color:var(--text2)}
+.combo{font-size:.78rem;color:var(--green);margin-top:2px}
+.stage{
+  background:#fff;border-radius:var(--radius);padding:8px;margin-bottom:12px;
+  overflow:hidden;
+}
+.stage svg{display:block;margin:0 auto}
+.question{font-size:1.05rem;margin:6px 0 2px;font-weight:600}
+.octave-hint{font-size:.78rem;color:var(--text2)}
+.answers{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.ans-btn{
+  padding:12px 6px;border-radius:var(--radius);border:1px solid var(--border);
+  background:rgba(255,255,255,.06);color:var(--text);font-size:.88rem;
+  font-weight:700;cursor:pointer;transition:all .15s;min-height:44px;
+}
+.ans-btn:active{transform:scale(.95)}
+.ans-btn.correct{background:rgba(142,212,166,.2);border-color:var(--green);color:var(--green)}
+.ans-btn.wrong{background:rgba(232,160,160,.2);border-color:var(--red);color:var(--red)}
+.feedback{font-size:1rem;min-height:26px}
+.over{text-align:center}
+.over h2{font-size:1.3rem;margin-bottom:6px}
+.over .final{font-size:1.8rem;color:var(--primary);font-weight:800}
+.over p{color:var(--text2);margin:3px 0}
+.btn{padding:12px 28px;border:none;border-radius:50px;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:10px;background:var(--primary);color:#fff}
+.btn:active{transform:scale(.96)}
+.settings{margin-bottom:10px}
+.settings select{
+  padding:6px 10px;border-radius:10px;border:1px solid var(--border);
+  background:rgba(255,255,255,.06);color:var(--text);font-size:.75rem;
+}
+.settings label{font-size:.73rem;color:var(--text2);margin-right:6px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="timer" id="timer">05:00</div>
+    <div>
+      <div class="score">⭐ <strong id="score">0</strong></div>
+      <div class="combo" id="combo"></div>
+    </div>
+  </div>
+
+  <div class="settings">
+    <label>范围:</label>
+    <select id="rangeSelect" onchange="restart()">
+      <option value="treble">高音谱号 · 宝宝+妈妈+奶奶</option>
+      <option value="both" selected>高音+低音 · 爸爸~奶奶</option>
+      <option value="bass">低音谱号 · 爷爷+爸爸</option>
+    </select>
+  </div>
+
+  <div class="stage" id="stage"></div>
+  <div class="question">这个音是？</div>
+  <div class="octave-hint" id="octaveHint"></div>
+
+  <div class="answers" id="answers"></div>
+  <div class="feedback" id="feedback"></div>
+
+  <div class="over" id="over" style="display:none">
+    <h2>🎉 时间到！</h2>
+    <div class="final" id="finalScore">0</div>
+    <p>答对 <span id="finalCorrect">0</span> 题</p>
+    <p>最高连击 <span id="finalCombo">0</span></p>
+    <button class="btn" onclick="restart()">再来一次</button>
+  </div>
+</div>
+
+<script>
+var VF = Vex.Flow;
+document.getElementById('stage').innerHTML = '<p style="padding:20px;color:#999">🎵 准备好了！</p>';
+
+var FAMILIES = [
+  { label:'爷爷', prefix:'爷爷的', midiBase:36, clef:'bass' },
+  { label:'爸爸', prefix:'爸爸的', midiBase:48, clef:'bass' },
+  { label:'宝宝', prefix:'宝宝的', midiBase:60, clef:'both' },
+  { label:'妈妈', prefix:'妈妈的', midiBase:72, clef:'treble' },
+  { label:'奶奶', prefix:'奶奶的', midiBase:84, clef:'treble' },
+];
+var SOLFEGE = ['do','re','mi','fa','sol','la','si'];
+var NOTE_NAMES = ['C','D','E','F','G','A','B'];
+var NOTE_KEYS = ['c','d','e','f','g','a','b'];
+
+var timerSec = 300, timerInterval = null;
+var score = 0, combo = 0, maxCombo = 0, correctCount = 0;
+var currentNote = null, gameRunning = false, answering = false;
+
+function renderNote(note) {
+  var stage = document.getElementById('stage');
+  stage.innerHTML = '';
+
+  var renderer = new VF.Renderer(stage, VF.Renderer.Backends.SVG);
+  renderer.resize(340, 150);
+  var ctx = renderer.getContext();
+
+  var stave = new VF.Stave(10, 30, 320);
+  stave.addClef(note.clef === 'treble' ? 'treble' : 'bass');
+  stave.setContext(ctx).draw();
+
+  var octave = Math.floor(note.midi / 12) - 1;
+  var key = NOTE_KEYS[note.noteIdx] + '/' + octave;
+  var vfNote = new VF.StaveNote({ clef: note.clef === 'treble' ? 'treble' : 'bass', keys: [key], duration: 'q', auto_stem: true });
+
+  // Create a voice and add the note
+  var voice = new VF.Voice({ num_beats: 1, beat_value: 4 });
+  voice.addTickable(vfNote);
+
+  // Format and draw
+  new VF.Formatter().joinVoices([voice]).format([voice], 200);
+  voice.draw(ctx, stave);
+}
+
+function newQuestion() {
+  if (!gameRunning) return;
+  var range = document.getElementById('rangeSelect').value;
+  var families;
+  if (range === 'treble') families = FAMILIES.filter(function(f) { return f.clef === 'treble' || f.clef === 'both'; });
+  else if (range === 'bass') families = FAMILIES.filter(function(f) { return f.clef === 'bass' || f.clef === 'both'; });
+  else families = FAMILIES;
+
+  var fam = families[Math.floor(Math.random() * families.length)];
+  var ni = Math.floor(Math.random() * 7);
+  var midi = fam.midiBase + ni;
+  var clef = midi <= 60 ? 'bass' : 'treble';
+
+  currentNote = {
+    midi: midi, clef: clef, noteIdx: ni,
+    noteName: NOTE_NAMES[ni],
+    solfege: SOLFEGE[ni],
+    family: fam.label,
+    fullLabel: fam.prefix + SOLFEGE[ni],
+  };
+
+  renderNote(currentNote);
+
+  document.getElementById('octaveHint').innerHTML =
+    '<span style="font-size:1.4rem;font-weight:700">' + currentNote.family + '</span> 八度 · ' +
+    currentNote.noteName + '（' + currentNote.solfege + '）';
+  document.getElementById('feedback').textContent = '';
+  answering = false;
+  var btns = document.querySelectorAll('.ans-btn');
+  for (var i = 0; i < btns.length; i++) { btns[i].classList.remove('correct','wrong'); }
+}
+
+function checkAnswer(noteIdx, btn) {
+  if (!gameRunning || answering || !currentNote) return;
+  answering = true;
+  if (noteIdx === currentNote.noteIdx) {
+    btn.classList.add('correct');
+    score++; combo++; correctCount++;
+    if (combo > maxCombo) maxCombo = combo;
+    document.getElementById('score').textContent = score;
+    document.getElementById('combo').textContent = combo > 1 ? '🔥 '+combo+' 连击！' : '';
+    document.getElementById('feedback').innerHTML =
+      '<span style="color:var(--green)">✅ 对啦！' + currentNote.fullLabel + '</span>';
+  } else {
+    btn.classList.add('wrong');
+    combo = 0;
+    document.getElementById('combo').textContent = '';
+    document.getElementById('feedback').innerHTML =
+      '<span style="color:var(--red)">✗ ' + currentNote.fullLabel + '</span>';
+    var btns = document.querySelectorAll('.ans-btn');
+    for (var i = 0; i < btns.length; i++) {
+      if (parseInt(btns[i].dataset.note) === currentNote.noteIdx) btns[i].classList.add('correct');
+    }
+  }
+  setTimeout(newQuestion, 1000);
+}
+
+function updateTimer() {
+  var m = Math.floor(timerSec/60), s = timerSec%60;
+  document.getElementById('timer').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  if (timerSec <= 0) { endGame(); return; }
+  timerSec--;
+}
+
+function startGame() {
+  score=0; combo=0; maxCombo=0; correctCount=0; timerSec=300;
+  document.getElementById('score').textContent='0';
+  document.getElementById('combo').textContent='';
+  document.getElementById('timer').textContent='05:00';
+  document.getElementById('stage').style.display='block';
+  document.getElementById('answers').style.display='grid';
+  document.getElementById('over').style.display='none';
+  document.getElementById('feedback').textContent='';
+  var html = '';
+  for (var i = 0; i < SOLFEGE.length; i++) {
+    html += '<button class="ans-btn" data-note="'+i+'" onclick="checkAnswer('+i+',this)">'+SOLFEGE[i]+'<br><span style="font-size:.65rem;font-weight:400;color:var(--text3)">'+NOTE_NAMES[i]+'</span></button>';
+  }
+  document.getElementById('answers').innerHTML = html;
+  gameRunning=true;
+  clearInterval(timerInterval);
+  timerInterval=setInterval(updateTimer,1000);
+  setTimeout(newQuestion, 300); // wait for VF CDN to be ready
+}
+
+function endGame() {
+  gameRunning=false; clearInterval(timerInterval);
+  document.getElementById('stage').style.display='none';
+  document.getElementById('answers').style.display='none';
+  document.getElementById('over').style.display='block';
+  document.getElementById('finalScore').textContent=score+' 分';
+  document.getElementById('finalCorrect').textContent=correctCount;
+  document.getElementById('finalCombo').textContent=maxCombo;
+  document.getElementById('feedback').textContent='';
+}
+
+function restart(){ clearInterval(timerInterval); startGame(); }
+startGame(); // wait for CDN script to load
+</script>
+</body>
+</html>
