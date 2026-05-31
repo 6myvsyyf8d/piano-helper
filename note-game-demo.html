@@ -4,174 +4,154 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
 <title>🎵 识谱练习</title>
-<script src="vexflow.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#1A1D35; --text:#E8E8EE; --text2:#9898A8; --border:rgba(255,255,255,.15);
-  --green:#8ED4A6; --red:#E8A0A0; --primary:#F5A098; --radius:16px;
-}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
   background:linear-gradient(170deg,#1A1D35,#1F2545,#1C2845,#1E2340,#1A1D35);
-  background-attachment:fixed; color:var(--text);
+  background-attachment:fixed; color:#E8E8EE;
   min-height:100dvh; display:flex; justify-content:center; align-items:center;
-  -webkit-font-smoothing:antialiased;
 }
 .app{width:100%;max-width:520px;padding:16px;text-align:center}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-.timer{font-size:1.7rem;font-weight:800;color:var(--primary)}
-.score{font-size:.88rem;color:var(--text2)}
-.combo{font-size:.78rem;color:var(--green);margin-top:2px}
-.stage{
-  background:#fff;border-radius:var(--radius);padding:8px;margin-bottom:12px;
-  overflow:hidden;height:160px;position:relative;z-index:1;
-}
+.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.timer{font-size:1.8rem;font-weight:800;color:#F5A098}
+.score{font-size:.88rem;color:#9898A8}
+.combo{font-size:.78rem;color:#8ED4A6}
+.ctls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.ctls button{font-size:.72rem;padding:5px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#E8E8EE;cursor:pointer}
+.ctls button.on{opacity:1;background:rgba(245,160,152,.2);border-color:#F5A098}
+.ctls button.off{opacity:.4}
+.ctls select{padding:5px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#E8E8EE;font-size:.72rem}
+.stage{background:#fff;border-radius:16px;padding:4px;margin-bottom:10px;overflow:hidden;height:155px}
 .stage svg{display:block;margin:0 auto;pointer-events:none}
-.question{font-size:1.05rem;margin:6px 0 2px;font-weight:600}
-.octave-hint{font-size:.78rem;color:var(--text2)}
-.answers{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;position:relative;z-index:2}
-.ans-btn{
-  padding:12px 6px;border-radius:var(--radius);border:1px solid var(--border);
-  background:rgba(255,255,255,.06);color:var(--text);font-size:.88rem;
-  font-weight:700;cursor:pointer;transition:all .15s;min-height:44px;
-}
-.ans-btn:active{transform:scale(.95)}
-.ans-btn.correct{background:rgba(142,212,166,.2);border-color:var(--green);color:var(--green)}
-.ans-btn.wrong{background:rgba(232,160,160,.2);border-color:var(--red);color:var(--red)}
-.feedback{font-size:1rem;min-height:26px}
-.over{text-align:center}
+.q{font-size:1.1rem;font-weight:600;margin:4px 0}
+.hint{font-size:.78rem;color:#9898A8;margin-bottom:4px}
+.answers{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:relative;z-index:2}
+.abtn{padding:14px 6px;border-radius:16px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#E8E8EE;font-size:.9rem;font-weight:700;cursor:pointer;min-height:48px}
+.abtn:active{transform:scale(.95)}
+.abtn.ok{background:rgba(142,212,166,.25);border-color:#8ED4A6;color:#8ED4A6}
+.abtn.no{background:rgba(232,160,160,.25);border-color:#E8A0A0;color:#E8A0A0}
+.fb{font-size:1rem;min-height:26px;margin-top:6px}
+.over{display:none;text-align:center}
 .over h2{font-size:1.3rem;margin-bottom:6px}
-.over .final{font-size:1.8rem;color:var(--primary);font-weight:800}
-.over p{color:var(--text2);margin:3px 0}
-.btn{padding:12px 28px;border:none;border-radius:50px;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:10px;background:var(--primary);color:#fff}
-.btn:active{transform:scale(.96)}
-.settings{margin-bottom:10px}
-.settings select{
-  padding:6px 10px;border-radius:10px;border:1px solid var(--border);
-  background:rgba(255,255,255,.06);color:var(--text);font-size:.75rem;
-}
-.settings label{font-size:.73rem;color:var(--text2);margin-right:6px}
+.over .fs{font-size:2rem;color:#F5A098;font-weight:800}
+.over p{color:#9898A8;margin:3px 0}
+.btn{padding:14px 32px;border:none;border-radius:50px;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:10px;background:#F5A098;color:#fff}
+.st{font-size:.68rem;color:#9898A8;margin-top:3px}
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="header">
-    <div class="timer" id="timer">05:00</div>
-    <div>
-      <div class="score">⭐ <strong id="score">0</strong></div>
-      <div class="combo" id="combo"></div>
-    </div>
-  </div>
-
-  <div class="settings">
-    <button id="modePractice" onclick="switchMode('practice')" style="font-size:.72rem;padding:4px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;opacity:.4">📝 练习</button>
-    <button id="modeChallenge" onclick="switchMode('challenge')" style="font-size:.72rem;padding:4px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer">⚡ 挑战</button>
-    <select id="levelSelect" onchange="switchLevel()" style="margin-left:6px"></select>
-    <div style="font-size:.68rem;color:var(--text2);margin-top:4px" id="todayStats"></div>
-  </div>
-
-  <div class="stage" id="stage"></div>
-  <div class="question">这个音是？</div>
-  <div class="octave-hint" id="octaveHint"></div>
-
-  <div class="answers" id="answers"></div>
-  <div class="feedback" id="feedback"></div>
-
-  <div class="over" id="over" style="display:none">
-    <h2>🎉 时间到！</h2>
-    <div class="final" id="finalScore">0</div>
-    <p>答对 <span id="finalCorrect">0</span> 题</p>
-    <p>最高连击 <span id="finalCombo">0</span></p>
-    <p style="font-size:.8rem"><span id="todayStatsEnd"></span></p>
-    <button class="btn" onclick="restart()">再来一次</button>
-  </div>
+<div class="row">
+  <div class="timer" id="t">05:00</div>
+  <div><div class="score">⭐ <b id="s">0</b></div><div class="combo" id="c"></div></div>
 </div>
-
+<div class="ctls">
+  <button id="bp" onclick="m('p')" class="off">📝 练习</button>
+  <button id="bc" onclick="m('c')" class="on">⚡ 挑战</button>
+  <select id="lv" onchange="cl()"></select>
+  <div class="st" id="td"></div>
+</div>
+<div class="stage" id="stg"></div>
+<div class="q">这是哪个音？</div>
+<div class="hint" id="h"></div>
+<div class="answers" id="as"></div>
+<div class="fb" id="fb"></div>
+<div class="over" id="ov">
+  <h2>🎉 时间到！</h2>
+  <div class="fs" id="fs">0</div>
+  <p>答对 <span id="fo">0</span> 题</p>
+  <p>最高连击 <span id="fc">0</span></p>
+  <p class="st"><span id="ft"></span></p>
+  <button class="btn" onclick="rs()">再来一次</button>
+</div>
+</div>
+<script src="vexflow.js"></script>
 <script>
-var VF = Vex.Flow;
-document.getElementById('stage').innerHTML = '<p style="padding:20px;color:#999">🎵 准备好了！</p>';
+(function(){
+'use strict';
+var E={t:ge('t'),s:ge('s'),c:ge('c'),stg:ge('stg'),h:ge('h'),as:ge('as'),fb:ge('fb'),ov:ge('ov'),fs:ge('fs'),fo:ge('fo'),fc:ge('fc'),ft:ge('ft'),lv:ge('lv'),td:ge('td'),bp:ge('bp'),bc:ge('bc')};
+function ge(id){return document.getElementById(id);}
 
-var FAMILIES = [
-  { label:'爷爷', prefix:'爷爷的', midiBase:36, clef:'bass' },
-  { label:'爸爸', prefix:'爸爸的', midiBase:48, clef:'bass' },
-  { label:'宝宝', prefix:'宝宝的', midiBase:60, clef:'both' },
-  { label:'妈妈', prefix:'妈妈的', midiBase:72, clef:'treble' },
-  { label:'奶奶', prefix:'奶奶的', midiBase:84, clef:'treble' },
+var FAM=[{l:'爷爷',m:36,cl:'bass'},{l:'爸爸',m:48,cl:'bass'},{l:'宝宝',m:60,cl:'both'},{l:'妈妈',m:72,cl:'treble'},{l:'奶奶',m:84,cl:'treble'}];
+var SOL=['do','re','mi','fa','sol','la','si'];
+var NL=['C','D','E','F','G','A','B'];
+var NK=['c','d','e','f','g','a','b'];
+var LV=[
+  {n:'入门',d:'宝宝 5音',fs:[FAM[2]],ns:[0,1,2,3,4],cl:'treble'},
+  {n:'初级',d:'宝宝 7音',fs:[FAM[2]],ns:[0,1,2,3,4,5,6],cl:'treble'},
+  {n:'中级',d:'宝宝+妈妈',fs:[FAM[2],FAM[3]],ns:[0,1,2,3,4,5,6],cl:'treble'},
+  {n:'进阶',d:'爸爸+宝宝',fs:[FAM[1],FAM[2]],ns:[0,1,2,3,4,5,6],cl:'both'},
+  {n:'挑战',d:'爸爸~奶奶',fs:[FAM[1],FAM[2],FAM[3],FAM[4]],ns:[0,1,2,3,4,5,6],cl:'both'},
 ];
-var SOLFEGE = ['do','re','mi','fa','sol','la','si'];
-var NOTE_NAMES = ['C','D','E','F','G','A','B'];
-var NOTE_KEYS = ['c','d','e','f','g','a','b'];
+var VF=Vex.Flow, mode='c', li=0, ts=300, tid=null, sc=0,cb=0,mc=0,ok=0,cur=null,run=false,bsy=false,ac=null;
 
-// ===== SOUND ENGINE =====
-var audioCtx = null;
-function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-function playNote(midi, duration) {
-  if (!audioCtx) return;
-  var osc = audioCtx.createOscillator();
-  var gain = audioCtx.createGain();
-  osc.type = 'sine';
-  osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
-  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-  osc.connect(gain); gain.connect(audioCtx.destination);
-  osc.start(); osc.stop(audioCtx.currentTime + duration);
-}
-function playCorrect() { playNote(currentNote ? currentNote.midi : 60, 0.4); }
-function playWrong() {
-  if (!audioCtx) return;
-  var osc = audioCtx.createOscillator(); var gain = audioCtx.createGain();
-  osc.type = 'square'; osc.frequency.value = 200;
-  gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-  osc.connect(gain); gain.connect(audioCtx.destination);
-  osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+function au(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();}
+function bp(midi,dur,tp,vol){
+  if(!ac)return;var o=ac.createOscillator(),g=ac.createGain();
+  o.type=tp||'sine';o.frequency.value=440*Math.pow(2,(midi-69)/12);
+  g.gain.setValueAtTime(vol||0.25,ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+  o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+dur);
 }
 
-// ===== DIFFICULTY LEVELS =====
-var LEVELS = [
-  { name:'入门', desc:'宝宝 octave · 5个音', families:[{label:'宝宝',midiBase:60}], notes:[0,1,2,3,4], clef:'treble' },
-  { name:'初级', desc:'宝宝 完整八度 · 7个音', families:[{label:'宝宝',midiBase:60}], notes:[0,1,2,3,4,5,6], clef:'treble' },
-  { name:'中级', desc:'宝宝+妈妈 · 高音谱号', families:[{label:'宝宝',midiBase:60},{label:'妈妈',midiBase:72}], notes:[0,1,2,3,4,5,6], clef:'treble' },
-  { name:'进阶', desc:'爸爸+宝宝 · 高音+低音', families:[{label:'爸爸',midiBase:48},{label:'宝宝',midiBase:60}], notes:[0,1,2,3,4,5,6], clef:'both' },
-  { name:'挑战', desc:'爸爸~奶奶 · 全部音域', families:FAMILIES.slice(1), notes:[0,1,2,3,4,5,6], clef:'both' },
-];
-var currentLevel = 0;
-
-// ===== GAME STATE =====
-var GAME_MODE = 'challenge'; // 'practice' | 'challenge'
-var timerSec = 300, timerInterval = null;
-var score = 0, combo = 0, maxCombo = 0, correctCount = 0, wrongCount = 0;
-var currentNote = null, gameRunning = false, answering = false;
-
-function renderNote(note) {
-  var stage = document.getElementById('stage');
-  stage.innerHTML = '';
-
-  var renderer = new VF.Renderer(stage, VF.Renderer.Backends.SVG);
-  renderer.resize(340, 150);
-  var ctx = renderer.getContext();
-
-  var stave = new VF.Stave(10, 30, 320);
-  stave.addClef(note.clef === 'treble' ? 'treble' : 'bass');
-  stave.setContext(ctx).draw();
-
-  var octave = Math.floor(note.midi / 12) - 1;
-  var key = NOTE_KEYS[note.noteIdx] + '/' + octave;
-  var vfNote = new VF.StaveNote({ clef: note.clef === 'treble' ? 'treble' : 'bass', keys: [key], duration: 'q', auto_stem: true });
-
-  // Create a voice and add the note
-  var voice = new VF.Voice({ num_beats: 1, beat_value: 4 });
-  voice.addTickable(vfNote);
-
-  // Format and draw
-  new VF.Formatter().joinVoices([voice]).format([voice], 200);
-  voice.draw(ctx, stave);
+function dr(n){
+  E.stg.innerHTML='';var r=new VF.Renderer(E.stg,VF.Renderer.Backends.SVG);r.resize(340,150);
+  var ctx=r.getContext();var sv=new VF.Stave(10,30,320);
+  sv.addClef(n.cl==='treble'?'treble':'bass');sv.setContext(ctx).draw();
+  var oct=Math.floor(n.midi/12)-1;var key=NK[n.ni]+'/'+oct;
+  var vfn=new VF.StaveNote({clef:n.cl==='treble'?'treble':'bass',keys:[key],duration:'q',auto_stem:true});
+  var vc=new VF.Voice({num_beats:1,beat_value:4});vc.addTickable(vfn);
+  new VF.Formatter().joinVoices([vc]).format([vc],200);vc.draw(ctx,sv);
 }
 
-function newQuestion() {
-  if (!gameRunning) return;
-  var level = LEVELS[currentLevel];
-  var fam = level.families[Math.floor(Math.random() * level.families.length)];
-  var ni = level.notes[Math.floor(Math.random() * level.notes.length)];
-  var midi = fam.midiBase + ni;
+function q(){
+  if(!run)return;var lv=LV[li];var fam=lv.fs[Math.floor(Math.random()*lv.fs.length)];
+  var ni=lv.ns[Math.floor(Math.random()*lv.ns.length)];var midi=fam.m+ni;
+  var cl=lv.cl==='both'?(midi<=60?'bass':'treble'):lv.cl;
+  cur={midi:midi,cl:cl,ni:ni,nn:NL[ni],sol:SOL[ni],fam:fam.l};
+  dr(cur);E.h.textContent='点击唱名按钮作答';E.fb.textContent='';bsy=false;
+  var bt=document.querySelectorAll('.abtn');for(var i=0;i<bt.length;i++)bt[i].classList.remove('ok','no');
+}
+
+window.a=function(idx,btn){
+  if(!run||bsy||!cur)return;au();bsy=true;
+  if(idx===cur.ni){
+    btn.classList.add('ok');sc++;cb++;ok++;if(cb>mc)mc=cb;
+    E.s.textContent=sc;E.c.textContent=cb>1?'🔥 '+cb+' 连击！':'';
+    E.fb.innerHTML='<span style="color:#8ED4A6">✅ 对啦！'+cur.fam+'八度 '+cur.nn+'（'+cur.sol+'）</span>';
+    bp(cur.midi,0.4,'sine',0.25);sv();
+  }else{
+    btn.classList.add('no');cb=0;E.c.textContent='';
+    E.fb.innerHTML='<span style="color:#E8A0A0">✗ 应该是 '+cur.fam+'八度 '+cur.nn+'（'+cur.sol+'）</span>';
+    bp(200,0.2,'square',0.12);
+    var bt=document.querySelectorAll('.abtn');for(var i=0;i<bt.length;i++){if(parseInt(bt[i].dataset.n)===cur.ni)bt[i].classList.add('ok');}
+  }
+  setTimeout(q,mode==='c'?800:1300);
+};
+
+function tk(){if(mode==='p'){E.t.textContent='∞';return;}var m=Math.floor(ts/60),s=ts%60;E.t.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;if(ts<=0){en();return;}ts--;}
+
+function st(){
+  sc=0;cb=0;mc=0;ok=0;ts=300;
+  E.s.textContent='0';E.c.textContent='';E.t.textContent=mode==='p'?'∞':'05:00';
+  E.ov.style.display='none';E.as.style.display='grid';E.stg.style.display='block';
+  E.fb.textContent='';var h='';for(var i=0;i<SOL.length;i++){h+='<button class="abtn" data-n="'+i+'" onclick="a('+i+',this)">'+SOL[i]+'<br><span style="font-size:.6rem;color:#9898A8">'+NL[i]+'</span></button>';}
+  E.as.innerHTML=h;var lh='';for(var li2=0;li2<LV.length;li2++){lh+='<option value="'+li2+'"'+(li2===li?' selected':'')+'>'+LV[li2].n+' · '+LV[li2].d+'</option>';}
+  E.lv.innerHTML=lh;E.td.textContent=ft();run=true;clearInterval(tid);tid=setInterval(tk,1000);q();
+}
+
+function en(){run=false;clearInterval(tid);E.stg.style.display='none';E.as.style.display='none';E.ov.style.display='block';E.fs.textContent=sc+' 分';E.fo.textContent=ok;E.fc.textContent=mc;E.ft.textContent='今日累计 '+ft();}
+
+window.rs=function(){clearInterval(tid);st();};
+window.m=function(v){mode=v;E.bp.className=v==='p'?'on':'off';E.bc.className=v==='c'?'on':'off';rs();};
+window.cl=function(){li=parseInt(E.lv.value);rs();};
+
+function sv(){var d=new Date().toISOString().slice(0,10);var s=JSON.parse(localStorage.getItem('ns')||'{}');if(!s[d])s[d]={o:0,c:0};s[d].o++;if(cb>s[d].c)s[d].c=cb;localStorage.setItem('ns',JSON.stringify(s));}
+function ft(){var d=new Date().toISOString().slice(0,10);var s=JSON.parse(localStorage.getItem('ns')||'{}');var t=s[d]||{o:0,c:0};return '今日 ✅'+t.o+' 🔥'+t.c;}
+
+E.stg.innerHTML='<p style="padding:40px;color:#ccc;font-size:1.2rem">🎵</p>';st();
+})();
+</script>
+</body>
+</html>
