@@ -1,0 +1,2 @@
+- [钢琴陪练助手 — 开发文档](piano-helper-dev-doc.md) — 单文件 Web 应用，架构、数据结构、UI 布局、待改进项全记录
+- [铃木钢琴曲目](suzuki-piano-repertoire.md) — 第一册19首 + 第二册13首，含英文原名和作曲家

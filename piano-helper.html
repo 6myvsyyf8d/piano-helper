@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎹 哆哩的钢琴助手</title>
+<style>
+/* ===== Reset & Base ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1A1D35;
+  --card:rgba(255,255,255,.08);
+  --card2:rgba(255,255,255,.05);
+  --primary:#F5A098;
+  --primary-soft:rgba(245,160,152,.15);
+  --green:#8ED4A6;
+  --green-soft:rgba(142,212,166,.15);
+  --mint:#9BD9CE;
+  --mint-soft:rgba(155,217,206,.12);
+  --lavender:#BAB8E0;
+  --lavender-soft:rgba(186,184,224,.1);
+  --yellow:#F5D89A;
+  --yellow-soft:rgba(245,216,154,.12);
+  --red:#E8A0A0;
+  --text:#E8E8EE;
+  --text2:#A0A0B0;
+  --text3:#787888;
+  --border:rgba(255,255,255,.12);
+  --radius:22px;
+  --radius-sm:14px;
+  --shadow:0 1px 2px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.3);
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:linear-gradient(170deg, #1A1D35 0%, #1F2545 25%, #1C2845 50%, #1E2340 75%, #1A1D35 100%);
+  background-attachment:fixed;
+  color:var(--text); line-height:1.5;
+  min-height:100dvh; display:flex; justify-content:center;
+  -webkit-font-smoothing:antialiased;
+  position:relative;overflow-x:hidden;
+}
+/* Starfield */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,.8), transparent),
+    radial-gradient(1px 1px at 20% 45%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 35% 20%, rgba(255,255,255,.9), transparent),
+    radial-gradient(1px 1px at 50% 60%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1.5px 1.5px at 65% 30%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1px 1px at 75% 70%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 85% 15%, rgba(255,255,255,.8), transparent),
+    radial-gradient(1px 1px at 15% 80%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 30% 55%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 55% 85%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1px 1px at 70% 40%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1px 1px at 90% 55%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 5% 35%, rgba(255,255,255,.8), transparent),
+    radial-gradient(1px 1px at 40% 10%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 80% 90%, rgba(255,255,255,.6), transparent),
+    radial-gradient(2px 2px at 25% 75%, rgba(180,200,255,.7), transparent),
+    radial-gradient(2px 2px at 60% 12%, rgba(200,180,255,.6), transparent),
+    radial-gradient(2px 2px at 45% 50%, rgba(180,220,255,.5), transparent);
+}
+/* Blue nebula glow */
+body::after{
+  content:'';position:fixed;pointer-events:none;z-index:0;
+  width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle, rgba(80,120,220,.15), transparent 70%);
+  top:20%;left:-10%;filter:blur(40px);
+}
+.app{width:100%;max-width:100%;min-height:100dvh;display:flex;flex-direction:column;position:relative;z-index:1}
+@media (min-width:600px){
+  .app{padding:0 max(16px, 3vw)}
+}
+@media (min-width:900px){
+  .app{max-width:1200px;padding:0 32px;margin:0 auto}
+}
+
+/* ===== Header ===== */
+.header{
+  background:rgba(10,14,39,.6); color:var(--text);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  padding:14px 16px 12px;text-align:center;position:relative;
+  border-bottom:1px solid var(--border);
+}
+.logo-area{
+  width:56px;height:56px;border-radius:50%;margin:0 auto 8px;
+  background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.2);
+  cursor:pointer;overflow:hidden;display:flex;align-items:center;
+  justify-content:center;transition:all .2s;position:relative;
+}
+.logo-area:active{transform:scale(.92);background:rgba(255,255,255,.2)}
+.logo-area img{width:100%;height:100%;object-fit:contain}
+.logo-area #logoPlaceholder{font-size:1.6rem;opacity:.7}
+.header h1{font-size:1.1rem;font-weight:700;letter-spacing:.02em;color:#fff}
+.streak-badge{
+  position:absolute;top:12px;right:12px;
+  background:var(--primary-soft);color:var(--primary);
+  border-radius:20px;padding:4px 12px;font-size:.78rem;font-weight:600;
+  display:flex;align-items:center;gap:4px;
+}
+.sync-btn{
+  position:absolute;top:10px;right:80px;
+  width:34px;height:34px;border-radius:50%;border:none;
+  background:var(--bg);color:var(--text2);font-size:.9rem;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.sync-btn:active{transform:scale(.9);background:var(--border)}
+.sync-btn.synced{background:var(--green-soft);color:var(--green)}
+
+/* ===== Tabs — bottom on mobile ===== */
+.tab-bar{
+  display:flex;padding:8px 16px;gap:8px;
+  background:rgba(10,14,39,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  order:10;
+  position:sticky;bottom:0;z-index:10;
+  padding-bottom:max(8px, env(safe-area-inset-bottom));
+}
+.tab-btn{
+  flex:1;padding:12px 8px;border:none;border-radius:14px;
+  font-size:clamp(.8rem, 1.8vw, .9rem);font-weight:600;
+  cursor:pointer;transition:all .2s;
+  background:transparent;color:var(--text2);text-align:center;
+  min-height:44px;display:flex;align-items:center;justify-content:center;gap:4px;
+}
+.tab-btn.active{background:var(--primary-soft);color:var(--primary)}
+.tab-btn:active{transform:scale(.97)}
+
+/* ===== Main Content ===== */
+.main{
+  flex:1;overflow-y:auto;padding:12px 12px 16px;
+  -webkit-overflow-scrolling:touch;order:5;
+}
+.page{display:none}
+.page.active{display:block}
+
+/* ===== Cards ===== */
+.card{
+  background:var(--card);border-radius:var(--radius);padding:14px 16px;
+  box-shadow:var(--shadow);margin-bottom:10px;
+  border:1px solid var(--border);
+}
+.card h3{font-size:.95rem;margin-bottom:10px;display:flex;align-items:center;gap:6px;font-weight:700}
+
+/* ===== Practice Status & Big Button ===== */
+.practice-status{text-align:center;padding:24px 20px}
+.practice-status .big-icon{font-size:3.5rem;margin-bottom:8px}
+.practice-status .status-text{font-size:1rem;font-weight:600;color:var(--text2)}
+
+.btn-big{
+  display:block;width:100%;max-width:320px;margin:20px auto 0;
+  padding:16px 32px;font-size:1.1rem;font-weight:700;
+  border:none;border-radius:50px;cursor:pointer;transition:all .2s;
+  background:var(--primary);color:#fff;
+  box-shadow:0 4px 16px rgba(255,140,90,.3);
+}
+.btn-big:active{transform:scale(.97);box-shadow:0 2px 8px rgba(255,140,90,.2)}
+
+/* ===== Timer ===== */
+.timer-display{
+  font-size:2.5rem;font-weight:700;text-align:center;
+  font-variant-numeric:tabular-nums;color:var(--primary);margin:8px 0;
+}
+.timer-controls{display:flex;gap:10px;justify-content:center;margin-top:8px}
+.btn-timer{
+  padding:10px 22px;border:none;border-radius:50px;font-size:.88rem;font-weight:600;
+  cursor:pointer;transition:all .2s;
+}
+.btn-timer.start{background:var(--green);color:#fff}
+.btn-timer.pause{background:var(--primary-soft);color:var(--primary)}
+.btn-timer.reset{background:var(--bg);color:var(--text2);border:1px solid var(--border)}
+.btn-timer:active{transform:scale(.95)}
+
+/* ===== Mood Picker ===== */
+.mood-picker{display:flex;gap:10px;margin-top:8px;justify-content:center}
+.mood-btn{font-size:2.2rem;cursor:pointer;background:none;border:2px solid transparent;border-radius:14px;padding:6px 10px;transition:all .2s}
+.mood-btn.selected{border-color:var(--primary);background:var(--primary-soft);transform:scale(1.08)}
+.mood-btn:active{transform:scale(.9)}
+
+/* ===== Sticker Picker ===== */
+.sticker-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;justify-content:center}
+.sticker-option{font-size:2.2rem;cursor:pointer;background:none;border:2px solid transparent;border-radius:14px;padding:6px 10px;transition:all .2s}
+.sticker-option.selected{border-color:var(--primary);background:var(--primary-soft);transform:scale(1.12)}
+.sticker-option:active{transform:scale(.9)}
+
+/* ===== Buttons ===== */
+.btn{
+  padding:10px 20px;border:none;border-radius:50px;font-size:.88rem;font-weight:600;
+  cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;
+}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-secondary{background:var(--bg);color:var(--text2);border:1px solid var(--border)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-sm{padding:6px 14px;font-size:.78rem}
+.btn:active{transform:scale(.97)}
+
+/* ===== Forms ===== */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.82rem;font-weight:600;margin-bottom:4px;color:var(--text2)}
+.form-input{
+  width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  font-size:.92rem;font-family:inherit;background:rgba(255,255,255,.06);color:var(--text);
+  transition:border-color .2s;
+}
+.form-input:focus{outline:none;border-color:var(--primary);background:rgba(255,255,255,.1)}
+textarea.form-input{resize:vertical;min-height:60px}
+
+.tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{
+  padding:6px 14px;border-radius:20px;font-size:.78rem;font-weight:600;
+  background:rgba(255,255,255,.06);color:var(--text2);cursor:pointer;transition:all .2s;
+  border:1.5px solid var(--border);
+}
+.tag.selected{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+
+.dynamic-list{margin-top:8px}
+.dynamic-item{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.dynamic-item input{flex:1}
+.btn-icon{
+  width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;transition:all .2s;
+}
+.btn-icon.del{background:#FFEBEE;color:var(--red)}
+.btn-icon.add{background:var(--green-soft);color:var(--green)}
+
+/* ===== Lesson List ===== */
+.lesson-card{
+  background:rgba(255,255,255,.1);border-radius:var(--radius);padding:18px;
+  box-shadow:var(--shadow);margin-bottom:12px;border:1px solid var(--border);
+  border-left:4px solid var(--primary);cursor:pointer;transition:all .2s;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.lesson-card:active{transform:scale(.98)}
+.lesson-card .lesson-date{font-size:.78rem;color:var(--text3)}
+.lesson-card .lesson-pieces{font-size:.84rem;margin-top:6px;color:var(--text);font-weight:500}
+.lesson-card .lesson-focus{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.lesson-card .lesson-notes{font-size:.8rem;color:var(--text2);margin-top:6px;line-height:1.45}
+
+/* ===== Calendar ===== */
+.calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.calendar-nav .month-label{font-size:1.05rem;font-weight:700}
+.calendar-nav button{background:none;border:none;font-size:1.2rem;cursor:pointer;padding:6px 14px;color:var(--text2)}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:3px}
+.calendar-grid .day-header{font-size:.72rem;font-weight:600;color:var(--text3);padding:8px 0}
+.calendar-grid .day-cell{
+  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;border-radius:var(--radius-sm);cursor:pointer;
+  font-size:.84rem;transition:all .15s;position:relative;font-weight:500;
+  border:1px solid var(--border);
+}
+.calendar-grid .day-cell.today{background:var(--primary-soft);font-weight:700;color:var(--primary);border-color:var(--primary)}
+.calendar-grid .day-cell.other-month{color:var(--text3)}
+.calendar-grid .day-cell:active{transform:scale(.92)}
+.day-dot{width:5px;height:5px;border-radius:50%;margin-top:2px;background:var(--green)}
+.day-dot.missed{background:var(--border)}
+
+.calendar-stats{display:flex;gap:12px;margin-top:16px}
+.stat-item{
+  flex:1;background:rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:14px 8px;
+  box-shadow:var(--shadow);border:1px solid var(--border);text-align:center;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.stat-item .stat-num{font-size:1.5rem;font-weight:800;color:var(--primary)}
+.stat-item .stat-label{font-size:.72rem;color:var(--text2);margin-top:2px}
+
+/* ===== Modal ===== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  animation:fadeIn .2s;
+  padding:8px;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{
+  background:rgba(20,25,52,.98);border-radius:var(--radius);padding:24px 20px 32px;
+  width:100%;max-width:100%;height:96dvh;overflow-y:auto;
+  animation:scaleIn .25s;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--border);
+}
+@keyframes scaleIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.modal-header h2{font-size:1.25rem;font-weight:700}
+.modal .form-input{font-size:.95rem;padding:14px 16px}
+.modal .btn-big{padding:18px;font-size:1.15rem}
+
+/* ===== Day Detail ===== */
+.day-detail-section{margin-bottom:14px}
+.day-detail-section h4{font-size:.82rem;color:var(--text2);margin-bottom:4px}
+
+/* ===== Animations ===== */
+@keyframes popIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.pop-in{animation:popIn .4s ease-out}
+
+/* ===== Empty State ===== */
+.empty-state{text-align:center;padding:48px 20px;color:var(--text2)}
+.empty-state .empty-icon{font-size:3rem;margin-bottom:10px}
+.empty-state p{font-size:.88rem;line-height:1.5}
+
+#pieceList{display:flex;flex-direction:column;gap:0}
+
+/* ===== Compact Piece Cards ===== */
+.piece-card{
+  background:var(--card);border-radius:var(--radius);
+  padding:14px 16px;
+  box-shadow:var(--shadow);border:1px solid var(--border);
+  transition:all .25s;position:relative;cursor:pointer;
+  display:flex;flex-direction:column;
+  user-select:none;-webkit-tap-highlight-color:transparent;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+/* Macaron alternating card tints on dark */
+.piece-card:nth-child(7n+1){background:rgba(255,255,255,.12)}
+.piece-card:nth-child(7n+2){background:rgba(180,220,210,.16)}
+.piece-card:nth-child(7n+3){background:rgba(255,255,255,.10)}
+.piece-card:nth-child(7n+4){background:rgba(190,185,225,.16)}
+.piece-card:nth-child(7n+5){background:rgba(255,255,255,.11)}
+.piece-card:nth-child(7n+6){background:rgba(245,215,155,.16)}
+.piece-card:nth-child(7n+7){background:rgba(180,220,210,.14)}
+.piece-card:active{transform:scale(.98)}
+.piece-card.done{
+  background:var(--green-soft)!important;border-color:rgba(142,212,166,.3);
+}
+.piece-card .card-top{
+  display:flex;align-items:flex-start;gap:12px;
+}
+.piece-card .piece-number{
+  display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  width:30px;height:30px;border-radius:8px;
+  background:var(--primary-soft);color:var(--primary);
+  font-weight:700;font-size:.85rem;
+}
+.piece-card .card-main{flex:1;min-width:0}
+.piece-card .piece-title{
+  font-size:1.05rem;font-weight:700;color:var(--text);line-height:1.3;
+}
+.piece-card .expand-hint{
+  font-size:.72rem;color:var(--text3);margin-top:2px;
+  display:flex;align-items:center;gap:4px;
+}
+.piece-card .expand-hint::after{
+  content:'›';display:inline-block;transition:transform .25s;
+  font-size:1rem;font-weight:700;
+}
+.piece-card.expanded .expand-hint::after{
+  transform:rotate(90deg);
+}
+/* Teacher notes — collapsed by default */
+.teacher-bubble{
+  background:rgba(255,255,255,.04);border-radius:12px;
+  padding:12px 14px;margin-top:12px;
+  font-size:.85rem;line-height:1.5;
+  color:var(--text2);border:1px solid var(--border);
+  max-height:0;overflow:hidden;padding-top:0;padding-bottom:0;
+  margin-top:0;border-width:0;
+  opacity:0;transition:all .3s ease;
+}
+.piece-card.expanded .teacher-bubble{
+  max-height:600px;overflow-y:auto;
+  padding:12px 14px;margin-top:12px;
+  border-width:1px;opacity:1;
+}
+.teacher-bubble .bubble-label{
+  font-size:.7rem;font-weight:700;color:var(--primary);
+  margin-bottom:4px;letter-spacing:.04em;
+}
+/* Stars */
+.star-big-row{
+  display:flex;gap:4px;margin:10px 0 0;justify-content:flex-start;
+}
+.star-big{
+  font-size:1.8rem;cursor:pointer;transition:all .15s;
+  background:none;border:none;padding:2px;line-height:1;
+  -webkit-tap-highlight-color:transparent;
+  filter:grayscale(1) opacity(.3);
+  min-width:36px;min-height:36px;
+}
+.star-big.active{filter:none;transform:scale(1.1)}
+.star-big:active{transform:scale(1.2)}
+/* Done button */
+.done-btn{
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  width:100%;padding:10px;border:none;border-radius:10px;
+  font-size:.88rem;font-weight:600;cursor:pointer;transition:all .2s;
+  background:rgba(255,255,255,.08);color:var(--text2);margin-top:10px;
+  min-height:40px;
+}
+.done-btn.checked{background:var(--green-soft);color:var(--green)}
+.done-btn:active{transform:scale(.97)}
+
+/* ===== Parent Panel ===== */
+.parent-panel{margin-top:18px}
+.parent-toggle{
+  display:block;width:100%;padding:12px;border:1.5px dashed var(--border);
+  border-radius:var(--radius-sm);font-size:.82rem;color:var(--text3);
+  cursor:pointer;background:transparent;text-align:center;transition:all .2s;
+}
+.parent-toggle:active{background:rgba(255,255,255,.05)}
+.parent-content{display:none;padding:18px;background:rgba(255,255,255,.04);border-radius:var(--radius);margin-top:10px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.parent-content.open{display:block}
+.parent-content .parent-section{margin-bottom:14px}
+.parent-content .parent-section h4{font-size:.8rem;color:var(--text2);margin-bottom:6px;font-weight:600}
+.parent-piece-row{
+  display:flex;align-items:center;gap:10px;padding:6px 0;
+  font-size:.84rem;font-weight:500;
+}
+.parent-piece-row span{min-width:80px}
+.parent-piece-row input{width:70px}
+
+/* ===== Celebration ===== */
+.celebration{
+  text-align:center;padding:clamp(20px, 4vh, 32px) 20px;animation:popIn .5s ease-out;
+}
+.celebration .celeb-icon{font-size:clamp(3.5rem, 8vw, 5rem);animation:bounce .6s ease-in-out}
+@keyframes bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-18px)}50%{transform:translateY(0)}70%{transform:translateY(-8px)}}
+.celebration h2{font-size:clamp(1.2rem, 2.5vw, 1.5rem);color:var(--green);margin:12px 0 4px;font-weight:700}
+.celebration .celeb-stats{font-size:clamp(.85rem, 1.6vw, .95rem);color:var(--text2);margin-bottom:10px}
+.done-piece-row{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:var(--bg);border-radius:var(--radius-sm);margin-bottom:6px;
+  font-size:clamp(.85rem, 1.6vw, .95rem);
+}
+.done-piece-row .dp-stars{font-size:1.1em;margin-left:auto}
+
+/* ===== Repertoire ===== */
+.rep-book-section{margin-bottom:16px}
+.rep-book-header{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;
+  border-radius:var(--radius);border:1px solid var(--border);
+  background:rgba(255,255,255,.06);cursor:pointer;transition:all .2s;
+  user-select:none;-webkit-tap-highlight-color:transparent;
+}
+.rep-book-header:active{background:rgba(255,255,255,.1)}
+.rep-book-header .book-title{flex:1;font-size:.9rem;font-weight:700}
+.rep-book-header .book-progress{
+  font-size:.78rem;font-weight:600;color:var(--primary);
+  display:flex;align-items:center;gap:6px;
+}
+.rep-book-header .book-arrow{
+  font-size:1rem;color:var(--text3);transition:transform .25s;
+}
+.rep-book-header.open .book-arrow{transform:rotate(90deg)}
+.rep-progress-bar{
+  width:80px;height:4px;border-radius:2px;background:var(--border);overflow:hidden;
+}
+.rep-progress-bar .fill{height:100%;border-radius:2px;background:var(--green);transition:width .3s}
+.rep-list{display:none;flex-direction:column;gap:6px;margin-top:8px}
+.rep-list.open{display:flex}
+/* Piece card */
+.rep-card{
+  border-radius:var(--radius-sm);border:1px solid var(--border);
+  background:rgba(255,255,255,.05);overflow:hidden;transition:all .2s;
+}
+.rep-card-top{
+  display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;
+}
+.rep-card-top:active{background:rgba(255,255,255,.05)}
+.rep-card .rep-num{font-size:.75rem;color:var(--text3);min-width:24px;font-weight:600}
+.rep-card .rep-name{font-weight:600;font-size:.85rem;flex:1}
+.rep-card .rep-en{font-size:.7rem;color:var(--text3);margin-top:1px}
+.rep-card .rep-badges{display:flex;gap:4px;align-items:center}
+.rep-badge{
+  font-size:.68rem;padding:2px 8px;border-radius:12px;font-weight:600;white-space:nowrap;
+}
+.rep-badge.learned{background:var(--green-soft);color:var(--green)}
+.rep-badge.learning{background:var(--yellow-soft);color:var(--yellow)}
+.rep-badge.untouched{color:var(--text3);border:1px solid var(--border)}
+.rep-badge.memorized{background:rgba(155,185,220,.15);color:#9BB9DC}
+/* Expanded details */
+.rep-card-detail{
+  display:none;padding:0 14px 12px 46px;font-size:.72rem;color:var(--text2);
+  flex-wrap:wrap;gap:6px 16px;align-items:center;
+}
+.rep-card.expanded .rep-card-detail{display:flex}
+.rep-card-detail span{white-space:nowrap}
+.rep-card-detail .rep-act{
+  font-size:.68rem;padding:3px 10px;border-radius:12px;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--text2);
+  transition:all .15s;white-space:nowrap;
+}
+.rep-card-detail .rep-act:active{background:rgba(255,255,255,.08)}
+.rep-card-detail .rep-act.active{background:var(--green-soft);color:var(--green);border-color:rgba(142,212,166,.3)}
+
+/* ===== Practice Sections — like repertoire collapsible ===== */
+.prac-cat-header{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;
+  border-radius:var(--radius);border:1px solid var(--border);
+  background:rgba(255,255,255,.06);cursor:pointer;transition:all .2s;
+  user-select:none;-webkit-tap-highlight-color:transparent;
+  margin-bottom:8px;
+}
+.prac-cat-header:active{background:rgba(255,255,255,.1)}
+.prac-cat-header .cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.prac-cat-header .cat-dot.suzuki{background:var(--primary)}
+.prac-cat-header .cat-dot.beyer{background:var(--blue)}
+.prac-cat-header .cat-dot.pieces{background:var(--yellow)}
+.prac-cat-header .cat-dot.review{background:var(--mint)}
+.prac-cat-header .cat-title{flex:1;font-size:.88rem;font-weight:700;color:var(--text)}
+.prac-cat-header .cat-count{font-size:.72rem;color:var(--text3)}
+.prac-cat-header .cat-arrow{font-size:.8rem;color:var(--text3);transition:transform .25s}
+.prac-cat-header.open .cat-arrow{transform:rotate(90deg)}
+.prac-list{display:none;flex-direction:column;margin-bottom:8px}
+.prac-list.open{display:flex}
+.prac-row{
+  display:flex;align-items:center;gap:8px;padding:8px 4px;min-height:44px;
+  border-bottom:1px solid rgba(255,255,255,.08);transition:all .2s;
+}
+.prac-row:last-child{border-bottom:none}
+.prac-row.done{background:rgba(142,212,166,.06)}
+.prac-row .prac-num{
+  font-size:.75rem;color:var(--text3);min-width:22px;font-weight:600;
+  text-align:right;flex-shrink:0;
+}
+.prac-row .prac-info{flex:1;min-width:0;cursor:pointer;overflow:hidden}
+.prac-row .prac-name{
+  font-weight:600;font-size:.88rem;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.prac-row .prac-stars{display:flex;gap:1px;flex-shrink:0}
+.prac-row .prac-star{
+  font-size:1.3rem;cursor:pointer;background:none;border:none;padding:2px;
+  filter:grayscale(1) opacity(.25);transition:all .15s;
+  min-width:32px;min-height:32px;
+}
+.prac-row .prac-star.active{filter:none;opacity:1;transform:scale(1.08)}
+.prac-row .prac-done{
+  font-size:.7rem;padding:5px 12px;border-radius:14px;border:1.5px solid var(--border);
+  background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;
+  transition:all .2s;font-weight:600;flex-shrink:0;
+}
+.prac-row .prac-done.checked{
+  background:var(--green-soft);color:var(--green);border-color:rgba(142,212,166,.3);
+}
+.prac-mem-btn:active{background:rgba(255,255,255,.1)}
+.prac-detail{
+  display:none;padding:0 4px 8px 34px;font-size:.74rem;color:var(--text2);
+  line-height:1.55;
+}
+.prac-row.expanded + .prac-detail{display:block}
+
+/* ===== Review Cards ===== */
+.review-section{margin-top:14px}
+.review-section h4{
+  font-size:.82rem;color:var(--text2);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.review-cards{display:flex;flex-wrap:wrap;gap:8px}
+.review-card{
+  padding:8px 14px;border-radius:20px;font-size:.8rem;font-weight:600;
+  border:1px solid var(--border);background:rgba(255,255,255,.08);
+  color:var(--text2);cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;gap:6px;
+}
+.review-card:active{transform:scale(.95)}
+.review-card.checked{background:var(--green-soft);color:var(--green);border-color:rgba(142,212,166,.3)}
+
+/* ===== Section header ===== */
+.section-header{text-align:center;margin-bottom:clamp(14px, 2.5vw, 20px)}
+.section-header .section-icon{font-size:clamp(2rem, 4vw, 2.5rem)}
+.section-header h3{font-size:clamp(1rem, 2.2vw, 1.2rem);font-weight:700;margin:4px 0}
+.section-header .section-sub{font-size:clamp(.72rem, 1.4vw, .82rem);color:var(--text2)}
+
+/* ===== Misc ===== */
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}
+.mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}
+.gap-8{display:flex;gap:8px}
+.text-center{text-align:center}
+.text-sm{font-size:.78rem;color:var(--text2)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-area" id="logoArea" onclick="document.getElementById('logoInput').click()" title="点我换头像">
+      <img id="logoImg" src="" style="display:none" alt="logo">
+      <span id="logoPlaceholder">🎹</span>
+    </div>
+    <h1>哆哩的钢琴助手 <span style="font-size:.55rem;color:var(--text3);font-weight:400">v2.0</span></h1>
+    <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+    <button class="sync-btn" id="syncBtn" onclick="showSyncPanel()" title="同步">🔄</button>
+    <div class="streak-badge" id="streakBadge">🔥 0 天</div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="today">🏠 今日练琴</button>
+    <button class="tab-btn" data-tab="lessons">📒 上课记录</button>
+    <button class="tab-btn" data-tab="calendar">📅 练琴日历</button>
+    <button class="tab-btn" data-tab="repertoire">🎵 曲库</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main" id="mainContent">
+    <!-- Tab 1: Today's Practice -->
+    <div class="page active" id="page-today"></div>
+
+    <!-- Tab 2: Lesson Notes -->
+    <div class="page" id="page-lessons"></div>
+
+    <!-- Tab 3: Calendar -->
+    <div class="page" id="page-calendar"></div>
+
+    <!-- Tab 4: Repertoire -->
+    <div class="page" id="page-repertoire"></div>
+  </div>
+</div>
+
+<!-- Modal container -->
+<div id="modalContainer"></div>
+
+<script>
+// ==================== DATA LAYER ====================
+const DB = {
+  get(key, fallback = []) {
+    try { const v = localStorage.getItem('piano_' + key); return v ? JSON.parse(v) : fallback }
+    catch { return fallback }
+  },
+  set(key, val) { localStorage.setItem('piano_' + key, JSON.stringify(val)) },
+  lessons() { return this.get('lessons') },
+  saveLessons(v) { this.set('lessons', v) },
+  logs() { return this.get('logs') },
+  saveLogs(v) { this.set('logs', v) },
+};
+
+// ==================== SUZUKI REPERTOIRE ====================
+const SUZUKI_DATA = [
+  // Book 1 (18首)
+  {id:"s1-01",book:1,num:1,name:"小星星变奏曲",en:"Twinkle, Twinkle, Little Star Variations",jp:"きらきらぼし変奏曲",composer:"鈴木鎮一"},
+  {id:"s1-02",book:1,num:2,name:"小蜜蜂",en:"The Honeybee",jp:"ぶんぶんぶん",composer:"Folk Song"},
+  {id:"s1-03",book:1,num:3,name:"布谷鸟",en:"Cuckoo",jp:"かっこう",composer:"Folk Song"},
+  {id:"s1-04",book:1,num:4,name:"轻轻划",en:"Lightly Row",jp:"こぎつね",composer:"Folk Song"},
+  {id:"s1-05",book:1,num:5,name:"法国童谣",en:"French Children's Song",jp:"フランスのこどもの歌",composer:"Folk Song"},
+  {id:"s1-06",book:1,num:6,name:"伦敦桥",en:"London Bridge",jp:"ロンドン橋",composer:"Folk Song"},
+  {id:"s1-07",book:1,num:7,name:"玛丽有只小羔羊",en:"Mary Had a Little Lamb",jp:"メリーさんのひつじ",composer:"Folk Song"},
+  {id:"s1-08",book:1,num:8,name:"告诉罗迪阿姨",en:"Go Tell Aunt Rhody",jp:"おばあさんに伝えて",composer:"Folk Song"},
+  {id:"s1-09",book:1,num:9,name:"月光下",en:"Au Clair de la Lune",jp:"月の光に",composer:"J.B. Lully"},
+  {id:"s1-10",book:1,num:10,name:"很久以前",en:"Long, Long Ago",jp:"むかし、むかし",composer:"T.H. Bayly"},
+  {id:"s1-11",book:1,num:11,name:"小伙伴",en:"Little Playmates",jp:"小さな遊び仲間",composer:"F.X. Chwatal"},
+  {id:"s1-12",book:1,num:12,name:"阿拉伯之歌",en:"Chant Arabe",jp:"アラビアの歌",composer:"Anonymous"},
+  {id:"s1-13",book:1,num:13,name:"小快板1",en:"Allegretto 1",jp:"アレグレット 1",composer:"C. Czerny"},
+  {id:"s1-14",book:1,num:14,name:"告别冬天",en:"Good-bye to Winter",jp:"冬よさようなら",composer:"Folk Song"},
+  {id:"s1-15",book:1,num:15,name:"小快板2",en:"Allegretto 2",jp:"アレグレット 2",composer:"C. Czerny"},
+  {id:"s1-16",book:1,num:16,name:"圣诞节的秘密",en:"Christmas-Day Secrets",jp:"クリスマスの秘密",composer:"T. Dutton"},
+  {id:"s1-17",book:1,num:17,name:"快板",en:"Allegro",jp:"アレグロ",composer:"鈴木鎮一"},
+  {id:"s1-18",book:1,num:18,name:"风笛舞曲",en:"Musette",jp:"ミュゼット",composer:"Anonymous"},
+  // Book 2 (14首)
+  {id:"s2-01",book:2,num:1,name:"埃科塞兹舞曲",en:"Écossaise",jp:"エコセーズ",composer:"J.N. Hummel"},
+  {id:"s2-02",book:2,num:2,name:"小故事",en:"A Short Story",jp:"短いお話",composer:"H. Lichner"},
+  {id:"s2-03",book:2,num:3,name:"快乐的农夫",en:"The Happy Farmer",jp:"楽しい農夫",composer:"R. Schumann"},
+  {id:"s2-04",book:2,num:4,name:"G小调小步舞曲 第一首",en:"Minuet 1, Klavier Suite in g minor",jp:"メヌエット 1",composer:"J.S. Bach"},
+  {id:"s2-05",book:2,num:5,name:"小步舞曲 第二首",en:"Minuet 2, Notebook for AMB",jp:"メヌエット 2",composer:"Anonymous"},
+  {id:"s2-06",book:2,num:6,name:"小步舞曲 第三首",en:"Minuet 3",jp:"メヌエット 3",composer:"C. Petzold"},
+  {id:"s2-07",book:2,num:7,name:"G小调小步舞曲",en:"Minuet, Klavier Suite in g minor",jp:"メヌエット",composer:"J.S. Bach"},
+  {id:"s2-08",book:2,num:8,name:"摇篮曲",en:"Cradle Song",jp:"子守歌",composer:"C.M. von Weber"},
+  {id:"s2-09",book:2,num:9,name:"小步舞曲 K.2",en:"Minuet K.2",jp:"メヌエット K.2",composer:"W.A. Mozart"},
+  {id:"s2-10",book:2,num:10,name:"小咏叹调",en:"Arietta",jp:"アリエッタ",composer:"W.A. Mozart"},
+  {id:"s2-11",book:2,num:11,name:"旋律",en:"Melody",jp:"メロディー",composer:"R. Schumann"},
+  {id:"s2-12",book:2,num:12,name:"小奏鸣曲",en:"Sonatina",jp:"ソナチネ",composer:"L. van Beethoven"},
+  {id:"s2-13",book:2,num:13,name:"风笛舞曲",en:"Musette, English Suite No.3",jp:"ミュゼット",composer:"J.S. Bach"},
+  {id:"s2-14",book:2,num:14,name:"小步舞曲",en:"Minuet, Notebook for AMB",jp:"メヌエット",composer:"C. Petzold"},
+];
+
+function initRepertoire() {
+  const REP_VERSION = 2; // bump to force re-init
+  const storedVer = localStorage.getItem('piano_rep_version');
+  if (!localStorage.getItem('piano_repertoire') || storedVer != REP_VERSION) {
+    const rep = SUZUKI_DATA.map(p => ({
+      ...p,
+      status: p.book === 1 ? 'learned' : (p.book === 2 && p.num <= 4 ? 'learned' : 'untouched'),
+      memorized: p.book === 1 ? true : (p.book === 2 && p.num <= 4 ? true : false),
+      startedDate: null,
+      completedDate: p.book === 1 ? '2026-01-01' : (p.book === 2 && p.num <= 4 ? '2026-03-01' : null),
+      totalMin: 0,
+    }));
+    localStorage.setItem('piano_repertoire', JSON.stringify(rep));
+    localStorage.setItem('piano_rep_version', REP_VERSION);
+  }
+}
+
+function getRepertoire() {
+  try { return JSON.parse(localStorage.getItem('piano_repertoire')) || []; }
+  catch { return []; }
+}
+
+function saveRepertoire(rep) {
+  localStorage.setItem('piano_repertoire', JSON.stringify(rep));
+}
+
+function getRandomReview(count, excludeNames, bookFilter) {
+  const all = getRepertoire();
+  const learned = all.filter(p => p.status === 'learned' && !excludeNames.includes(p.name) && (!bookFilter || p.book === bookFilter));
+  const shuffled = [...learned].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+// ==================== LOGO ====================
+function loadLogo() {
+  const saved = localStorage.getItem('piano_logo');
+  if (saved) {
+    document.getElementById('logoImg').src = saved;
+    document.getElementById('logoImg').style.display = 'block';
+    document.getElementById('logoPlaceholder').style.display = 'none';
+  }
+}
+window.handleLogoUpload = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      // Resize proportionally to max 200px on longest side
+      const maxSide = 200;
+      let w = img.width, h = img.height;
+      const ratio = Math.min(maxSide / w, maxSide / h);
+      w = Math.round(w * ratio); h = Math.round(h * ratio);
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', .8);
+      localStorage.setItem('piano_logo', compressed);
+      loadLogo();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+// ==================== HELPERS ====================
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+function today() { return new Date().toISOString().slice(0, 10) }
+function fmtDate(d) { const dt = new Date(d + 'T00:00:00'); return `${dt.getMonth()+1}月${dt.getDate()}日` }
+function fmtDateShort(d) { return d.slice(5) }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }
+function getLog(date) { return DB.logs().find(l => l.date === date) }
+function latestLesson() {
+  const ls = DB.lessons();
+  return ls.length ? ls.sort((a,b) => b.date.localeCompare(a.date))[0] : null;
+}
+
+// Streak calculation
+function calcStreak() {
+  const logs = DB.logs();
+  if (!logs.length) return 0;
+  const dates = new Set(logs.map(l => l.date));
+  let streak = 0;
+  const d = new Date(today() + 'T00:00:00');
+  while (dates.has(d.toISOString().slice(0, 10))) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  // Also count today if not yet logged but we're showing the streak
+  return streak;
+}
+
+// ==================== RENDER ====================
+function renderAll() {
+  document.getElementById('streakBadge').textContent = '🔥 ' + calcStreak() + ' 天';
+  updateSyncButtonState();
+  renderToday();
+  renderLessons();
+  renderCalendar();
+  renderRepertoire();
+}
+
+// ---------- Tab 1: Today ----------
+function renderToday() {
+  const page = document.getElementById('page-today');
+  const log = getLog(today());
+  const lesson = latestLesson();
+
+  if (log) {
+    // Already practiced today — show summary
+    page.innerHTML = renderTodayDone(log);
+  } else {
+    // Not practiced yet — show practice form
+    page.innerHTML = renderTodayForm(lesson);
+    bindTodayForm(lesson);
+  }
+}
+
+function renderTodayDone(log) {
+  const piecesHtml = log.entries.map((e, i) => `
+    <div class="done-piece-row">
+      <span>${i+1}.</span>
+      <span style="font-weight:600">${esc(e.pieceName)}</span>
+      <span class="dp-stars">${'⭐'.repeat(e.rating || 0)}${e.rating ? '' : '<span style="color:#ccc">未评分</span>'}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="card">
+      <div class="celebration">
+        <div class="celeb-icon">🎉</div>
+        <h2>太棒了！</h2>
+        <div class="celeb-stats">
+          今天练了 <strong>${log.entries.length}</strong> 首曲目 · 共 <strong>${log.totalDurationMin || 0}</strong> 分钟
+          ${log.mood ? ' · 心情 ' + log.mood : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🎵 今日练习</h3>
+      ${piecesHtml}
+    </div>
+
+    ${log.parentNotes ? `
+    <div class="card">
+      <h3>📝 家长笔记</h3>
+      <p style="font-size:.9rem;line-height:1.5">${esc(log.parentNotes)}</p>
+    </div>` : ''}
+
+    <div class="mt-8">
+      <button class="btn btn-secondary" onclick="editTodayLog()" style="width:100%">✏️ 修改今天记录</button>
+    </div>
+  `;
+}
+
+function renderTodayForm(lesson) {
+  let piecesHtml = '';
+  const catLabels = { suzuki: '🎻 铃木', beyer: '🎼 拜厄', pieces: '🎵 小川一郎小曲集' };
+  const catOrder = ['suzuki', 'beyer', 'pieces'];
+
+  if (lesson && lesson.pieces && lesson.pieces.length) {
+    // Enrich with English names from repertoire
+    const repLookup = {};
+    getRepertoire().forEach(r => { repLookup[r.name] = r.en; if (r.repId) repLookup[r.id] = r.en; });
+    const grouped = {};
+    lesson.pieces.forEach((p, i) => {
+      const cat = p.category || 'suzuki';
+      if (!grouped[cat]) grouped[cat] = [];
+      const en = repLookup[p.name] || repLookup[p.repId] || '';
+      grouped[cat].push({ ...p, origIdx: i, en });
+    });
+
+    piecesHtml = catOrder.filter(cat => grouped[cat]).map(cat => `
+      <div class="prac-cat-header" id="pracHead_${cat}" onclick="togglePracCat('${cat}')">
+        <span class="cat-dot ${cat}"></span>
+        <span class="cat-title">${catLabels[cat]}</span>
+        <span class="cat-count">${grouped[cat].length}首</span>
+        <span class="cat-arrow">▶</span>
+      </div>
+      <div class="prac-list" id="pracList_${cat}">
+        ${grouped[cat].map(p => {
+          const idx = p.origIdx;
+          return `
+        <div class="prac-row" data-idx="${idx}" id="pracRow${idx}">
+          <span class="prac-num">${idx+1}</span>
+          <span class="prac-info" data-action="expand" data-idx="${idx}">
+            <span class="prac-name">${esc(p.en || p.name)} <span style="font-weight:400;color:var(--text3);font-size:.72rem">${esc(p.name)}</span></span>
+          </span>
+          <span class="prac-stars">
+            ${[1,2,3,4,5].map(s => `<button class="prac-star" data-action="star" data-idx="${idx}" data-star="${s}">⭐</button>`).join('')}
+          </span>
+          <button class="prac-done" data-action="toggle" data-idx="${idx}">练完了</button>
+        </div>
+        ${p.details ? `<div class="prac-detail">${esc(p.details)}</div>` : ''}`;
+        }).join('')}
+      </div>
+    `).join('');
+  } else {
+    piecesHtml = `
+      <div class="card">
+        <p class="text-center text-sm">还没有上课记录，先去「📒 上课记录」添加吧～</p>
+        <div id="pieceList" style="display:none"></div>
+      </div>`;
+  }
+
+  return `
+    ${lesson ? `<div style="font-size:.75rem;color:var(--text3);margin-bottom:12px">${fmtDate(lesson.date)} 上课内容</div>` : ''}
+
+    <div id="pieceList">
+      ${piecesHtml}
+      ${lesson ? `
+      <div class="prac-cat-header" id="pracHead_review" onclick="togglePracCat('review')">
+        <span class="cat-dot review"></span>
+        <span class="cat-title">🎲 今日复习</span>
+        <span class="cat-count">已学曲库随机4首</span>
+        <span class="cat-arrow">▶</span>
+      </div>
+      <div class="prac-list" id="pracList_review">
+        <div id="reviewCards"></div>
+      </div>
+      ` : ''}
+    </div>
+
+    ${lesson ? `
+    <div class="parent-panel">
+      <button class="parent-toggle" id="parentToggle" onclick="toggleParentPanel()" style="font-size:.75rem;padding:8px">
+        👨‍👩‍👧 家长选项
+      </button>
+      <div class="parent-content" id="parentContent">
+        <div class="parent-section">
+          <h4>⏱ 计时器</h4>
+          <div class="timer-display" id="timerDisplay">00:00</div>
+          <div class="timer-controls">
+            <button class="btn-timer start" id="timerStart">▶</button>
+            <button class="btn-timer pause" id="timerPause">⏸</button>
+            <button class="btn-timer reset" id="timerReset">↺</button>
+          </div>
+        </div>
+        <div class="parent-section">
+          <h4>⏱ 练习分钟</h4>
+          ${lesson.pieces.map((p, i) => `
+            <div class="parent-piece-row">
+              <span>${esc(p.name)}</span>
+              <input class="form-input" type="number" placeholder="分钟" min="0" max="180" data-action="duration" data-idx="${i}" style="width:60px;padding:6px 8px;font-size:.8rem">
+            </div>
+          `).join('')}
+        </div>
+        <div class="parent-section">
+          <h4>📝 家长笔记</h4>
+          <textarea class="form-input" id="parentNotes" placeholder="记录..." style="font-size:.82rem"></textarea>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+
+    ${lesson ? `
+    <button class="btn-big" id="btnSavePractice" style="margin-top:12px;padding:14px;font-size:1rem">🎉 完成今日练习</button>
+    ` : ''}
+  `;
+}
+
+window.togglePracCat = function(cat) {
+  const list = document.getElementById('pracList_' + cat);
+  const head = document.getElementById('pracHead_' + cat);
+  if (list) list.classList.toggle('open');
+  if (head) head.classList.toggle('open');
+};
+
+window.toggleParentPanel = function() {
+  const content = document.getElementById('parentContent');
+  const toggle = document.getElementById('parentToggle');
+  if (content && toggle) {
+    content.classList.toggle('open');
+    toggle.textContent = content.classList.contains('open')
+      ? '👨‍👩‍👧 收起家长选项'
+      : '👨‍👩‍👧 家长选项（计时器、笔记）';
+  }
+};
+
+// ==================== TODAY'S PRACTICE STATE ====================
+let pieceStates = {};
+let timerSec = 0, timerInterval = null;
+
+function resetPracticeState() {
+  pieceStates = {};
+  timerSec = 0;
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function bindTodayForm(lesson) {
+  resetPracticeState();
+
+  const initPiece = (idx) => {
+    pieceStates[idx] = pieceStates[idx] || {
+      done: false, rating: 0, durationMin: 0, notes: '',
+      pieceName: (lesson?.pieces || [])[idx]?.name || ''
+    };
+  };
+  if (lesson && lesson.pieces) lesson.pieces.forEach((_, i) => initPiece(i));
+  else initPiece(0);
+
+  const pieceList = document.getElementById('pieceList');
+  if (pieceList) {
+    pieceList.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const idx = btn.dataset.idx;
+      initPiece(idx);
+      const action = btn.dataset.action;
+
+      if (action === 'expand') {
+        const row = document.getElementById('pracRow' + idx);
+        if (row) row.classList.toggle('expanded');
+        return;
+      }
+      if (action === 'toggle') {
+        pieceStates[idx].done = !pieceStates[idx].done;
+        btn.classList.toggle('checked', pieceStates[idx].done);
+        btn.textContent = pieceStates[idx].done ? '已练' : '练完了';
+        const row = btn.closest('.prac-row');
+        if (row) row.classList.toggle('done', pieceStates[idx].done);
+      }
+      if (action === 'star') {
+        const star = parseInt(btn.dataset.star);
+        pieceStates[idx].rating = pieceStates[idx].rating === star ? 0 : star;
+        const stars = pieceList.querySelectorAll(`[data-action="star"][data-idx="${idx}"]`);
+        stars.forEach(s => {
+          const v = parseInt(s.dataset.star);
+          s.classList.toggle('active', v <= pieceStates[idx].rating);
+        });
+      }
+    });
+    pieceList.addEventListener('input', e => {
+      const el = e.target;
+      if (!el.dataset.action) return;
+      const idx = el.dataset.idx;
+      initPiece(idx);
+      if (el.dataset.action === 'duration') pieceStates[idx].durationMin = parseInt(el.value) || 0;
+      if (el.dataset.action === 'note') pieceStates[idx].notes = el.value;
+      if (el.dataset.action === 'pieceName') pieceStates[idx].pieceName = el.value;
+    });
+  }
+
+  // Timer — uses module-level timerSec, timerInterval
+  const timerDisplay = document.getElementById('timerDisplay');
+  function updateTimerDisplay() {
+    const m = Math.floor(timerSec / 60), s = timerSec % 60;
+    if (timerDisplay) timerDisplay.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  document.getElementById('timerStart')?.addEventListener('click', () => {
+    if (timerInterval) return;
+    timerInterval = setInterval(() => { timerSec++; updateTimerDisplay() }, 1000);
+  });
+  document.getElementById('timerPause')?.addEventListener('click', () => {
+    clearInterval(timerInterval); timerInterval = null;
+  });
+  document.getElementById('timerReset')?.addEventListener('click', () => {
+    clearInterval(timerInterval); timerInterval = null; timerSec = 0; updateTimerDisplay();
+  });
+
+  // Mood — uses module-level todayMood
+  document.getElementById('moodPicker')?.addEventListener('click', e => {
+    const btn = e.target.closest('.mood-btn');
+    if (!btn) return;
+    document.querySelectorAll('#moodPicker .mood-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    todayMood = btn.dataset.mood;
+  });
+
+  // Random review — only from Book 1, with memorized toggle
+  if (lesson) {
+    const lessonNames = (lesson.pieces || []).map(p => p.name);
+    const reviews = getRandomReview(4, lessonNames, 1); // Book 1 only
+    const reviewCards = document.getElementById('reviewCards');
+    if (reviewCards && reviews.length) {
+      reviewCards.innerHTML = reviews.map((r, ri) => {
+        const idx = 'r' + ri;
+        const memLabel = r.memorized ? '🧠 背谱' : '📖 看谱';
+        return `
+        <div class="prac-row" data-idx="${idx}">
+          <span class="prac-num">${ri+1}</span>
+          <span class="prac-info">
+            <span class="prac-name">${esc(r.en||r.name)} <span style="font-weight:400;color:var(--text3);font-size:.72rem">${esc(r.name)}</span></span>
+          </span>
+          <button class="prac-mem-btn" data-action="reviewMem" data-idx="${idx}" data-repid="${r.id}" style="font-size:.7rem;padding:4px 8px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">${memLabel}</button>
+          <button class="prac-done" data-action="review" data-idx="${idx}" data-name="${esc(r.name)}">已复习</button>
+        </div>`;
+      }).join('');
+      reviews.forEach((r, ri) => {
+        pieceStates['r' + ri] = { done: false, rating: 0, durationMin: 0, notes: '', pieceName: (r.en||r.name) + '（复习）', repId: r.id, reviewMem: r.memorized };
+      });
+      reviewCards.addEventListener('click', e => {
+        // Handle memorized toggle
+        const memBtn = e.target.closest('[data-action="reviewMem"]');
+        if (memBtn) {
+          const idx = memBtn.dataset.idx;
+          const repId = memBtn.dataset.repid;
+          if (!pieceStates[idx]) return;
+          pieceStates[idx].reviewMem = !pieceStates[idx].reviewMem;
+          memBtn.textContent = pieceStates[idx].reviewMem ? '🧠 背谱' : '📖 看谱';
+          // Sync to repertoire
+          const rep = getRepertoire();
+          const rp = rep.find(r => r.id === repId);
+          if (rp) { rp.memorized = pieceStates[idx].reviewMem; saveRepertoire(rep); }
+          return;
+        }
+        // Handle review toggle
+        const btn = e.target.closest('[data-action="review"]');
+        if (!btn) return;
+        const idx = btn.dataset.idx;
+        if (!pieceStates[idx]) {
+          pieceStates[idx] = { done: false, rating: 0, durationMin: 0, notes: '', pieceName: (btn.dataset.name || '') + '（复习）' };
+        }
+        pieceStates[idx].done = !pieceStates[idx].done;
+        btn.classList.toggle('checked', pieceStates[idx].done);
+        btn.textContent = pieceStates[idx].done ? '已复习' : '已复习';
+        const row = btn.closest('.prac-row');
+        if (row) row.classList.toggle('done', pieceStates[idx].done);
+      });
+    }
+  }
+
+  // Save
+  document.getElementById('btnSavePractice')?.addEventListener('click', () => {
+    const totalMin = Math.floor(timerSec / 60);
+    const entries = Object.entries(pieceStates).map(([idx, s]) => ({
+      pieceName: s.pieceName || `曲目 ${parseInt(idx)+1}`,
+      detail: (lesson?.pieces || [])[idx]?.details || '',
+      durationMin: s.durationMin || 0,
+      notes: s.notes || '',
+      rating: s.rating || 0,
+      done: s.done
+    })).filter(e => e.done || e.durationMin > 0 || e.rating > 0);
+
+    if (entries.length === 0 && totalMin === 0) {
+      alert('请至少完成一项练习再保存哦～');
+      return;
+    }
+
+    const log = {
+      id: uid(),
+      date: today(),
+      entries,
+      totalDurationMin: totalMin || entries.reduce((s, e) => s + e.durationMin, 0),
+      parentNotes: document.getElementById('parentNotes')?.value || '',
+    };
+
+    // Remove existing today log if any
+    const logs = DB.logs().filter(l => l.date !== today());
+    logs.push(log);
+    DB.saveLogs(logs);
+    resetPracticeState();
+    renderAll();
+    autoSyncAfterSave(); // Auto sync to server (fire-and-forget)
+  });
+}
+
+// Free practice: add piece (no re-bind needed — event delegation on pieceList handles new items)
+window.addFreePiece = function() {
+  const list = document.getElementById('pieceList');
+  const idx = list.children.length;
+  const div = document.createElement('div');
+  div.className = 'piece-item';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <div class="piece-done" data-action="toggle" data-idx="${idx}">✓</div>
+    <div class="piece-info">
+      <input class="form-input mb-8" type="text" placeholder="曲目名称" data-action="pieceName" data-idx="${idx}">
+      <div class="star-row">
+        ${[1,2,3,4,5].map(s => `<button class="star-btn dim" data-action="star" data-idx="${idx}" data-star="${s}">⭐</button>`).join('')}
+      </div>
+      <input class="form-input mt-8" type="number" placeholder="练习分钟数" min="0" max="180" data-action="duration" data-idx="${idx}" style="width:80px;display:inline-block">
+      <input class="form-input mt-8" type="text" placeholder="小笔记" data-action="note" data-idx="${idx}" style="width:calc(100% - 88px);display:inline-block;margin-left:8px">
+    </div>`;
+  list.appendChild(div);
+  // Init state for the new piece (pieceStates is module-level)
+  pieceStates[idx] = { done: false, rating: 0, durationMin: 0, notes: '', pieceName: '' };
+};
+
+// Edit today's log
+window.editTodayLog = function() {
+  const logs = DB.logs().filter(l => l.date !== today());
+  DB.saveLogs(logs);
+  resetPracticeState();
+  renderAll();
+};
+
+// ---------- Tab 2: Lessons ----------
+function renderLessons() {
+  const page = document.getElementById('page-lessons');
+  const lessons = DB.lessons().sort((a, b) => b.date.localeCompare(a.date));
+
+  if (!lessons.length) {
+    page.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📒</div>
+        <p>还没有上课记录</p>
+        <p class="text-sm">记录每次钢琴课的重点，帮助孩子更好地练习</p>
+        <button class="btn btn-primary mt-16" onclick="showLessonForm()">＋ 添加第一课记录</button>
+      </div>`;
+  } else {
+    page.innerHTML = `
+      <div class="flex-between mb-12">
+        <span style="font-weight:700;font-size:1rem">共 ${lessons.length} 次课</span>
+        <button class="btn btn-primary btn-sm" onclick="showLessonForm()">＋ 新课记录</button>
+      </div>
+      ${lessons.map(l => `
+        <div class="lesson-card" onclick="showLessonDetail('${l.id}')">
+          <div class="lesson-date">📅 ${fmtDate(l.date)}</div>
+          <div class="lesson-pieces">🎵 ${l.pieces.map(p => p.name + (p.score ? ' [' + p.score + ']' : '')).join('、') || '无曲目'}</div>
+          ${l.focusAreas && l.focusAreas.length ? `
+          <div class="lesson-focus">
+            ${l.focusAreas.map(f => `<span class="tag">${esc(f)}</span>`).join('')}
+          </div>` : ''}
+          ${l.notes ? `<div class="lesson-notes">💬 ${esc(l.notes)}</div>` : ''}
+        </div>
+      `).join('')}`;
+  }
+}
+
+window.showLessonForm = function(editId) {
+  const lesson = editId ? DB.lessons().find(l => l.id === editId) : null;
+  const pieces = lesson ? lesson.pieces : [{name:'',details:'',category:'suzuki',score:''}];
+  // Auto-fix repId for existing pieces by matching against repertoire
+  const rep = getRepertoire();
+  pieces.forEach(p => {
+    if (!p.repId && p.name) {
+      // Exact match first, then fuzzy
+      let match = rep.find(r => r.name === p.name);
+      if (!match) match = rep.find(r => r.name.includes(p.name) || p.name.includes(r.name));
+      if (match) p.repId = match.id;
+    }
+  });
+  const catLabels = { suzuki: '🎻 铃木', beyer: '🎼 拜厄', pieces: '🎵 小川一郎小曲集' };
+  const catOrder = ['suzuki','beyer','pieces'];
+
+  // Group existing pieces by category
+  const grouped = {};
+  pieces.forEach((p, i) => {
+    const cat = p.category || 'suzuki';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push({ ...p, idx: i });
+  });
+
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>${lesson ? '✏️ 编辑上课记录' : '📒 新增上课记录'}</h2>
+          <button class="btn-icon del" onclick="closeModal()" style="border-radius:50%">✕</button>
+        </div>
+        <div class="form-group">
+          <label>📅 上课日期</label>
+          <input class="form-input" type="date" id="lessonDate" value="${lesson ? lesson.date : today()}">
+        </div>
+
+        <div class="form-group">
+          <label>🎵 布置曲目</label>
+          <div id="lessonPieces">
+            ${catOrder.map(cat => `
+              <div style="font-size:.95rem;font-weight:700;color:var(--text);margin:16px 0 8px;display:flex;align-items:center;gap:8px">
+                <span class="cat-dot ${cat}" style="width:10px;height:10px"></span>
+                ${catLabels[cat]}<span style="flex:1;height:1px;background:var(--border)"></span>
+                <button class="btn btn-sm btn-secondary" onclick="addLessonPiece('${cat}')" style="font-size:.7rem;padding:3px 10px">＋</button>
+              </div>
+              <div data-cat="${cat}" class="lesson-cat-group" style="padding-left:0">
+                ${(grouped[cat] || []).map((p, pi) => `
+                <div class="lesson-piece-card" style="border:1px solid var(--border);border-left:3px solid var(--primary);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px;margin-left:10px;background:rgba(255,255,255,.04)">
+                  <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+                    <span style="font-size:.75rem;color:var(--text3);font-weight:600;min-width:18px">${pi+1}</span>
+                    ${cat === 'suzuki' ? `
+                    <select class="form-input suzuki-piece-select" data-field="name" style="flex:1;font-size:.9rem;padding:10px 14px;font-weight:600;background:rgba(255,255,255,.06);color:var(--text)">
+                      <option value="">选择曲目...</option>
+                      ${getRepertoire().filter(r => r.book >= 1).map(r => {
+                        const label = r.book + '-' + r.num + ' ' + r.en + ' ' + r.name;
+                        const selected = p.repId === r.id || p.name === r.name;
+                        return `<option value="${esc(r.name)}" data-repid="${r.id}" data-book="${r.book}" data-num="${r.num}" ${selected?'selected':''}>${label}</option>`;
+                      }).join('')}
+                    </select>
+                    ` : `
+                    <input class="form-input" placeholder="曲目名称" value="${esc(p.name||'')}" data-field="name" style="flex:1;font-size:.9rem;padding:10px 14px;font-weight:600">
+                    `}
+                    <span style="font-size:.7rem;color:var(--text3);white-space:nowrap">回课</span>
+                    <div class="star-score-row" data-cat="${cat}" data-pi="${pi}" style="display:flex;gap:2px;flex-shrink:0">
+                      ${[1,2,3,4,5].map(s => `<button class="star-score-btn" data-star="${s}" onclick="event.stopPropagation();setLessonStar(this,'${cat}',${pi},${s})" style="font-size:1.5rem;cursor:pointer;background:none;border:none;padding:2px;filter:grayscale(${s <= (p.score||'').length ? '0' : '1'}) opacity(${s <= (p.score||'').length ? '1' : '.25'});min-width:36px;min-height:36px">⭐</button>`).join('')}
+                    </div>
+                    <button class="btn-icon del" onclick="this.closest('.lesson-piece-card').remove()" style="flex-shrink:0">✕</button>
+                  </div>
+                  <textarea class="form-input" placeholder="老师的要求、注意点..." data-field="details" style="min-height:56px;font-size:.85rem;margin:0;width:100%">${esc(p.details||'')}</textarea>
+                </div>
+                `).join('')}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>🏷 重点练习</label>
+          <div class="tag-row" id="focusTags">
+            ${['手型','节奏','音准','指法','力度','速度','乐感','视奏'].map(t => {
+              const selected = lesson && lesson.focusAreas && lesson.focusAreas.includes(t);
+              return `<span class="tag${selected ? ' selected' : ''}" data-tag="${t}" onclick="this.classList.toggle('selected')">${t}</span>`;
+            }).join('')}
+          </div>
+          <input class="form-input mt-8" type="text" id="customFocus" placeholder="自定义重点...">
+        </div>
+        <div class="form-group">
+          <label>📝 备注</label>
+          <textarea class="form-input" id="lessonNotes" placeholder="老师的叮嘱、下节课时间等...">${lesson ? esc(lesson.notes || '') : ''}</textarea>
+        </div>
+        <button class="btn-big" onclick="saveLesson('${editId || ''}')">💾 保存</button>
+        ${lesson ? `<button class="btn btn-danger mt-8" style="width:100%" onclick="deleteLesson('${lesson.id}')">🗑 删除此记录</button>` : ''}
+      </div>
+    </div>`;
+};
+
+window.setLessonStar = function(btn, cat, pi, star) {
+  const group = document.querySelector('.lesson-cat-group[data-cat="' + cat + '"]');
+  const btns = group.querySelectorAll('.star-score-row')[pi]?.querySelectorAll('.star-score-btn');
+  if (!btns) return;
+  const allLit = [...btns].every(b => parseInt(b.dataset.star) === star && b.style.filter.includes('0'));
+  const newScore = allLit ? star - 1 : star;
+  btns.forEach(b => {
+    const v = parseInt(b.dataset.star);
+    b.style.filter = 'grayscale(' + (v <= newScore ? '0' : '1') + ')';
+    b.style.opacity = v <= newScore ? '1' : '.25';
+  });
+  // Store score in a hidden field
+  let hiddenScore = group.querySelector('[data-field="score"][data-pi="' + pi + '"]');
+  if (!hiddenScore) {
+    hiddenScore = document.createElement('input');
+    hiddenScore.type = 'hidden';
+    hiddenScore.dataset.field = 'score';
+    hiddenScore.dataset.pi = pi;
+    const card = btn.closest('.lesson-piece-card');
+    card.appendChild(hiddenScore);
+  }
+  hiddenScore.value = newScore > 0 ? '⭐'.repeat(newScore) : '';
+};
+
+window.addLessonPiece = function(cat) {
+  const group = document.querySelector('.lesson-cat-group[data-cat="' + cat + '"]');
+  if (!group) return;
+  const pi = group.querySelectorAll('.lesson-piece-card').length;
+  const rep = getRepertoire();
+  const nameField = cat === 'suzuki'
+    ? `<select class="form-input suzuki-piece-select" data-field="name" style="flex:1;font-size:.9rem;padding:10px 14px;font-weight:600;background:rgba(255,255,255,.06);color:var(--text)"><option value="">选择曲目...</option>${getRepertoire().filter(r => r.book >= 1).map(r => `<option value="${esc(r.name)}" data-repid="${r.id}" data-book="${r.book}" data-num="${r.num}">${r.book}-${r.num} ${r.en} ${r.name}</option>`).join('')}</select>`
+    : `<input class="form-input" placeholder="曲目名称" data-field="name" style="flex:1;font-size:.9rem;padding:10px 14px;font-weight:600">`;
+  const div = document.createElement('div');
+  div.className = 'lesson-piece-card';
+  div.style.cssText = 'border:1px solid var(--border);border-left:3px solid var(--primary);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px;margin-left:10px;background:rgba(255,255,255,.04)';
+  div.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+      <span style="font-size:.75rem;color:var(--text3);font-weight:600;min-width:18px">${pi+1}</span>
+      ${nameField}
+      <span style="font-size:.7rem;color:var(--text3);white-space:nowrap">回课</span>
+      <div class="star-score-row" style="display:flex;gap:2px;flex-shrink:0">
+        ${[1,2,3,4,5].map(s => `<button class="star-score-btn" data-star="${s}" onclick="event.stopPropagation();setLessonStar(this,'${cat}',${pi},${s})" style="font-size:1.5rem;cursor:pointer;background:none;border:none;padding:2px;filter:grayscale(1) opacity(.25);min-width:36px;min-height:36px">⭐</button>`).join('')}
+      </div>
+      <button class="btn-icon del" onclick="this.closest('.lesson-piece-card').remove()" style="flex-shrink:0">✕</button>
+    </div>
+    <textarea class="form-input" placeholder="老师的要求、注意点..." data-field="details" style="min-height:56px;font-size:.85rem;margin:0;width:100%"></textarea>
+  `;
+  group.appendChild(div);
+};
+
+window.saveLesson = function(editId) {
+  const date = document.getElementById('lessonDate').value;
+  const notes = document.getElementById('lessonNotes').value.trim();
+  const nextLessonDate = document.getElementById('nextLessonDate').value;
+
+  // Collect pieces with their category
+  const pieces = [];
+  document.querySelectorAll('.lesson-cat-group').forEach(group => {
+    const cat = group.dataset.cat;
+    group.querySelectorAll('.lesson-piece-card').forEach(card => {
+      const nameEl = card.querySelector('[data-field="name"]');
+      const name = nameEl.value.trim();
+      const details = card.querySelector('[data-field="details"]').value.trim();
+      const scoreEl = card.querySelector('[data-field="score"]');
+      const score = scoreEl ? scoreEl.value : '';
+      // For Suzuki dropdowns, also get repId
+      let repId = '';
+      if (nameEl.tagName === 'SELECT') {
+        const opt = nameEl.options[nameEl.selectedIndex];
+        if (opt) repId = opt.dataset.repid || '';
+      }
+      if (name) pieces.push({ name, details, category: cat, score, repId });
+    });
+  });
+
+  // Collect focus areas
+  const focusAreas = [];
+  document.querySelectorAll('#focusTags .tag.selected').forEach(t => focusAreas.push(t.dataset.tag));
+  const custom = document.getElementById('customFocus').value.trim();
+  if (custom) focusAreas.push(custom);
+
+  if (!date) { alert('请选择日期'); return; }
+  if (!pieces.length) { alert('请至少添加一个曲目'); return; }
+
+  const lesson = {
+    id: editId || uid(),
+    date, pieces, focusAreas, notes, nextLessonDate,
+  };
+
+  let lessons = DB.lessons();
+  if (editId) lessons = lessons.map(l => l.id === editId ? lesson : l);
+  else lessons.push(lesson);
+  DB.saveLessons(lessons);
+  closeModal();
+  renderAll();
+  autoSyncAfterSave(); // Auto sync to server (fire-and-forget)
+};
+
+window.deleteLesson = function(id) {
+  if (!confirm('确定要删除这条上课记录吗？')) return;
+  DB.saveLessons(DB.lessons().filter(l => l.id !== id));
+  closeModal();
+  renderAll();
+};
+
+window.showLessonDetail = function(id) {
+  // Simple: just open edit form
+  showLessonForm(id);
+};
+
+window.closeModal = function() {
+  document.getElementById('modalContainer').innerHTML = '';
+};
+
+// ---------- Tab 3: Calendar ----------
+function renderCalendar() {
+  const page = document.getElementById('page-calendar');
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-indexed
+  page._calYear = year;
+  page._calMonth = month;
+  page.innerHTML = buildCalendarHTML(year, month);
+  bindCalendarClicks(page, year, month);
+}
+
+function buildCalendarHTML(year, month) {
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  const todayStr = today();
+  const logsMap = {};
+  DB.logs().forEach(l => { logsMap[l.date] = l });
+
+  // Monthly stats
+  let monthDays = 0, monthMinutes = 0;
+  DB.logs().forEach(l => {
+    const d = new Date(l.date + 'T00:00:00');
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      monthDays++;
+      monthMinutes += l.totalDurationMin || 0;
+    }
+  });
+
+  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const dayHeaders = ['日','一','二','三','四','五','六'];
+
+  let cells = '';
+  // Prev month padding — compute correct prev month (1-indexed) and year
+  const prevY = month === 0 ? year - 1 : year;
+  const prevM = month === 0 ? 12 : month; // 1-indexed
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const d = daysInPrevMonth - i;
+    const ds = `${prevY}-${String(prevM).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells += `<div class="day-cell other-month" data-date="${ds}">${d}</div>`;
+  }
+  // Current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === todayStr;
+    const log = logsMap[ds];
+    const cls = ['day-cell'];
+    if (isToday) cls.push('today');
+    const dot = log ? '<div class="day-dot"></div>' : (ds < todayStr ? '<div class="day-dot missed"></div>' : '');
+    cells += `<div class="${cls.join(' ')}" data-date="${ds}">${d}${dot}</div>`;
+  }
+  // Next month padding — compute correct next month (1-indexed) and year
+  const totalCells = firstDay + daysInMonth;
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  const nextY = month === 11 ? year + 1 : year;
+  const nextM = month === 11 ? 1 : month + 2; // 1-indexed
+  for (let d = 1; d <= remaining; d++) {
+    const ds = `${nextY}-${String(nextM).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells += `<div class="day-cell other-month" data-date="${ds}">${d}</div>`;
+  }
+
+  return `
+    <div class="calendar-nav">
+      <button onclick="navCalendar(-1)">◀</button>
+      <span class="month-label">📅 ${year}年 ${months[month]}</span>
+      <button onclick="navCalendar(1)">▶</button>
+    </div>
+    <div class="calendar-grid">
+      ${dayHeaders.map(h => `<div class="day-header">${h}</div>`).join('')}
+      ${cells}
+    </div>
+    <div class="calendar-stats">
+      <div class="stat-item">
+        <div class="stat-num">${monthDays}</div>
+        <div class="stat-label">本月练习天数</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">${Math.round(monthMinutes / 60 * 10) / 10 || 0}</div>
+        <div class="stat-label">本月练习小时</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">${calcStreak()}</div>
+        <div class="stat-label">连续练习天</div>
+      </div>
+    </div>
+  `;
+}
+
+function bindCalendarClicks(page, year, month) {
+  page.querySelectorAll('.day-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const date = cell.dataset.date;
+      const log = getLog(date);
+      showDayDetail(date, log);
+    });
+  });
+}
+
+window.navCalendar = function(delta) {
+  const page = document.getElementById('page-calendar');
+  let y = page._calYear || new Date().getFullYear();
+  let m = (page._calMonth || new Date().getMonth()) + delta;
+  if (m < 0) { m = 11; y-- }
+  if (m > 11) { m = 0; y++ }
+  page._calYear = y;
+  page._calMonth = m;
+  page.innerHTML = buildCalendarHTML(y, m);
+  bindCalendarClicks(page, y, m);
+};
+
+// ---------- Tab 4: Repertoire ----------
+let _repState = { books: { 1: true, 2: true }, cards: {} };
+
+function renderRepertoire() {
+  const page = document.getElementById('page-repertoire');
+  const rep = getRepertoire();
+  if (!rep.length) {
+    page.innerHTML = '<div class="empty-state"><div class="empty-icon">🎵</div><p>曲库加载中...</p></div>';
+    return;
+  }
+
+  const books = [
+    { num: 1, title: '铃木钢琴第一册', subtitle: 'Vol.1 · 全18曲', pieces: rep.filter(p => p.book === 1) },
+    { num: 2, title: '铃木钢琴第二册', subtitle: 'Vol.2 · 全14曲', pieces: rep.filter(p => p.book === 2) },
+  ];
+
+  page.innerHTML = books.map(b => {
+    const total = b.pieces.length;
+    const learned = b.pieces.filter(p => p.status === 'learned').length;
+    const learning = b.pieces.filter(p => p.status === 'learning').length;
+    const done = learned + learning;
+    const pct = Math.round(done / total * 100);
+    const isOpen = _repState.books[b.num] !== false;
+
+    return `
+    <div class="rep-book-section">
+      <div class="rep-book-header${isOpen ? ' open' : ''}" onclick="toggleBook(${b.num})" id="bookHead${b.num}">
+        <span class="book-title">📖 ${b.title} <span style="font-weight:400;color:var(--text3);font-size:.72rem">${b.subtitle}</span></span>
+        <span class="book-progress">
+          <span>${pct}%</span>
+          <span class="rep-progress-bar"><span class="fill" style="width:${pct}%"></span></span>
+        </span>
+        <span class="book-arrow">▶</span>
+      </div>
+      <div class="rep-list${isOpen ? ' open' : ''}" id="bookList${b.num}">
+        ${b.pieces.map(p => {
+          const isExpanded = _repState.cards[p.id] === true;
+          const statusText = p.status === 'learned' ? (p.memorized ? '已学会·可背谱' : '已学会·不能背谱') : (p.status === 'learning' ? '学习中' : '未学');
+          const statusClass = p.status === 'learned' ? (p.memorized ? 'memorized' : 'learned') : p.status;
+          return `
+          <div class="rep-card${isExpanded ? ' expanded' : ''}" id="repCard${p.id}">
+            <div class="rep-card-top" onclick="toggleRepCard('${p.id}')">
+              <span class="rep-num">${p.num}.</span>
+              <span style="flex:1;min-width:0">
+                <div class="rep-name">${esc(p.en)}</div>
+                <div style="font-size:.7rem;color:var(--text2)">${esc(p.name)}</div>
+                <div style="font-size:.65rem;color:var(--text3)">${esc(p.composer)} · ${esc(p.jp||'')}</div>
+              </span>
+              <span style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+                <button onclick="event.stopPropagation();cycleRepStatus('${p.id}')" style="font-size:.7rem;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text2);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:3px">${p.status==='learned'?'🌟 已学会':p.status==='learning'?'🌱 学习中':'💤 未学'}</button>
+                <button onclick="event.stopPropagation();toggleMemorized('${p.id}')" style="font-size:.7rem;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text2);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:3px;opacity:${p.status==='learned'?'1':'.4'}">${p.memorized?'🧠 可背谱':'📖 不能背谱'}</button>
+              </span>
+            </div>
+            ${isExpanded ? `
+            <div class="rep-card-detail" style="display:flex">
+              ${p.status === 'learning' ? (p.startedDate ? '<span>📅 ' + fmtDate(p.startedDate) + ' 开始学</span>' : '') + '<span>⏱ ' + Math.round(p.totalMin || 0) + '分钟</span>' : ''}
+              ${p.status === 'learned' ? (p.completedDate ? '<span>✅ ' + fmtDate(p.completedDate) + ' 学会</span>' : '') + '<span>⏱ ' + Math.round(p.totalMin || 0) + '分钟</span>' : ''}
+            </div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.toggleBook = function(num) {
+  _repState.books[num] = !_repState.books[num];
+  const list = document.getElementById('bookList' + num);
+  const head = document.getElementById('bookHead' + num);
+  if (list) list.classList.toggle('open');
+  if (head) head.classList.toggle('open');
+};
+
+window.toggleRepCard = function(id) {
+  _repState.cards[id] = !_repState.cards[id];
+  const card = document.getElementById('repCard' + id);
+  if (card) card.classList.toggle('expanded');
+};
+
+window.setRepStatus = function(id, value) {
+  const rep = getRepertoire();
+  const p = rep.find(r => r.id === id);
+  if (!p) return;
+  if (value === 'untouched') { p.status = 'untouched'; p.memorized = false; p.startedDate = null; p.completedDate = null; }
+  else if (value === 'learning') { p.status = 'learning'; p.memorized = false; p.startedDate = p.startedDate || today(); p.completedDate = null; }
+  else if (value === 'learned_nomem') { p.status = 'learned'; p.memorized = false; p.completedDate = p.completedDate || today(); }
+  else if (value === 'learned_mem') { p.status = 'learned'; p.memorized = true; p.completedDate = p.completedDate || today(); }
+  saveRepertoire(rep);
+  renderRepertoire();
+};
+
+window.cycleRepStatus = function(id) {
+  const rep = getRepertoire();
+  const p = rep.find(r => r.id === id);
+  if (!p) return;
+  if (p.status === 'untouched') { p.status = 'learning'; p.startedDate = p.startedDate || today(); }
+  else if (p.status === 'learning') { p.status = 'learned'; p.completedDate = today(); p.memorized = true; }
+  else { p.status = 'untouched'; p.startedDate = null; p.completedDate = null; p.memorized = false; }
+  saveRepertoire(rep);
+  renderRepertoire();
+};
+
+window.toggleMemorized = function(id) {
+  const rep = getRepertoire();
+  const p = rep.find(r => r.id === id);
+  if (!p) return;
+  if (p.status !== 'learned') { cycleRepStatus(id); return; }
+  p.memorized = !p.memorized;
+  saveRepertoire(rep);
+  renderRepertoire();
+};
+
+function showDayDetail(date, log) {
+  const modal = document.getElementById('modalContainer');
+  if (!log) {
+    modal.innerHTML = `
+      <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>📅 ${fmtDate(date)}</h2>
+            <button class="btn-icon del" onclick="closeModal()" style="border-radius:50%">✕</button>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">😴</div>
+            <p>这天没有练琴记录</p>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const piecesHtml = log.entries.map(e => `
+    <div class="piece-item">
+      <div class="piece-info">
+        <div class="piece-name">${esc(e.pieceName)}</div>
+        <div class="text-sm">⏱ ${e.durationMin || 0} 分钟 · ${'⭐'.repeat(e.rating || 0)}</div>
+        ${e.notes ? `<div class="text-sm">📝 ${esc(e.notes)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>📅 ${fmtDate(date)}</h2>
+          <button class="btn-icon del" onclick="closeModal()" style="border-radius:50%">✕</button>
+        </div>
+        <div class="day-detail-section">
+          <h4>⏱ 总时长</h4>
+          <p style="font-size:1.2rem;font-weight:700;color:var(--primary)">${log.totalDurationMin || 0} 分钟</p>
+        </div>
+        ${log.mood ? `<div class="day-detail-section"><h4>😊 心情</h4><p style="font-size:2rem">${log.mood}</p></div>` : ''}
+        <div class="day-detail-section">
+          <h4>🎵 练习曲目</h4>
+          ${piecesHtml}
+        </div>
+        ${log.parentNotes ? `
+        <div class="day-detail-section">
+          <h4>📝 家长笔记</h4>
+          <p style="font-size:.9rem">${esc(log.parentNotes)}</p>
+        </div>` : ''}
+      </div>
+    </div>`;
+}
+
+// ==================== TAB SWITCHING ====================
+document.querySelector('.tab-bar').addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + btn.dataset.tab).classList.add('active');
+  // Re-render the target tab
+  if (btn.dataset.tab === 'today') renderToday();
+  if (btn.dataset.tab === 'lessons') renderLessons();
+  if (btn.dataset.tab === 'calendar') renderCalendar();
+  if (btn.dataset.tab === 'repertoire') renderRepertoire();
+});
+
+// ==================== SYNC ====================
+const SYNC_CONFIG_KEY = 'piano_sync_config';
+
+function loadSyncConfig() {
+  try {
+    return JSON.parse(localStorage.getItem(SYNC_CONFIG_KEY)) || { serverUrl: '', autoSync: true, lastSync: null };
+  } catch { return { serverUrl: '', autoSync: true, lastSync: null }; }
+}
+
+function saveSyncConfig(cfg) {
+  localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cfg));
+}
+
+function getAutoServerUrl() {
+  // If opened from sync server, auto-detect
+  if (window.location.origin.startsWith('http://') || window.location.origin.startsWith('https://')) {
+    if (window.location.origin.includes('localhost') || /^\d+\.\d+\.\d+\.\d+/.test(window.location.hostname)) {
+      return window.location.origin;
+    }
+  }
+  return '';
+}
+
+async function pingServer(url) {
+  try {
+    const res = await fetch(url + '/ping', { signal: AbortSignal.timeout(3000) });
+    const data = await res.json();
+    return data.ok === true;
+  } catch { return false; }
+}
+
+async function syncToServer() {
+  const cfg = loadSyncConfig();
+  const serverUrl = cfg.serverUrl || getAutoServerUrl();
+  if (!serverUrl) return { ok: false, error: '未配置服务器地址' };
+
+  try {
+    const localData = {
+      lessons: DB.lessons(),
+      logs: DB.logs(),
+    };
+    const res = await fetch(serverUrl + '/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(localData),
+      signal: AbortSignal.timeout(5000),
+    });
+    const result = await res.json();
+    if (result.ok) {
+      cfg.lastSync = result.time;
+      saveSyncConfig(cfg);
+      updateSyncIndicator(true);
+    }
+    return result;
+  } catch (e) {
+    updateSyncIndicator(false);
+    return { ok: false, error: e.message };
+  }
+}
+
+async function syncFromServer() {
+  const cfg = loadSyncConfig();
+  const serverUrl = cfg.serverUrl || getAutoServerUrl();
+  if (!serverUrl) return { ok: false, error: '未配置服务器地址' };
+
+  try {
+    const res = await fetch(serverUrl + '/data', { signal: AbortSignal.timeout(5000) });
+    const serverData = await res.json();
+
+    // Merge: union by id, server version for same-id conflicts (since we're "pulling")
+    const lessonMap = new Map();
+    for (const l of DB.lessons()) lessonMap.set(l.id, l);
+    for (const l of (serverData.lessons || [])) lessonMap.set(l.id, l); // server wins
+
+    const logMap = new Map();
+    for (const l of DB.logs()) logMap.set(l.id, l);
+    for (const l of (serverData.logs || [])) logMap.set(l.id, l); // server wins
+
+    DB.saveLessons([...lessonMap.values()]);
+    DB.saveLogs([...logMap.values()]);
+
+    cfg.lastSync = new Date().toISOString();
+    saveSyncConfig(cfg);
+    updateSyncIndicator(true);
+    renderAll();
+
+    return {
+      ok: true,
+      lessons: [...lessonMap.values()].length,
+      logs: [...logMap.values()].length,
+    };
+  } catch (e) {
+    updateSyncIndicator(false);
+    return { ok: false, error: e.message };
+  }
+}
+
+function updateSyncIndicator(ok) {
+  const btn = document.getElementById('syncBtn');
+  if (btn) {
+    if (ok) {
+      btn.classList.add('synced');
+      setTimeout(() => btn.classList.remove('synced'), 2000);
+    }
+  }
+}
+
+// Auto-sync after save
+async function autoSyncAfterSave() {
+  const cfg = loadSyncConfig();
+  if (!cfg.autoSync) return;
+  const serverUrl = cfg.serverUrl || getAutoServerUrl();
+  if (!serverUrl) return;
+  await syncToServer();
+}
+
+window.showSyncPanel = async function() {
+  const cfg = loadSyncConfig();
+  const autoUrl = getAutoServerUrl();
+  const serverUrl = cfg.serverUrl || autoUrl;
+  const isReachable = serverUrl ? await pingServer(serverUrl) : false;
+
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>🔄 数据同步</h2>
+          <button class="btn-icon del" onclick="closeModal()" style="border-radius:50%">✕</button>
+        </div>
+
+        <div class="form-group">
+          <label>📡 服务器地址</label>
+          <input class="form-input" type="text" id="syncServerUrl"
+            placeholder="http://192.168.x.x:3456"
+            value="${esc(serverUrl)}">
+          ${autoUrl ? `<p class="text-sm mt-8">✅ 已自动检测到服务器地址</p>` : ''}
+          <div class="text-sm mt-8" id="syncStatus">
+            ${serverUrl
+              ? (isReachable ? '🟢 服务器已连接' : '🔴 无法连接到服务器（请确保电脑开机且同一 WiFi）')
+              : '⚪ 请设置服务器地址'}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="syncAutoToggle" ${cfg.autoSync ? 'checked' : ''}
+              style="width:auto;margin-right:8px">
+            🔄 保存时自动同步
+          </label>
+        </div>
+
+        ${cfg.lastSync ? `<div class="text-sm mb-12">上次同步：${new Date(cfg.lastSync).toLocaleString('zh-CN')}</div>` : ''}
+
+        <div class="gap-8">
+          <button class="btn btn-primary" id="btnSyncUpload" style="flex:1" ${isReachable ? '' : 'disabled'}>
+            ⬆ 上传到服务器
+          </button>
+          <button class="btn btn-secondary" id="btnSyncDownload" style="flex:1" ${isReachable ? '' : 'disabled'}>
+            ⬇ 从服务器下载
+          </button>
+        </div>
+
+        <button class="btn btn-primary mt-12" id="btnSyncSave" style="width:100%">💾 保存设置</button>
+      </div>
+    </div>`;
+
+  // Bind events
+  document.getElementById('btnSyncSave').addEventListener('click', () => {
+    const newUrl = document.getElementById('syncServerUrl').value.trim();
+    const autoSync = document.getElementById('syncAutoToggle').checked;
+    cfg.serverUrl = newUrl;
+    cfg.autoSync = autoSync;
+    saveSyncConfig(cfg);
+    closeModal();
+  });
+
+  document.getElementById('btnSyncUpload').addEventListener('click', async () => {
+    const btn = document.getElementById('btnSyncUpload');
+    btn.textContent = '⏳ 上传中...';
+    btn.disabled = true;
+    const result = await syncToServer();
+    if (result.ok) {
+      alert('✅ 上传成功！\n' +
+        '上课记录：' + (result.mergedRecords?.lessons || '?') + ' 条\n' +
+        '练琴记录：' + (result.mergedRecords?.logs || '?') + ' 条');
+      closeModal();
+    } else {
+      alert('❌ 上传失败：' + (result.error || '未知错误'));
+    }
+    btn.textContent = '⬆ 上传到服务器';
+    btn.disabled = false;
+  });
+
+  document.getElementById('btnSyncDownload').addEventListener('click', async () => {
+    const btn = document.getElementById('btnSyncDownload');
+    btn.textContent = '⏳ 下载中...';
+    btn.disabled = true;
+    const result = await syncFromServer();
+    if (result.ok) {
+      alert('✅ 下载并合并成功！\n' +
+        '上课记录：' + result.lessons + ' 条\n' +
+        '练琴记录：' + result.logs + ' 条');
+      closeModal();
+    } else {
+      alert('❌ 下载失败：' + (result.error || '未知错误'));
+    }
+    btn.textContent = '⬇ 从服务器下载';
+    btn.disabled = false;
+  });
+};
+
+// Update sync button visual state
+let _syncOnline = null; // null=unknown, true=reachable, false=unreachable
+async function updateSyncButtonState() {
+  const btn = document.getElementById('syncBtn');
+  if (!btn) return;
+  const cfg = loadSyncConfig();
+  const serverUrl = cfg.serverUrl || getAutoServerUrl();
+  if (!serverUrl) {
+    btn.textContent = '☁️';
+    btn.title = '设置同步';
+    btn.style.opacity = '0.5';
+    return;
+  }
+  // Throttle: only check every 10 seconds
+  if (_syncOnline !== null && _syncOnline !== undefined) {
+    btn.textContent = _syncOnline ? '🔄' : '⚠️';
+    btn.title = _syncOnline ? '同步正常' : '服务器不可达';
+    btn.style.opacity = _syncOnline ? '1' : '0.7';
+    return;
+  }
+  pingServer(serverUrl).then(ok => {
+    _syncOnline = ok;
+    updateSyncButtonState();
+  });
+}
+
+// Auto-sync on startup if server is reachable
+async function startupSync() {
+  const cfg = loadSyncConfig();
+  const serverUrl = cfg.serverUrl || getAutoServerUrl();
+  if (!serverUrl || !cfg.autoSync) return;
+  const ok = await pingServer(serverUrl);
+  _syncOnline = ok;
+  updateSyncButtonState();
+  if (!ok) return;
+  // Pull from server if: first time ever, or last sync > 1 hour ago
+  const lastSync = cfg.lastSync ? new Date(cfg.lastSync).getTime() : 0;
+  if (Date.now() - lastSync > 3600000) {
+    await syncFromServer();
+  }
+}
+
+// Check auto URL on startup — if found and no saved URL, auto-configure
+(function initSyncConfig() {
+  const cfg = loadSyncConfig();
+  const autoUrl = getAutoServerUrl();
+  if (autoUrl && !cfg.serverUrl) {
+    cfg.serverUrl = autoUrl;
+    saveSyncConfig(cfg);
+  }
+  // Run startup sync
+  startupSync();
+})();
+
+// ==================== INIT ====================
+initRepertoire();
+loadLogo();
+renderAll();
+</script>
+</body>
+</html>
