@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Importing...</title>
+<style>
+body{background:#1A1D35;color:#E8E8EE;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column}
+.card{background:rgba(255,255,255,0.1);border-radius:20px;padding:32px;text-align:center;max-width:400px}
+.spinner{font-size:3rem;animation:spin 1s linear infinite;margin-bottom:16px}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin:8px 0}
+.btn-primary{background:#F5A098;color:#fff}
+.btn-secondary{background:rgba(255,255,255,0.1);color:#E8E8EE;border:1px solid rgba(255,255,255,0.2)}
+pre{background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;font-size:0.7rem;margin:8px 0;text-align:left}
+</style></head><body>
+<div class="card" id="card">
+<div class="spinner">⏳</div>
+<h2>导入 5/30 上课记录</h2>
+<p style="font-size:0.8rem;color:#A0A0B0" id="msg">请先打开新版本钢琴助手，创建家庭并登录，然后回到本页</p>
+<button class="btn btn-primary" id="btn" onclick="doImport()" disabled>📥 导入数据</button>
+<pre id="log" style="display:none"></pre>
+<button class="btn btn-secondary" id="goBtn" style="display:none" onclick="go()">🎹 去使用钢琴助手</button>
+</div>
+<script>
+var IMPORT_DATA = {"lessons": [{"id": "lesson_mkvl9c", "date": "2026-05-30", "pieces": [{"name": "埃科塞兹舞曲", "en": "Écossaise", "details": "A段左手，手腕不要抖，要上下；B段", "category": "suzuki", "repId": "s2-01", "score": ""}, {"name": "小故事", "en": "A Short Story", "details": "lafare，等拍子的时候手在晃", "category": "suzuki", "repId": "s2-02", "score": ""}, {"name": "快乐的农夫", "en": "The Happy Farmer", "details": "转弯的地方不要划回来", "category": "suzuki", "repId": "s2-03", "score": ""}, {"name": "G小调小步舞曲 第一首", "en": "Minuet 1, Klavier Suite in g minor", "details": "左手等拍子的时候不要晃；A段合手；B段最后一行不熟", "category": "suzuki", "repId": "s2-04", "score": ""}, {"name": "狮子大游行", "details": "分手练，再合手", "category": "pieces", "score": ""}, {"name": "往事难忘", "details": "要试一试d", "category": "pieces", "score": ""}, {"name": "五指练习", "details": "合手", "category": "beyer", "score": ""}], "focusAreas": ["手腕稳定", "分手练", "合手", "节奏"], "notes": ""}], "logs": [], "repertoire": [], "version": "2.1"};
+
+function log(msg) {
+  var el = document.getElementById('log');
+  el.style.display = 'block';
+  el.textContent += msg + '\n';
+}
+
+function doImport() {
+  try {
+    if (!IMPORT_DATA.lessons || !IMPORT_DATA.lessons.length) {
+      log('❌ 没有课程数据');
+      return;
+    }
+    
+    // Read existing data
+    var prefix = '';
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k.match(/^piano_[a-z0-9]+_lessons$/)) {
+        prefix = k.replace('lessons', '');
+        break;
+      }
+    }
+    if (!prefix) {
+      // Try piano_default_ prefix
+      prefix = 'piano_default_';
+    }
+    
+    // Merge lessons
+    var existingLessons = [];
+    try { existingLessons = JSON.parse(localStorage.getItem(prefix + 'lessons') || '[]'); } catch(e){}
+    var merged = {};
+    existingLessons.forEach(function(l) { merged[l.id] = l; });
+    IMPORT_DATA.lessons.forEach(function(l) {
+      if (!merged[l.id]) { merged[l.id] = l; log('✅ 新增课程: ' + l.date); }
+      else { log('⏭ 跳过重复: ' + l.date); }
+    });
+    localStorage.setItem(prefix + 'lessons', JSON.stringify(Object.values(merged)));
+    
+    // Merge logs
+    var existingLogs = [];
+    try { existingLogs = JSON.parse(localStorage.getItem(prefix + 'logs') || '[]'); } catch(e){}
+    var mergedLogs = {};
+    existingLogs.forEach(function(l) { mergedLogs[l.id] = l; });
+    (IMPORT_DATA.logs || []).forEach(function(l) {
+      if (!mergedLogs[l.id]) { mergedLogs[l.id] = l; log('✅ 新增练习: ' + l.date); }
+    });
+    localStorage.setItem(prefix + 'logs', JSON.stringify(Object.values(mergedLogs)));
+    
+    log('✅ 导入完成！共 ' + Object.keys(merged).length + ' 条课程');
+    document.getElementById('btn').disabled = true;
+    document.getElementById('btn').textContent = '✅ 导入成功';
+    document.getElementById('goBtn').style.display = 'block';
+    document.getElementById('msg').textContent = '数据已导入，去使用吧！';
+  } catch(e) {
+    log('❌ 错误: ' + e.message);
+  }
+}
+
+// Auto-enable after checking localStorage has family data
+setTimeout(function() {
+  var hasData = false;
+  for (var i = 0; i < localStorage.length; i++) {
+    if (localStorage.key(i).match(/^piano_[a-z0-9]+_lessons/)) { hasData = true; break; }
+  }
+  if (hasData) {
+    document.getElementById('msg').textContent = '检测到已登录家庭，可以导入';
+    document.getElementById('btn').disabled = false;
+  }
+}, 500);
+
+function go() {
+  window.location.href = '../piano3/index.html';
+}
+</script></body></html>

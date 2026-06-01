@@ -1,0 +1,70 @@
+{
+  "lessons": [
+    {
+      "id": "lesson_mkvl9c",
+      "date": "2026-05-30",
+      "pieces": [
+        {
+          "name": "埃科塞兹舞曲",
+          "en": "Écossaise",
+          "details": "A段左手，手腕不要抖，要上下；B段",
+          "category": "suzuki",
+          "repId": "s2-01",
+          "score": ""
+        },
+        {
+          "name": "小故事",
+          "en": "A Short Story",
+          "details": "lafare，等拍子的时候手在晃",
+          "category": "suzuki",
+          "repId": "s2-02",
+          "score": ""
+        },
+        {
+          "name": "快乐的农夫",
+          "en": "The Happy Farmer",
+          "details": "转弯的地方不要划回来",
+          "category": "suzuki",
+          "repId": "s2-03",
+          "score": ""
+        },
+        {
+          "name": "G小调小步舞曲 第一首",
+          "en": "Minuet 1, Klavier Suite in g minor",
+          "details": "左手等拍子的时候不要晃；A段合手；B段最后一行不熟",
+          "category": "suzuki",
+          "repId": "s2-04",
+          "score": ""
+        },
+        {
+          "name": "狮子大游行",
+          "details": "分手练，再合手",
+          "category": "pieces",
+          "score": ""
+        },
+        {
+          "name": "往事难忘",
+          "details": "要试一试d",
+          "category": "pieces",
+          "score": ""
+        },
+        {
+          "name": "五指练习",
+          "details": "合手",
+          "category": "beyer",
+          "score": ""
+        }
+      ],
+      "focusAreas": [
+        "手腕稳定",
+        "分手练",
+        "合手",
+        "节奏"
+      ],
+      "notes": ""
+    }
+  ],
+  "logs": [],
+  "repertoire": [],
+  "version": "2.1"
+}

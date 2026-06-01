@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>数据提取</title>
+<style>
+body{background:#1A1D35;color:#E8E8EE;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.card{background:rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:500px;width:90%}
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin:8px 0}
+.btn-primary{background:#F5A098;color:#fff}
+.btn-secondary{background:rgba(255,255,255,0.1);color:#E8E8EE;border:1px solid rgba(255,255,255,0.2)}
+pre{background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;font-size:0.7rem;overflow:auto;max-height:300px;word-break:break-all}
+h2{text-align:center;margin-bottom:16px}
+</style></head><body>
+<div class="card">
+<h2>📦 提取旧版本数据</h2>
+<p style="font-size:0.8rem;color:#A0A0B0;text-align:center;margin-bottom:16px">从旧版钢琴助手（piano_前缀）提取数据</p>
+<div id="status" style="text-align:center;color:#A0A0B0;font-size:0.8rem;margin-bottom:12px">点击下方按钮</div>
+<pre id="output" style="display:none"></pre>
+<button class="btn btn-primary" onclick="extract()">🔍 扫描旧数据</button>
+<button class="btn btn-secondary" id="downloadBtn" style="display:none" onclick="download()">📥 下载 JSON 文件</button>
+<button class="btn btn-secondary" onclick="copyAll()">📋 复制到剪贴板</button>
+<p style="font-size:0.65rem;color:#787888;text-align:center;margin-top:12px">
+下载 JSON 后 → 打开新版本 → 同步面板 → 导入数据（JSON）</p></div>
+<script>
+var extracted = null;
+function extract(){
+  var data = {};
+  for(var i=0;i<localStorage.length;i++){
+    var key = localStorage.key(i);
+    if(key.startsWith('piano_')){
+      try{ data[key] = JSON.parse(localStorage.getItem(key)); }
+      catch(e){ data[key] = localStorage.getItem(key); }
+    }
+  }
+  extracted = data;
+  var el = document.getElementById('output');
+  el.style.display = 'block';
+  el.textContent = JSON.stringify(data, null, 2);
+  document.getElementById('status').textContent = '找到 ' + Object.keys(data).length + ' 条数据';
+  if(Object.keys(data).length > 0){
+    document.getElementById('downloadBtn').style.display = 'block';
+  }
+}
+function download(){
+  if(!extracted) return;
+  var blob = new Blob([JSON.stringify(extracted,null,2)],{type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'piano-old-data-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+function copyAll(){
+  var el = document.getElementById('output');
+  if(!el.textContent) return;
+  navigator.clipboard.writeText(el.textContent).then(function(){
+    document.getElementById('status').textContent = '✅ 已复制！';
+  }).catch(function(){
+    el.select();
+    document.getElementById('status').textContent = '请手动 Cmd+C 复制';
+  });
+}
+</script></body></html>

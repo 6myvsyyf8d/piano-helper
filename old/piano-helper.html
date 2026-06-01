@@ -798,6 +798,9 @@ function renderToday() {
 }
 
 function renderTodayDone(log) {
+  const totalStars = log.entries.reduce((s, e) => s + (e.rating || 0), 0);
+  const totalMin = log.entries.reduce((s, e) => s + (e.durationMin || 0), 0) || log.totalDurationMin || 0;
+
   const piecesHtml = log.entries.map((e, i) => `
     <div class="done-piece-row">
       <span>${i+1}.</span>
@@ -812,7 +815,7 @@ function renderTodayDone(log) {
         <div class="celeb-icon">🎉</div>
         <h2>太棒了！</h2>
         <div class="celeb-stats">
-          今天练了 <strong>${log.entries.length}</strong> 首曲目 · 共 <strong>${log.totalDurationMin || 0}</strong> 分钟
+          今天练了 <strong>${log.entries.length}</strong> 首曲目 · 共 <strong>${totalMin}</strong> 分钟 · <strong>${totalStars}</strong> ⭐
           ${log.mood ? ' · 心情 ' + log.mood : ''}
         </div>
       </div>
@@ -1065,6 +1068,9 @@ function bindTodayForm(lesson) {
           <span class="prac-info">
             <span class="prac-name">${esc(r.en||r.name)} <span style="font-weight:400;color:var(--text3);font-size:.72rem">${esc(r.name)}</span></span>
           </span>
+          <span class="prac-stars">
+            ${[1,2,3,4,5].map(s => `<button class="prac-star" data-action="star" data-idx="${idx}" data-star="${s}">⭐</button>`).join('')}
+          </span>
           <button class="prac-mem-btn" data-action="reviewMem" data-idx="${idx}" data-repid="${r.id}" style="font-size:.7rem;padding:4px 8px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">${memLabel}</button>
           <button class="prac-done" data-action="review" data-idx="${idx}" data-name="${esc(r.name)}">已复习</button>
         </div>`;
@@ -1072,6 +1078,29 @@ function bindTodayForm(lesson) {
       reviews.forEach((r, ri) => {
         pieceStates['r' + ri] = { done: false, rating: 0, durationMin: 0, notes: '', pieceName: (r.en||r.name) + '（复习）', repId: r.id, reviewMem: r.memorized };
       });
+      // Add duration inputs for review pieces in parent panel
+      const parentContent = document.getElementById('parentContent');
+      if (parentContent && reviews.length) {
+        const reviewDurSection = document.createElement('div');
+        reviewDurSection.className = 'parent-section';
+        reviewDurSection.id = 'reviewDurSection';
+        reviewDurSection.innerHTML = `
+          <h4>⏱ 复习曲目分钟</h4>
+          ${reviews.map((r, ri) => `
+            <div class="parent-piece-row">
+              <span>${esc(r.name)}</span>
+              <input class="form-input" type="number" placeholder="分钟" min="0" max="180" data-action="duration" data-idx="r${ri}" style="width:60px;padding:6px 8px;font-size:.8rem">
+            </div>
+          `).join('')}
+        `;
+        // Insert before the parent notes section (last child)
+        const notesSection = parentContent.querySelector('.parent-section:last-of-type');
+        if (notesSection && notesSection.querySelector('textarea')) {
+          parentContent.insertBefore(reviewDurSection, notesSection);
+        } else {
+          parentContent.appendChild(reviewDurSection);
+        }
+      }
       reviewCards.addEventListener('click', e => {
         // Handle memorized toggle
         const memBtn = e.target.closest('[data-action="reviewMem"]');
@@ -1106,14 +1135,27 @@ function bindTodayForm(lesson) {
   // Save
   document.getElementById('btnSavePractice')?.addEventListener('click', () => {
     const totalMin = Math.floor(timerSec / 60);
-    const entries = Object.entries(pieceStates).map(([idx, s]) => ({
-      pieceName: s.pieceName || `曲目 ${parseInt(idx)+1}`,
-      detail: (lesson?.pieces || [])[idx]?.details || '',
-      durationMin: s.durationMin || 0,
-      notes: s.notes || '',
-      rating: s.rating || 0,
-      done: s.done
-    })).filter(e => e.done || e.durationMin > 0 || e.rating > 0);
+    const entries = Object.entries(pieceStates).map(([idx, s]) => {
+      // Determine category: lesson piece → from lesson data; review → 'review'; fallback → 'pieces'
+      let category = 'pieces';
+      if (/^r\d+$/.test(idx)) {
+        category = 'review';
+      } else {
+        const pieceIdx = parseInt(idx);
+        if (!isNaN(pieceIdx) && lesson?.pieces?.[pieceIdx]) {
+          category = lesson.pieces[pieceIdx].category || 'pieces';
+        }
+      }
+      return {
+        pieceName: s.pieceName || `曲目 ${parseInt(idx)+1}`,
+        detail: (lesson?.pieces || [])[idx]?.details || '',
+        durationMin: s.durationMin || 0,
+        notes: s.notes || '',
+        rating: s.rating || 0,
+        done: s.done,
+        category
+      };
+    }).filter(e => e.done || e.durationMin > 0 || e.rating > 0);
 
     if (entries.length === 0 && totalMin === 0) {
       alert('请至少完成一项练习再保存哦～');
@@ -1124,7 +1166,7 @@ function bindTodayForm(lesson) {
       id: uid(),
       date: today(),
       entries,
-      totalDurationMin: totalMin || entries.reduce((s, e) => s + e.durationMin, 0),
+      totalDurationMin: entries.reduce((s, e) => s + e.durationMin, 0) || totalMin,
       parentNotes: document.getElementById('parentNotes')?.value || '',
     };
 
@@ -1654,15 +1696,93 @@ function showDayDetail(date, log) {
     return;
   }
 
-  const piecesHtml = log.entries.map(e => `
-    <div class="piece-item">
-      <div class="piece-info">
-        <div class="piece-name">${esc(e.pieceName)}</div>
-        <div class="text-sm">⏱ ${e.durationMin || 0} 分钟 · ${'⭐'.repeat(e.rating || 0)}</div>
-        ${e.notes ? `<div class="text-sm">📝 ${esc(e.notes)}</div>` : ''}
+  const catLabels = { suzuki: '🎻 铃木', beyer: '🎼 拜厄', pieces: '🎵 小川一郎小曲集', review: '🎲 复习' };
+  const catOrder = ['suzuki', 'beyer', 'pieces', 'review'];
+
+  // Build a piece-name → category lookup from the lesson on this date
+  const lesson = DB.lessons().find(l => l.date === date);
+  const catLookup = {};
+  if (lesson && lesson.pieces) {
+    lesson.pieces.forEach(p => { catLookup[p.name] = p.category || 'pieces'; });
+  }
+
+  // Group entries by category
+  const grouped = {};
+  log.entries.forEach(e => {
+    let cat = e.category;
+    // Fallback for old data: try lesson lookup, then check if name contains "复习"
+    if (!cat) {
+      if (e.pieceName && e.pieceName.includes('（复习）')) {
+        cat = 'review';
+      } else {
+        // Try to match by piece name against the lesson data
+        cat = 'pieces';
+        for (const [name, c] of Object.entries(catLookup)) {
+          if (e.pieceName && e.pieceName.includes(name)) { cat = c; break; }
+        }
+      }
+    }
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(e);
+  });
+
+  // Calculate totals
+  const totalStars = log.entries.reduce((s, e) => s + (e.rating || 0), 0);
+  const totalMin = log.entries.reduce((s, e) => s + (e.durationMin || 0), 0) || log.totalDurationMin || 0;
+
+  // Best & worst (based on star rating, only consider rated pieces)
+  const rated = log.entries.filter(e => e.rating > 0);
+  const best = rated.length ? rated.reduce((a, b) => (a.rating || 0) >= (b.rating || 0) ? a : b) : null;
+  const worst = rated.length > 1 ? rated.reduce((a, b) => (a.rating || 0) <= (b.rating || 0) ? a : b) : null;
+  const showWorst = worst && best && (worst.rating || 0) < (best.rating || 0);
+
+  // Highlight section
+  let highlightHtml = '';
+  if (best) {
+    highlightHtml += `
+      <div class="day-detail-section">
+        <h4>🌟 弹得最好</h4>
+        <div class="piece-item" style="border-left:3px solid var(--green)">
+          <div class="piece-info">
+            <div class="piece-name">${esc(best.pieceName)}</div>
+            <div class="text-sm">${'⭐'.repeat(best.rating || 0)} · ⏱ ${best.durationMin || 0} 分钟</div>
+          </div>
+        </div>
+      </div>`;
+  }
+  if (showWorst) {
+    highlightHtml += `
+      <div class="day-detail-section">
+        <h4>💪 需要加油</h4>
+        <div class="piece-item" style="border-left:3px solid var(--primary)">
+          <div class="piece-info">
+            <div class="piece-name">${esc(worst.pieceName)}</div>
+            <div class="text-sm">${'⭐'.repeat(worst.rating || 0)} · ⏱ ${worst.durationMin || 0} 分钟</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Category breakdown
+  const catHtml = catOrder.filter(cat => grouped[cat]).map(cat => {
+    const entries = grouped[cat];
+    const catMin = entries.reduce((s, e) => s + (e.durationMin || 0), 0);
+    const catStars = entries.reduce((s, e) => s + (e.rating || 0), 0);
+    const piecesHtml = entries.map(e => `
+      <div class="piece-item">
+        <div class="piece-info">
+          <div class="piece-name">${esc(e.pieceName)}</div>
+          <div class="text-sm">⏱ ${e.durationMin || 0} 分钟 · ${'⭐'.repeat(e.rating || 0)}${!e.rating ? ' <span style="color:var(--text3)">未评分</span>' : ''}</div>
+          ${e.notes ? `<div class="text-sm">📝 ${esc(e.notes)}</div>` : ''}
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
+    return `
+      <div class="day-detail-section" style="margin-bottom:16px">
+        <h4 style="font-size:.85rem">${catLabels[cat]} <span style="font-weight:400;color:var(--text2);font-size:.75rem">— ${catMin}分钟 · ${catStars}⭐</span></h4>
+        ${piecesHtml}
+      </div>`;
+  }).join('');
 
   modal.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
@@ -1671,17 +1791,31 @@ function showDayDetail(date, log) {
           <h2>📅 ${fmtDate(date)}</h2>
           <button class="btn-icon del" onclick="closeModal()" style="border-radius:50%">✕</button>
         </div>
-        <div class="day-detail-section">
-          <h4>⏱ 总时长</h4>
-          <p style="font-size:1.2rem;font-weight:700;color:var(--primary)">${log.totalDurationMin || 0} 分钟</p>
+
+        <div class="calendar-stats">
+          <div class="stat-item">
+            <div class="stat-num">${totalStars}</div>
+            <div class="stat-label">⭐ 获得星星</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">${totalMin}</div>
+            <div class="stat-label">⏱ 练琴分钟</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">${log.entries.length}</div>
+            <div class="stat-label">🎵 练习曲目</div>
+          </div>
         </div>
-        ${log.mood ? `<div class="day-detail-section"><h4>😊 心情</h4><p style="font-size:2rem">${log.mood}</p></div>` : ''}
-        <div class="day-detail-section">
-          <h4>🎵 练习曲目</h4>
-          ${piecesHtml}
+
+        ${highlightHtml}
+
+        <div style="margin-top:16px">
+          <h4 style="font-size:.82rem;color:var(--text2);margin-bottom:8px">📊 按大类汇总</h4>
+          ${catHtml}
         </div>
+
         ${log.parentNotes ? `
-        <div class="day-detail-section">
+        <div class="day-detail-section" style="margin-top:16px">
           <h4>📝 家长笔记</h4>
           <p style="font-size:.9rem">${esc(log.parentNotes)}</p>
         </div>` : ''}
