@@ -1448,6 +1448,41 @@ body::after {
 }
 
 /* ========================================
+   ⏱ 单曲计时器
+   ======================================== */
+.piece-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm);
+}
+
+.piece-timer-display {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-green);
+  min-width: 50px;
+}
+
+.piece-timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  background: var(--accent-green-soft);
+  padding: 3px 8px;
+  border-radius: var(--r-full);
+  margin-left: 4px;
+}
+
+/* ========================================
    🎛️ 工具类
    ======================================== */
 .parent-sub-card {
@@ -2732,6 +2767,13 @@ const TodayState = {
   
   // 重置所有状态
   reset() {
+    // 清理所有曲目的计时器
+    for (const [idx, piece] of Object.entries(this.pieces)) {
+      if (piece._timerInterval) {
+        clearInterval(piece._timerInterval);
+        piece._timerInterval = null;
+      }
+    }
     this.pieces = {};
     this.timer.seconds = 0;
     this.timer.isRunning = false;
@@ -2742,6 +2784,7 @@ const TodayState = {
     this.mood = '';
     this.sticker = '';
     this.existingLog = null;
+    if (typeof activeTimerIdx !== 'undefined') activeTimerIdx = null;
   },
   
   // 初始化曲目状态
@@ -2765,6 +2808,44 @@ const TodayState = {
     return Object.values(this.pieces).filter(p => p.done || p.rating > 0 || p.durationMin > 0);
   }
 };
+
+/* ------------------------------------------
+   单曲卡片 HTML 生成（供练习表单和复习共用）
+   ------------------------------------------ */
+function pieceCardHTML(p) {
+  return `
+      <div class="piece-card" data-index="${p.index}" id="piece${p.index}">
+        <div class="piece-card-top" onclick="togglePieceExpand('${p.index}')">
+          <span class="piece-number">${typeof p.num === 'number' ? p.num : ''}</span>
+          <div class="piece-info">
+            <div class="piece-title">
+              ${Utils.escape(p.en || p.name)}
+              ${p.en ? '<span style="font-weight:400;color:var(--text-2);font-size:0.8rem"> ' + Utils.escape(p.name) + '</span>' : ''}
+            </div>
+            ${p.details ? '<div class="piece-subtitle"><span class="expand-hint">点击查看详情 ▸</span></div>' : '<div class="piece-subtitle"><span class="text-xs text-2">' + (p.composer || '') + '</span></div>'}
+          </div>
+        </div>
+
+        ${p.details ? '<div class="teacher-notes"><div class="teacher-notes-label">老师的要求</div><div class="teacher-notes-content">' + Utils.escape(p.details) + '</div></div>' : ''}
+
+        <div class="star-rating" data-index="${p.index}">
+          ${[1,2,3,4,5].map(s => '<button class="star-btn" data-star="' + s + '" onclick="setStarRating(\'' + p.index + '\', ' + s + ')">⭐</button>').join('')}
+        </div>
+
+        <!-- 单曲计时器 -->
+        <div class="piece-timer" data-timer-idx="${p.index}">
+          <span class="piece-timer-display" id="timerDisplay${p.index}">00:00</span>
+          <button class="btn btn-sm btn-success piece-timer-start" data-timer-start="${p.index}">▶ 开始</button>
+          <button class="btn btn-sm btn-secondary piece-timer-stop" data-timer-stop="${p.index}" style="display:none">⏹ 结束</button>
+          <span class="piece-timer-badge" id="timerBadge${p.index}" style="display:none"></span>
+        </div>
+
+        <button class="done-btn" data-index="${p.index}" onclick="togglePieceDone('${p.index}')">
+          标记完成
+        </button>
+      </div>
+    `;
+}
 
 /* ------------------------------------------
    页面渲染
@@ -2928,10 +3009,11 @@ function renderTodayPracticeForm(lesson) {
   const categoryLabels = {
     suzuki: '🎻 铃木',
     beyer: '🎼 拜厄',
-    pieces: '🎵 小曲集'
+    pieces: '🎵 小曲集',
+    review: '🎲 今日复习'
   };
-  const categoryOrder = ['suzuki', 'beyer', 'pieces'];
-  
+  const categoryOrder = ['suzuki', 'beyer', 'pieces', 'review'];
+
   // 按分类分组
   const grouped = {};
   lesson.pieces.forEach((piece, i) => {
@@ -2947,44 +3029,36 @@ function renderTodayPracticeForm(lesson) {
       repId: piece.repId || (repPiece ? repPiece.id : null)
     });
   });
-  
+
   // 生成曲目卡片（默认折叠）
-  const piecesHtml = categoryOrder.filter(cat => grouped[cat]).map(cat => {
+  const piecesHtml = categoryOrder.filter(cat => {
+    if (cat === 'review') return true; // 复习始终显示
+    return grouped[cat];
+  }).map(cat => {
+    if (cat === 'review') {
+      // 复习：placeholder，由 generateReviewList 填充
+      return `
+        <div class="practice-category mb-12" data-cat="review">
+          <div class="practice-category-header" onclick="toggleCategory('review')">
+            <span class="font-bold">${categoryLabels[cat]}</span>
+            <span class="cat-info">
+              <span class="text-sm text-2" id="reviewCount">从 Book 1 随机</span>
+              <span class="cat-toggle-icon">▸</span>
+            </span>
+          </div>
+          <div class="practice-category-body" data-cat-body="review" style="display:none">
+            <div id="reviewList"></div>
+          </div>
+        </div>
+      `;
+    }
+
     const pieces = grouped[cat];
 
-    const pieceCards = pieces.map(p => `
-      <div class="piece-card" data-index="${p.index}" id="piece${p.index}">
-        <div class="piece-card-top" onclick="togglePieceExpand(${p.index})">
-          <span class="piece-number">${p.index + 1}</span>
-          <div class="piece-info">
-            <div class="piece-title">
-              ${Utils.escape(p.en || p.name)}
-              ${p.en ? `<span style="font-weight:400;color:var(--text-2);font-size:0.8rem"> ${Utils.escape(p.name)}</span>` : ''}
-            </div>
-            <div class="piece-subtitle">
-              <span class="expand-hint">点击查看详情 ▸</span>
-            </div>
-          </div>
-        </div>
-
-        ${p.details ? `
-          <div class="teacher-notes">
-            <div class="teacher-notes-label">老师的要求</div>
-            <div class="teacher-notes-content">${Utils.escape(p.details)}</div>
-          </div>
-        ` : ''}
-
-        <div class="star-rating" data-index="${p.index}">
-          ${[1,2,3,4,5].map(s => `
-            <button class="star-btn" data-star="${s}" onclick="setStarRating(${p.index}, ${s})">⭐</button>
-          `).join('')}
-        </div>
-
-        <button class="done-btn" data-index="${p.index}" onclick="togglePieceDone(${p.index})">
-          标记完成
-        </button>
-      </div>
-    `).join('');
+    const pieceCards = pieces.map(p => {
+      const cardP = { ...p, num: p.index + 1 };
+      return pieceCardHTML(cardP);
+    }).join('');
 
     return `
       <div class="practice-category mb-12" data-cat="${cat}">
@@ -3001,99 +3075,26 @@ function renderTodayPracticeForm(lesson) {
       </div>
     `;
   }).join('');
-  
-  // 生成复习区域
-  const reviewHtml = `
-    <div class="card mb-16">
-      <div class="card-header">
-        <h3 class="card-title">
-          <span class="card-title-icon">🎲</span>
-          今日复习
-        </h3>
-        <span class="text-xs text-3">从 Book 1 随机 4 首</span>
-      </div>
-      <div id="reviewList"></div>
-    </div>
-  `;
-  
+
   return `
     <div class="text-sm text-2 mb-12" style="padding:0 4px">
       📅 ${Utils.formatDate(lesson.date)} 上课内容
     </div>
-    
+
     ${piecesHtml}
-    
-    ${reviewHtml}
-    
-    <!-- 家长工具 -->
-    <div class="card mb-16" id="parentPanel">
+
+    <!-- 家长笔记 -->
+    <div class="card mb-16">
       <div class="card-header">
         <h3 class="card-title">
-          <span class="card-title-icon">👨‍👩‍👧</span>
-          家长工具
+          <span class="card-title-icon">📝</span>
+          家长笔记
         </h3>
       </div>
-
-      <!-- 计时器 -->
-      <div class="practice-category" data-cat="timer">
-        <div class="practice-category-header" onclick="toggleCategory('timer')">
-          <span class="font-bold">⏱ 练习计时器</span>
-          <span class="cat-info">
-            <span class="text-sm text-2" id="timerHeaderTime">00:00</span>
-            <span class="cat-toggle-icon">▸</span>
-          </span>
-        </div>
-        <div class="practice-category-body" data-cat-body="timer" style="display:none">
-          <div id="timerDisplay" style="font-size:2.2rem;font-weight:900;text-align:center;color:var(--accent-primary);margin:8px 0;font-variant-numeric:tabular-nums">
-            00:00
-          </div>
-          <div class="flex-center gap-8">
-            <button class="btn btn-success btn-sm" id="timerStart">▶ 开始</button>
-            <button class="btn btn-secondary btn-sm" id="timerPause">⏸ 暂停</button>
-            <button class="btn btn-secondary btn-sm" id="timerReset">↺ 重置</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 各曲目练习分钟 -->
-      <div class="practice-category" data-cat="duration">
-        <div class="practice-category-header" onclick="toggleCategory('duration')">
-          <span class="font-bold">🎯 各曲目练习分钟</span>
-          <span class="cat-info">
-            <span class="text-sm text-2">${lesson.pieces.length}首</span>
-            <span class="cat-toggle-icon">▸</span>
-          </span>
-        </div>
-        <div class="practice-category-body" data-cat-body="duration" style="display:none">
-          <div id="durationInputs">
-            ${lesson.pieces.map((p, i) => `
-              <div class="flex-between mb-8">
-                <span class="text-sm">${Utils.escape(p.name)}</span>
-                <input type="number" class="form-input" placeholder="分钟" min="0" max="180"
-                       style="width:70px;padding:8px 10px;font-size:0.85rem"
-                       data-index="${i}" onchange="setPieceDuration(${i}, this.value)">
-              </div>
-            `).join('')}
-            <div id="reviewDurations"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 家长笔记 -->
-      <div class="practice-category" data-cat="parent-notes">
-        <div class="practice-category-header" onclick="toggleCategory('parent-notes')">
-          <span class="font-bold">📝 家长笔记</span>
-          <span class="cat-info">
-            <span class="cat-toggle-icon">▸</span>
-          </span>
-        </div>
-        <div class="practice-category-body" data-cat-body="parent-notes" style="display:none">
-          <textarea class="form-input" id="parentNotes" placeholder="记录孩子的进步、需要注意的地方..."
-                    style="min-height:80px"></textarea>
-        </div>
-      </div>
+      <textarea class="form-input" id="parentNotes" placeholder="记录孩子的进步、需要注意的地方..."
+                style="min-height:80px"></textarea>
     </div>
-    
+
     <button class="btn-big" id="btnCompletePractice">
       🎉 完成今日练习
     </button>
@@ -3120,7 +3121,6 @@ function bindTodayEvents(lesson, existingLog = null) {
   
   // 预填已有数据
   if (existingLog) {
-    TodayState.timer.seconds = (existingLog.totalDurationMin || 0) * 60;
     TodayState.mood = existingLog.mood || '';
     TodayState.sticker = existingLog.sticker || '';
     existingLog.entries.forEach(entry => {
@@ -3129,6 +3129,7 @@ function bindTodayEvents(lesson, existingLog = null) {
           piece.done = entry.done || false;
           piece.rating = entry.rating || 0;
           piece.durationMin = entry.durationMin || 0;
+          piece.timerSeconds = (entry.durationMin || 0) * 60;
           if (entry.repId) piece.repId = entry.repId;
           break;
         }
@@ -3137,13 +3138,13 @@ function bindTodayEvents(lesson, existingLog = null) {
     // UI 预填（延迟执行，等 DOM 渲染完成）
     setTimeout(prefillEditUI, 100);
   }
-  
-  // 计时器
-  bindTimer();
-  
+
+  // 绑定单曲计时器
+  bindPieceTimers();
+
   // 生成复习列表
   generateReviewList(lesson);
-  
+
   // 完成按钮
   const btnComplete = document.getElementById('btnCompletePractice');
   if (btnComplete) {
@@ -3154,17 +3155,9 @@ function bindTodayEvents(lesson, existingLog = null) {
 function prefillEditUI() {
   const log = TodayState.existingLog;
   if (!log) return;
-  // 展开家长工具中的笔记分类
-  const parentNotesCat = document.querySelector('.practice-category[data-cat="parent-notes"]');
-  if (parentNotesCat) { parentNotesCat.classList.add('open'); parentNotesCat.querySelector('.practice-category-body').style.display = 'block'; }
   const notes = document.getElementById('parentNotes');
   if (notes && log.parentNotes) notes.value = log.parentNotes;
   for (const [idx, piece] of Object.entries(TodayState.pieces)) {
-    // 时长输入
-    if (piece.durationMin > 0) {
-      const input = document.querySelector(`input[data-index="${idx}"]`);
-      if (input) input.value = piece.durationMin;
-    }
     // 星星
     if (piece.rating > 0) {
       const container = document.querySelector(`.star-rating[data-index="${idx}"]`);
@@ -3181,85 +3174,112 @@ function prefillEditUI() {
       if (card) card.classList.add('done');
       if (btn) { btn.classList.add('checked'); btn.textContent = '已完成'; }
     }
-  }
-  // 计时器显示
-  const display = document.getElementById('timerDisplay');
-  if (display && TodayState.timer.seconds > 0) {
-    const mins = Math.floor(TodayState.timer.seconds / 60);
-    const secs = TodayState.timer.seconds % 60;
-    const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    display.textContent = timeStr;
-    const headerTime2 = document.getElementById('timerHeaderTime');
-    if (headerTime2) headerTime2.textContent = timeStr;
+    // 计时器显示与 badge
+    if (piece.timerSeconds > 0) {
+      updatePieceTimerDisplay(idx);
+      const badge = document.getElementById('timerBadge' + idx);
+      if (badge && piece.durationMin > 0) {
+        badge.textContent = piece.durationMin + '分钟';
+        badge.style.display = '';
+      }
+    }
   }
 }
 
 /* ------------------------------------------
-   计时器绑定
+   单曲计时器绑定
    ------------------------------------------ */
-function bindTimer() {
-  const display = document.getElementById('timerDisplay');
-  const btnStart = document.getElementById('timerStart');
-  const btnPause = document.getElementById('timerPause');
-  const btnReset = document.getElementById('timerReset');
-  
-  if (!display) return;
-  
-  function updateDisplay() {
-    const mins = Math.floor(TodayState.timer.seconds / 60);
-    const secs = TodayState.timer.seconds % 60;
-    const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    display.textContent = timeStr;
-    const headerTime = document.getElementById('timerHeaderTime');
-    if (headerTime) headerTime.textContent = timeStr;
-  }
-  
-  if (btnStart) {
-    btnStart.addEventListener('click', () => {
-      if (TodayState.timer.isRunning) return;
-      
-      TodayState.timer.isRunning = true;
-      TodayState.timer.interval = setInterval(() => {
-        TodayState.timer.seconds++;
-        updateDisplay();
-      }, 1000);
-      
-      btnStart.textContent = '▶ 运行中...';
-      btnStart.disabled = true;
+let activeTimerIdx = null;  // 当前正在计时的曲目 index
+
+function bindPieceTimers() {
+  // 开始按钮
+  document.querySelectorAll('.piece-timer-start').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.timerStart;
+      startPieceTimer(idx);
     });
-  }
-  
-  if (btnPause) {
-    btnPause.addEventListener('click', () => {
-      if (!TodayState.timer.isRunning) return;
-      
-      clearInterval(TodayState.timer.interval);
-      TodayState.timer.interval = null;
-      TodayState.timer.isRunning = false;
-      
-      if (btnStart) {
-        btnStart.textContent = '▶ 开始';
-        btnStart.disabled = false;
-      }
+  });
+
+  // 结束按钮
+  document.querySelectorAll('.piece-timer-stop').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.timerStop;
+      stopPieceTimer(idx);
     });
+  });
+}
+
+function startPieceTimer(idx) {
+  // 如果已有其他计时器在运行，先停止
+  if (activeTimerIdx !== null && activeTimerIdx !== idx) {
+    stopPieceTimer(activeTimerIdx);
   }
-  
-  if (btnReset) {
-    btnReset.addEventListener('click', () => {
-      clearInterval(TodayState.timer.interval);
-      TodayState.timer.interval = null;
-      TodayState.timer.isRunning = false;
-      TodayState.timer.seconds = 0;
-      updateDisplay();
-      const th2 = document.getElementById('timerHeaderTime');
-      if (th2) th2.textContent = '00:00';
-      
-      if (btnStart) {
-        btnStart.textContent = '▶ 开始';
-        btnStart.disabled = false;
-      }
-    });
+
+  TodayState.initPiece(idx, '');
+  const piece = TodayState.pieces[idx];
+  if (piece._timerRunning) return;
+
+  piece._timerRunning = true;
+  piece._timerSeconds = piece._timerSeconds || 0;
+  activeTimerIdx = idx;
+
+  // UI：切换按钮
+  const startBtn = document.querySelector(`.piece-timer-start[data-timer-start="${idx}"]`);
+  const stopBtn = document.querySelector(`.piece-timer-stop[data-timer-stop="${idx}"]`);
+  if (startBtn) startBtn.style.display = 'none';
+  if (stopBtn) stopBtn.style.display = '';
+
+  const card = document.getElementById('piece' + idx);
+  if (card) card.style.boxShadow = '0 0 0 2px var(--accent-green)';
+
+  // 启动计时
+  piece._timerInterval = setInterval(() => {
+    piece._timerSeconds++;
+    updatePieceTimerDisplay(idx);
+  }, 1000);
+}
+
+function stopPieceTimer(idx) {
+  TodayState.initPiece(idx, '');
+  const piece = TodayState.pieces[idx];
+  if (!piece._timerRunning) return;
+
+  clearInterval(piece._timerInterval);
+  piece._timerInterval = null;
+  piece._timerRunning = false;
+  piece.durationMin = Math.ceil(piece._timerSeconds / 60);
+
+  if (activeTimerIdx === idx) activeTimerIdx = null;
+
+  // UI：切换按钮
+  const startBtn = document.querySelector(`.piece-timer-start[data-timer-start="${idx}"]`);
+  const stopBtn = document.querySelector(`.piece-timer-stop[data-timer-stop="${idx}"]`);
+  if (startBtn) startBtn.style.display = '';
+  if (stopBtn) stopBtn.style.display = 'none';
+
+  const card = document.getElementById('piece' + idx);
+  if (card) card.style.boxShadow = '';
+
+  // 显示记录时长 badge
+  const badge = document.getElementById('timerBadge' + idx);
+  if (badge && piece.durationMin > 0) {
+    badge.textContent = piece.durationMin + '分钟';
+    badge.style.display = '';
   }
+
+  updatePieceTimerDisplay(idx);
+}
+
+function updatePieceTimerDisplay(idx) {
+  const piece = TodayState.pieces[idx];
+  if (!piece) return;
+  const secs = piece._timerSeconds || 0;
+  const mins = Math.floor(secs / 60);
+  const remainSecs = secs % 60;
+  const timeStr = String(mins).padStart(2, '0') + ':' + String(remainSecs).padStart(2, '0');
+
+  const display = document.getElementById('timerDisplay' + idx);
+  if (display) display.textContent = timeStr;
 }
 
 /* ------------------------------------------
@@ -3268,22 +3288,25 @@ function bindTimer() {
 function generateReviewList(lesson) {
   const reviewList = document.getElementById('reviewList');
   if (!reviewList) return;
-  
+
   const lessonNames = lesson.pieces.map(p => p.name);
-  const reviews = RepertoireManager.getRandomReview(4, lessonNames, 1); // 只从 Book 1
-  
+  const reviews = RepertoireManager.getRandomReview(4, lessonNames, 1);
+  const countEl = document.getElementById('reviewCount');
+  if (countEl) countEl.textContent = reviews.length + '首';
+
   if (!reviews.length) {
-    reviewList.innerHTML = '<p class="text-sm text-3 text-center">暂无可复习曲目</p>';
+    reviewList.innerHTML = '<p class="text-sm text-2 text-center p-12">暂无可复习曲目</p>';
     return;
   }
-  
+
   reviewList.innerHTML = reviews.map((piece, i) => {
     const index = 'r' + i;
-    TodayState.initPiece(index, `${piece.en || piece.name}（复习）`);
+    TodayState.initPiece(index, piece.en || piece.name + '（复习）');
     TodayState.pieces[index].category = 'review';
     TodayState.pieces[index].repId = piece.id;
     TodayState.pieces[index].reviewMem = piece.memorized;
-    
+
+    // 直接生成复习卡片（带背谱按钮和计时器）
     return `
       <div class="piece-card" data-index="${index}" id="piece${index}">
         <div class="piece-card-top">
@@ -3291,41 +3314,55 @@ function generateReviewList(lesson) {
           <div class="piece-info" style="flex:1">
             <div class="piece-title">
               ${Utils.escape(piece.en || piece.name)}
-              <span style="font-weight:400;color:var(--text-3);font-size:0.8rem"> ${Utils.escape(piece.name)}</span>
+              <span style="font-weight:400;color:var(--text-2);font-size:0.8rem"> ${Utils.escape(piece.name)}</span>
             </div>
           </div>
-          <button class="btn btn-sm ${piece.memorized ? 'btn-primary' : 'btn-secondary'}" 
-                  style="font-size:0.7rem;padding:5px 10px" 
+          <button class="btn btn-sm ${piece.memorized ? 'btn-primary' : 'btn-secondary'}"
+                  style="font-size:0.7rem;padding:5px 10px"
                   onclick="toggleReviewMemorized('${index}', '${piece.id}')">
             ${piece.memorized ? '🧠 背谱' : '📖 看谱'}
           </button>
         </div>
-        
+
         <div class="star-rating" data-index="${index}">
           ${[1,2,3,4,5].map(s => `
             <button class="star-btn" data-star="${s}" onclick="setStarRating('${index}', ${s})">⭐</button>
           `).join('')}
         </div>
-        
+
+        <!-- 单曲计时器 -->
+        <div class="piece-timer" data-timer-idx="${index}">
+          <span class="piece-timer-display" id="timerDisplay${index}">00:00</span>
+          <button class="btn btn-sm btn-success piece-timer-start" data-timer-start="${index}">▶ 开始</button>
+          <button class="btn btn-sm btn-secondary piece-timer-stop" data-timer-stop="${index}" style="display:none">⏹ 结束</button>
+          <span class="piece-timer-badge" id="timerBadge${index}" style="display:none"></span>
+        </div>
+
         <button class="done-btn" data-index="${index}" onclick="togglePieceDone('${index}')">
           标记完成
         </button>
       </div>
     `;
   }).join('');
-  
-  // 在家长工具中添加复习曲目分钟输入
-  const reviewDurations = document.getElementById('reviewDurations');
-  if (reviewDurations) {
-    reviewDurations.innerHTML = reviews.map((piece, i) => `
-      <div class="flex-between mb-8">
-        <span class="text-sm">${Utils.escape(piece.name)}（复习）</span>
-        <input type="number" class="form-input" placeholder="分钟" min="0" max="180" 
-               style="width:70px;padding:8px 10px;font-size:0.85rem" 
-               data-index="r${i}" onchange="setPieceDuration('r${i}', this.value)">
-      </div>
-    `).join('');
-  }
+
+  // 重新绑定计时器（因为 review 是动态生成）
+  bindPieceTimersReview();
+}
+
+// 为复习曲目绑定计时器（DOM 已存在后调用）
+function bindPieceTimersReview() {
+  document.querySelectorAll('#reviewList .piece-timer-start').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.timerStart;
+      startPieceTimer(idx);
+    });
+  });
+  document.querySelectorAll('#reviewList .piece-timer-stop').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.timerStop;
+      stopPieceTimer(idx);
+    });
+  });
 }
 
 /* ------------------------------------------
@@ -3406,11 +3443,7 @@ window.togglePieceDone = function(index) {
   }
 };
 
-// 设置曲目时长
-window.setPieceDuration = function(index, minutes) {
-  TodayState.initPiece(index, '');
-  TodayState.pieces[index].durationMin = parseInt(minutes) || 0;
-};
+// 曲目时长由单曲计时器自动计算
 
 // 切换复习曲目背谱状态
 window.toggleReviewMemorized = function(index, repId) {
@@ -3432,36 +3465,38 @@ window.toggleReviewMemorized = function(index, repId) {
   }
 };
 
-// 家长工具内各分类使用统一 toggleCategory
+// 家长工具已移除，各分类使用统一 toggleCategory
 
 // 完成练习
 async function handleCompletePractice() {
   const completed = TodayState.getCompleted();
-  const timerMinutes = Math.floor(TodayState.timer.seconds / 60);
-  
-  if (completed.length === 0 && timerMinutes === 0) {
+
+  // 累计所有曲目的计时器时长
+  const totalTimerMin = Object.values(TodayState.pieces).reduce((sum, p) => sum + Math.ceil((p._timerSeconds || 0) / 60), 0);
+
+  if (completed.length === 0 && totalTimerMin === 0) {
     Utils.showToast('⚠️ 请至少完成一项练习', 'warning');
     return;
   }
-  
+
   // 确认对话框
-  if (!confirm(`确认提交今日练习？\n\n已完成 ${completed.length} 首曲目\n总时长 ${timerMinutes} 分钟`)) {
+  if (!confirm('确认提交今日练习？\n\n已完成 ' + completed.length + ' 首曲目\n总时长 ' + totalTimerMin + ' 分钟')) {
     return;
   }
-  
+
   // 构建日志
-  const entries = completed.map(piece => ({
+  const entries = Object.values(TodayState.pieces).map(piece => ({
     pieceName: piece.pieceName,
     category: piece.category,
-    durationMin: piece.durationMin,
-    notes: piece.notes,
-    rating: piece.rating,
-    done: piece.done,
-    repId: piece.repId
+    durationMin: Math.ceil((piece._timerSeconds || 0) / 60),
+    notes: piece.notes || '',
+    rating: piece.rating || 0,
+    done: piece.done || false,
+    repId: piece.repId || ''
   }));
-  
-  const totalMin = entries.reduce((sum, e) => sum + e.durationMin, 0) || timerMinutes;
-  
+
+  const totalMin = entries.reduce((sum, e) => sum + e.durationMin, 0) || totalTimerMin;
+
   const log = {
     id: Utils.uid(),
     date: Utils.today(),
@@ -3471,34 +3506,37 @@ async function handleCompletePractice() {
     mood: TodayState.mood,
     sticker: TodayState.sticker
   };
-  
+
   // 保存到数据库
   const logs = DB.logs().filter(l => l.date !== Utils.today());
   logs.push(log);
   DB.saveLogs(logs);
-  
+
   // 更新曲库练习记录
   entries.forEach(entry => {
     if (entry.repId && entry.durationMin > 0) {
       RepertoireManager.recordPractice(entry.repId, entry.durationMin);
     }
   });
-  
+
   // 清除编辑模式下保留的原日志
   if (TodayState.existingLog) {
     const logs2 = DB.logs().filter(l => l.date !== Utils.today());
     DB.saveLogs(logs2);
   }
-  
+
+  // 停止所有计时器
+  if (activeTimerIdx !== null) stopPieceTimer(activeTimerIdx);
+
   // 重置状态
   TodayState.reset();
-  
+
   // 显示成功提示
   Utils.showToast('✅ 今日练习已记录！', 'success');
-  
+
   // 重新渲染
   renderAll();
-  
+
   // 自动同步（异步，不阻塞）
   autoSyncAfterSave();
 }
