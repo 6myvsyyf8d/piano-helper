@@ -5763,115 +5763,6 @@ function renderAll() {
    🚀 应用初始化
    ========================================== */
 
-(async function initApp() {
-  console.log('🎹 Piano Helper v2.1 initializing...');
-
-  try {
-    // 0. 检查家庭：无家庭则显示启动页面，不渲染
-    const lastFamily = localStorage.getItem('piano_last_family');
-    const families = FamilyManager.getAll();
-    const validFamily = lastFamily && families.find(f => f.id === lastFamily);
-
-    if (!validFamily) {
-      console.log('No valid family, showing startup screen');
-      RepertoireManager.init();
-      LogoManager.load();
-      showStartupScreen();
-      // 绑定 tab 栏（家庭选择后会重新绑定）
-      const tabBar = document.querySelector('.tab-bar');
-      if (tabBar) {
-        tabBar.addEventListener('click', (e) => {
-          const btn = e.target.closest('.tab-btn');
-          if (btn) switchToTab(btn.dataset.tab);
-        });
-      }
-      console.log('✅ Waiting for family selection...');
-      return;
-    }
-
-    // 设置当前家庭
-    DB.setFamily(lastFamily);
-    FamilyManager.migrateTo(lastFamily);
-
-    // 1. 初始化曲库
-    RepertoireManager.init();
-
-    // 2. 加载 Logo
-    LogoManager.load();
-
-    // 3. 渲染所有页面
-    renderAll();
-
-    // 4. 更新 header 家庭标签
-    const family = families.find(f => f.id === lastFamily);
-    if (family) {
-      const tag = document.getElementById('familyTagName');
-      if (tag) {
-        const role = RoleManager.get();
-        const roleIcon = RoleManager.ROLES[role].icon;
-        tag.textContent = roleIcon + ' ' + family.name;
-      }
-    }
-
-    // 5. 绑定标签栏点击
-    const tabBar = document.querySelector('.tab-bar');
-    if (tabBar) {
-      tabBar.addEventListener('click', (e) => {
-        const btn = e.target.closest('.tab-btn');
-        if (btn) {
-          if (!isTabAllowed(btn.dataset.tab)) {
-            Utils.showToast('🔒 当前角色无法访问此页面', 'warning');
-            return;
-          }
-          switchToTab(btn.dataset.tab);
-        }
-      });
-    }
-
-    // 6. 应用角色视图
-    applyRoleView();
-
-    // 7. 初始化滚动效果
-    initScrollEffects();
-
-    // 8. 启动时同步（异步，不阻塞）
-    console.log("✅ Startup ready (manual sync)");
-
-    // 9. 注册 Service Worker（PWA）
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').then(reg => {
-        console.log('✅ Service Worker registered');
-      }).catch(err => {
-        console.warn('Service Worker registration failed:', err);
-      });
-    }
-
-    console.log('✅ Piano Helper initialized successfully');
-
-  } catch (error) {
-    console.error('❌ App initialization error:', error);
-
-    // 显示错误信息
-    const page = document.getElementById('page-today');
-    if (page) {
-      page.innerHTML = `
-        <div class="card" style="border-left:4px solid var(--accent-red)">
-          <h3 style="color:var(--accent-red)">⚠️ 启动错误</h3>
-          <p class="text-sm text-2 mt-8" style="line-height:1.6">
-            ${Utils.escape(error.message)}
-          </p>
-          <p class="text-xs text-3 mt-8">
-            请尝试刷新页面，如果问题持续请检查浏览器控制台 (F12)
-          </p>
-          <button class="btn btn-primary mt-12" onclick="location.reload()">
-            🔄 重新加载
-          </button>
-        </div>
-      `;
-    }
-  }
-})();
-
 /* ==========================================
    🎉 应用加载完成
    ========================================== */
@@ -6117,6 +6008,102 @@ window.createFamily = function() {
 };
 
 // 结束脚本标签
+
+(async function initApp() {
+  console.log('🎹 Piano Helper v2.1 initializing...');
+
+  try {
+    // 0. 检查家庭：无家庭则显示启动页面，不渲染
+    const lastFamily = localStorage.getItem('piano_last_family');
+    const families = FamilyManager.getAll();
+    const validFamily = lastFamily && families.find(f => f.id === lastFamily);
+
+    if (!validFamily) {
+      console.log('No valid family, showing startup screen');
+      RepertoireManager.init();
+      LogoManager.load();
+      showStartupScreen();
+      // 绑定 tab 栏（家庭选择后会重新绑定）
+      const tabBar = document.querySelector('.tab-bar');
+      if (tabBar) {
+        tabBar.addEventListener('click', (e) => {
+          const btn = e.target.closest('.tab-btn');
+          if (btn) switchToTab(btn.dataset.tab);
+        });
+      }
+      console.log('✅ Waiting for family selection...');
+      return;
+    }
+
+    // 设置当前家庭
+    DB.setFamily(lastFamily);
+    FamilyManager.migrateTo(lastFamily);
+
+    // 1. 初始化曲库
+    RepertoireManager.init();
+
+    // 2. 加载 Logo
+    LogoManager.load();
+
+    // 3. 渲染所有页面
+    renderAll();
+
+    // 4. 更新 header 家庭标签
+    const family = families.find(f => f.id === lastFamily);
+    if (family) {
+      const tag = document.getElementById('familyTagName');
+      if (tag) {
+        const role = RoleManager.get();
+        const roleIcon = RoleManager.ROLES[role].icon;
+        tag.textContent = roleIcon + ' ' + family.name;
+      }
+    }
+
+    // 5. 绑定标签栏点击
+    const tabBar = document.querySelector('.tab-bar');
+    if (tabBar) {
+      tabBar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tab-btn');
+        if (btn) {
+          if (!isTabAllowed(btn.dataset.tab)) {
+            Utils.showToast('🔒 当前角色无法访问此页面', 'warning');
+            return;
+          }
+          switchToTab(btn.dataset.tab);
+        }
+      });
+    }
+
+    // 6. 应用角色视图
+    applyRoleView();
+
+    // 7. 初始化滚动效果
+    initScrollEffects();
+
+    // 8. 启动时同步（异步，不阻塞）
+    console.log("✅ Startup ready (manual sync)");
+
+    // 9. 注册 Service Worker（PWA）
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('✅ Service Worker registered');
+      }).catch(err => {
+        console.warn('Service Worker registration failed:', err);
+      });
+    }
+
+    console.log('✅ Piano Helper initialized successfully');
+
+  } catch (error) {
+    console.error('❌ App initialization error:', error);
+
+    // 显示错误信息
+    const page = document.getElementById('page-today');
+    if (page) {
+      page.innerHTML = '<div class="card" style="border-left:4px solid var(--accent-red)"><h3 style="color:var(--accent-red)">⚠️ 启动错误</h3><p class="text-sm text-2 mt-8" style="line-height:1.6">' + Utils.escape(error.message) + '</p><p class="text-xs text-3 mt-8">请尝试刷新页面，如果问题持续请检查浏览器控制台 (F12)</p><button class="btn btn-primary mt-12" onclick="location.reload()">🔄 重新加载</button></div>';
+    }
+  }
+})();
 </script>
 </body>
 </html>
