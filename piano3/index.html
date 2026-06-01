@@ -50,8 +50,8 @@
   /* 文本层级 */
   --text-1: #E8E8EE;
   --text-2: #A0A0B0;
-  --text-3: #787888;
-  --text-4: #5A5A68;
+  --text-3: #9494A8;
+  --text-4: #6A6A78;
   
   /* 边框 */
   --border-1: rgba(255, 255, 255, 0.12);
@@ -650,13 +650,13 @@ body::after {
 }
 
 .expand-hint {
-  font-size: 0.65rem;
-  color: var(--text-3);
-  transition: transform 0.3s var(--ease-out);
+  font-size: 0.68rem;
+  color: var(--text-2);
+  transition: opacity 0.3s var(--ease-out);
 }
 
 .piece-card.expanded .expand-hint {
-  transform: rotate(90deg);
+  opacity: 0.4;
 }
 
 /* 老师笔记 */
@@ -955,6 +955,62 @@ body::after {
 }
 
 /* ========================================
+   🏷️ 练习分类折叠
+   ======================================== */
+.practice-category {
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.practice-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  user-select: none;
+}
+
+.practice-category-header:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-primary);
+}
+
+.practice-category-header:active {
+  transform: scale(0.98);
+}
+
+.cat-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-toggle-icon {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  transition: transform 0.3s var(--ease-out);
+}
+
+.practice-category.open .cat-toggle-icon {
+  transform: rotate(90deg);
+}
+
+.practice-category-body {
+  padding: 4px 0 0;
+  animation: category-expand 0.3s var(--ease-out);
+}
+
+@keyframes category-expand {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
    🏷️ 标签系统
    ======================================== */
 .tag-row {
@@ -1096,6 +1152,8 @@ body::after {
   cursor: pointer;
   transition: all 0.25s var(--ease-out);
   position: relative;
+  min-height: 36px;
+  overflow: hidden;
 }
 
 .calendar-day:hover {
@@ -1132,6 +1190,14 @@ body::after {
 
 .calendar-day.missed::after {
   background: var(--border-1);
+}
+
+.day-star {
+  font-size: 0.55rem;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--accent-yellow);
+  margin-top: 1px;
 }
 
 /* 统计卡片 */
@@ -1208,11 +1274,17 @@ body::after {
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-xl);
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
   max-height: 88vh;
   max-height: 88dvh;
   overflow-y: auto;
   animation: modal-slide 0.4s var(--ease-spring);
+}
+
+@media (min-width: 768px) {
+  .modal {
+    max-width: 720px;
+  }
 }
 
 @keyframes modal-slide {
@@ -1378,6 +1450,24 @@ body::after {
 /* ========================================
    🎛️ 工具类
    ======================================== */
+.parent-sub-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-md);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.parent-sub-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .flex-row {
   display: flex;
   align-items: center;
@@ -2637,6 +2727,9 @@ const TodayState = {
   // 贴纸选择
   sticker: '',
   
+  // 编辑模式：保留原日志用于预填
+  existingLog: null,
+  
   // 重置所有状态
   reset() {
     this.pieces = {};
@@ -2648,6 +2741,7 @@ const TodayState = {
     }
     this.mood = '';
     this.sticker = '';
+    this.existingLog = null;
   },
   
   // 初始化曲目状态
@@ -2678,9 +2772,17 @@ const TodayState = {
 function renderToday() {
   const page = document.getElementById('page-today');
   if (!page) return;
-  
+
+  // 编辑模式：保留原日志数据
+  if (TodayState.existingLog) {
+    const lesson = getLatestLesson();
+    page.innerHTML = renderTodayPracticeForm(lesson);
+    bindTodayEvents(lesson, TodayState.existingLog);
+    return;
+  }
+
   const log = DB.logs().find(l => l.date === Utils.today());
-  
+
   if (log) {
     // 今天已完成练习
     page.innerHTML = renderTodayCompleted(log);
@@ -2839,10 +2941,10 @@ function renderTodayPracticeForm(lesson) {
     });
   });
   
-  // 生成曲目卡片
+  // 生成曲目卡片（默认折叠）
   const piecesHtml = categoryOrder.filter(cat => grouped[cat]).map(cat => {
     const pieces = grouped[cat];
-    
+
     const pieceCards = pieces.map(p => `
       <div class="piece-card" data-index="${p.index}" id="piece${p.index}">
         <div class="piece-card-top" onclick="togglePieceExpand(${p.index})">
@@ -2850,40 +2952,45 @@ function renderTodayPracticeForm(lesson) {
           <div class="piece-info">
             <div class="piece-title">
               ${Utils.escape(p.en || p.name)}
-              ${p.en ? `<span style="font-weight:400;color:var(--text-3);font-size:0.8rem"> ${Utils.escape(p.name)}</span>` : ''}
+              ${p.en ? `<span style="font-weight:400;color:var(--text-2);font-size:0.8rem"> ${Utils.escape(p.name)}</span>` : ''}
             </div>
             <div class="piece-subtitle">
-              <span class="expand-hint">点击查看详情 ▶</span>
+              <span class="expand-hint">点击查看详情 ▸</span>
             </div>
           </div>
         </div>
-        
+
         ${p.details ? `
           <div class="teacher-notes">
             <div class="teacher-notes-label">老师的要求</div>
             <div class="teacher-notes-content">${Utils.escape(p.details)}</div>
           </div>
         ` : ''}
-        
+
         <div class="star-rating" data-index="${p.index}">
           ${[1,2,3,4,5].map(s => `
             <button class="star-btn" data-star="${s}" onclick="setStarRating(${p.index}, ${s})">⭐</button>
           `).join('')}
         </div>
-        
+
         <button class="done-btn" data-index="${p.index}" onclick="togglePieceDone(${p.index})">
           标记完成
         </button>
       </div>
     `).join('');
-    
+
     return `
-      <div class="mb-16">
-        <div class="flex-between mb-12" style="padding:0 4px">
-          <span class="font-bold text-lg">${categoryLabels[cat]}</span>
-          <span class="text-sm text-3">${pieces.length}首</span>
+      <div class="practice-category mb-12" data-cat="${cat}">
+        <div class="practice-category-header" onclick="toggleCategory('${cat}')">
+          <span class="font-bold">${categoryLabels[cat]}</span>
+          <span class="cat-info">
+            <span class="text-sm text-2">${pieces.length}首</span>
+            <span class="cat-toggle-icon">▸</span>
+          </span>
         </div>
-        ${pieceCards}
+        <div class="practice-category-body" data-cat-body="${cat}" style="display:none">
+          ${pieceCards}
+        </div>
       </div>
     `;
   }).join('');
@@ -2917,15 +3024,15 @@ function renderTodayPracticeForm(lesson) {
         <h3 class="card-title" onclick="toggleParentPanel()" style="cursor:pointer">
           <span class="card-title-icon">👨‍👩‍👧</span>
           家长工具
-          <span class="text-xs text-3" style="font-weight:400"> · 点击展开</span>
         </h3>
+        <span class="text-xs text-2" id="parentToggleHint">▸ 展开</span>
       </div>
-      
+
       <div id="parentContent" style="display:none">
         <!-- 计时器 -->
-        <div class="mb-16">
-          <div class="font-bold text-sm mb-8">⏱ 练习计时器</div>
-          <div id="timerDisplay" style="font-size:2.2rem;font-weight:900;text-align:center;color:var(--accent-primary);margin:12px 0;font-variant-numeric:tabular-nums">
+        <div class="parent-sub-card">
+          <div class="parent-sub-title">⏱ 练习计时器</div>
+          <div id="timerDisplay" style="font-size:2.2rem;font-weight:900;text-align:center;color:var(--accent-primary);margin:8px 0;font-variant-numeric:tabular-nums">
             00:00
           </div>
           <div class="flex-center gap-8">
@@ -2934,25 +3041,25 @@ function renderTodayPracticeForm(lesson) {
             <button class="btn btn-secondary btn-sm" id="timerReset">↺ 重置</button>
           </div>
         </div>
-        
+
         <!-- 分钟数输入 -->
-        <div class="mb-16" id="durationInputs">
-          <div class="font-bold text-sm mb-8">⏱ 各曲目练习分钟</div>
+        <div class="parent-sub-card" id="durationInputs">
+          <div class="parent-sub-title">🎯 各曲目练习分钟</div>
           ${lesson.pieces.map((p, i) => `
             <div class="flex-between mb-8">
               <span class="text-sm">${Utils.escape(p.name)}</span>
-              <input type="number" class="form-input" placeholder="分钟" min="0" max="180" 
-                     style="width:70px;padding:8px 10px;font-size:0.85rem" 
+              <input type="number" class="form-input" placeholder="分钟" min="0" max="180"
+                     style="width:70px;padding:8px 10px;font-size:0.85rem"
                      data-index="${i}" onchange="setPieceDuration(${i}, this.value)">
             </div>
           `).join('')}
           <div id="reviewDurations"></div>
         </div>
-        
+
         <!-- 家长笔记 -->
-        <div>
-          <label class="form-label">📝 家长笔记</label>
-          <textarea class="form-input" id="parentNotes" placeholder="记录孩子的进步、需要注意的地方..." 
+        <div class="parent-sub-card">
+          <div class="parent-sub-title">📝 家长笔记</div>
+          <textarea class="form-input" id="parentNotes" placeholder="记录孩子的进步、需要注意的地方..."
                     style="min-height:80px"></textarea>
         </div>
       </div>
@@ -2967,11 +3074,12 @@ function renderTodayPracticeForm(lesson) {
 /* ------------------------------------------
    事件绑定
    ------------------------------------------ */
-function bindTodayEvents(lesson) {
+function bindTodayEvents(lesson, existingLog = null) {
   if (!lesson) return;
   
   // 重置状态
   TodayState.reset();
+  if (existingLog) TodayState.existingLog = existingLog;
   
   // 初始化曲目状态
   lesson.pieces.forEach((piece, i) => {
@@ -2980,6 +3088,26 @@ function bindTodayEvents(lesson) {
     TodayState.pieces[i].category = piece.category || 'pieces';
     TodayState.pieces[i].repId = piece.repId || (repPiece ? repPiece.id : null);
   });
+  
+  // 预填已有数据
+  if (existingLog) {
+    TodayState.timer.seconds = (existingLog.totalDurationMin || 0) * 60;
+    TodayState.mood = existingLog.mood || '';
+    TodayState.sticker = existingLog.sticker || '';
+    existingLog.entries.forEach(entry => {
+      for (const [idx, piece] of Object.entries(TodayState.pieces)) {
+        if (piece.pieceName === entry.pieceName || piece.pieceName.includes(entry.pieceName)) {
+          piece.done = entry.done || false;
+          piece.rating = entry.rating || 0;
+          piece.durationMin = entry.durationMin || 0;
+          if (entry.repId) piece.repId = entry.repId;
+          break;
+        }
+      }
+    });
+    // UI 预填（延迟执行，等 DOM 渲染完成）
+    setTimeout(prefillEditUI, 100);
+  }
   
   // 计时器
   bindTimer();
@@ -2991,6 +3119,43 @@ function bindTodayEvents(lesson) {
   const btnComplete = document.getElementById('btnCompletePractice');
   if (btnComplete) {
     btnComplete.addEventListener('click', handleCompletePractice);
+  }
+}
+  
+function prefillEditUI() {
+  const log = TodayState.existingLog;
+  if (!log) return;
+  const notes = document.getElementById('parentNotes');
+  if (notes && log.parentNotes) notes.value = log.parentNotes;
+  for (const [idx, piece] of Object.entries(TodayState.pieces)) {
+    // 时长输入
+    if (piece.durationMin > 0) {
+      const input = document.querySelector(`input[data-index="${idx}"]`);
+      if (input) input.value = piece.durationMin;
+    }
+    // 星星
+    if (piece.rating > 0) {
+      const container = document.querySelector(`.star-rating[data-index="${idx}"]`);
+      if (container) {
+        container.querySelectorAll('.star-btn').forEach(btn => {
+          if (parseInt(btn.dataset.star) <= piece.rating) btn.classList.add('active');
+        });
+      }
+    }
+    // 完成按钮
+    if (piece.done) {
+      const card = document.getElementById('piece' + idx);
+      const btn = document.querySelector(`.done-btn[data-index="${idx}"]`);
+      if (card) card.classList.add('done');
+      if (btn) { btn.classList.add('checked'); btn.textContent = '已完成'; }
+    }
+  }
+  // 计时器显示
+  const display = document.getElementById('timerDisplay');
+  if (display && TodayState.timer.seconds > 0) {
+    const mins = Math.floor(TodayState.timer.seconds / 60);
+    const secs = TodayState.timer.seconds % 60;
+    display.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
 }
 
@@ -3127,6 +3292,21 @@ function generateReviewList(lesson) {
    交互函数（全局）
    ------------------------------------------ */
 
+// 折叠/展开练习分类
+window.toggleCategory = function(cat) {
+  const container = document.querySelector(`.practice-category[data-cat="${cat}"]`);
+  const body = document.querySelector(`.practice-category-body[data-cat-body="${cat}"]`);
+  if (!container || !body) return;
+  const isOpen = container.classList.contains('open');
+  if (isOpen) {
+    container.classList.remove('open');
+    body.style.display = 'none';
+  } else {
+    container.classList.add('open');
+    body.style.display = 'block';
+  }
+};
+
 // 展开/收起曲目详情
 window.togglePieceExpand = function(index) {
   const card = document.getElementById('piece' + index);
@@ -3215,11 +3395,14 @@ window.toggleReviewMemorized = function(index, repId) {
 // 展开/收起家长工具
 window.toggleParentPanel = function() {
   const content = document.getElementById('parentContent');
+  const hint = document.getElementById('parentToggleHint');
   if (content) {
     if (content.style.display === 'none') {
       content.style.display = 'block';
+      if (hint) hint.textContent = '▾ 收起';
     } else {
       content.style.display = 'none';
+      if (hint) hint.textContent = '▸ 展开';
     }
   }
 };
@@ -3274,6 +3457,12 @@ async function handleCompletePractice() {
     }
   });
   
+  // 清除编辑模式下保留的原日志
+  if (TodayState.existingLog) {
+    const logs2 = DB.logs().filter(l => l.date !== Utils.today());
+    DB.saveLogs(logs2);
+  }
+  
   // 重置状态
   TodayState.reset();
   
@@ -3289,17 +3478,14 @@ async function handleCompletePractice() {
 
 // 编辑今日记录
 window.editTodayLog = function() {
-  if (!confirm('确定要修改今天的记录吗？\n\n当前记录将被删除，您可以重新填写。')) {
-    return;
-  }
+  // 保留原有数据，进入编辑模式
+  const log = DB.logs().find(l => l.date === Utils.today());
+  if (!log) return;
   
-  const logs = DB.logs().filter(l => l.date !== Utils.today());
-  DB.saveLogs(logs);
-  
-  TodayState.reset();
+  TodayState.existingLog = log;
   renderAll();
   
-  Utils.showToast('📝 可以重新填写今日练习', 'info');
+  Utils.showToast('📝 编辑模式：修改后请点击「完成今日练习」保存', 'info', 2500);
 };
 
 console.log('✅ Today page module loaded');
@@ -3792,13 +3978,16 @@ function buildCalendarHTML(year, month) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const isToday = dateStr === todayStr;
     const log = logsMap[dateStr];
-    
+
     const classes = ['calendar-day'];
     if (isToday) classes.push('today');
     if (log) classes.push('has-practice');
     else if (dateStr < todayStr) classes.push('missed');
-    
-    cells += `<div class="${classes.join(' ')}" data-date="${dateStr}">${d}</div>`;
+
+    const starCount = log ? log.entries.reduce((s, e) => s + (e.rating || 0), 0) : 0;
+    const starHtml = starCount > 0 ? `<span class="day-star">${starCount}⭐</span>` : '';
+
+    cells += `<div class="${classes.join(' ')}" data-date="${dateStr}">${d}${starHtml}</div>`;
   }
   
   // 下个月的日期（补齐）
