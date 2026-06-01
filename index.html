@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>哆哩的钢琴助手</title>
+<style>
+  body {
+    margin: 0;
+    background: linear-gradient(170deg, #1A1D35 0%, #1F2545 100%);
+    color: #E8E8EE;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .loading { text-align: center; animation: fadeIn 0.5s; }
+  .loading-icon { font-size: 4rem; margin-bottom: 1rem; animation: bounce 1s infinite; }
+  #status { font-size: 0.9rem; color: #999; margin-top: 12px; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+</style>
+</head>
+<body>
+<div class="loading">
+  <div class="loading-icon">🎹</div>
+  <p id="msg">正在更新…</p>
+  <p id="status"></p>
+</div>
+<script>
+(async function(){
+  var msg = document.getElementById('msg');
+  var status = document.getElementById('status');
+
+  status.textContent = '清除旧缓存…';
+
+  // 1. 注销所有 Service Worker
+  if ('serviceWorker' in navigator) {
+    var regs = await navigator.serviceWorker.getRegistrations();
+    for (var r of regs) {
+      status.textContent = '移除旧 Service Worker: ' + r.scope;
+      await r.unregister();
+    }
+  }
+
+  // 2. 清除所有 Cache Storage
+  if ('caches' in window) {
+    var keys = await caches.keys();
+    for (var k of keys) {
+      status.textContent = '清除缓存: ' + k;
+      await caches.delete(k);
+    }
+  }
+
+  msg.textContent = '✅ 更新完成';
+  status.textContent = '跳转到新版…';
+
+  setTimeout(function(){
+    location.href = 'piano3/';
+  }, 500);
+})();
+</script>
+</body>
+</html>
