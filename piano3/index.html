@@ -2969,6 +2969,86 @@ window.onSuzukiBookChange = function(bookSelect) {
 /* ==========================================
    🔄 同步码管理器
    ========================================== */
+const SyncCode = {
+  encode(data) {
+    var json = JSON.stringify(data);
+    var bytes = new TextEncoder().encode(json);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  },
+
+  decode(hash) {
+    try {
+      hash = hash.replace(/-/g, '+').replace(/_/g, '/');
+      while (hash.length % 4) hash += '=';
+      var binary = atob(hash);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) {
+      return null;
+    }
+  },
+
+  generateCode() {
+    var data = {
+      v: 3,
+      l: DB.lessons(),
+      g: DB.logs(),
+      r: DB.repertoire(),
+      t: new Date().toISOString().slice(0, 10)
+    };
+    return this.encode(data);
+  },
+
+  importCode(codeStr) {
+    var data = this.decode(codeStr);
+    if (!data || !data.v) return { success: false, error: '无效的同步码' };
+
+    var stats = { lessons: 0, logs: 0 };
+
+    if (data.l && data.l.length) {
+      var merged = {};
+      DB.lessons().forEach(function(l) { merged[l.id] = l; });
+      data.l.forEach(function(l) {
+        if (!merged[l.id]) {
+          merged[l.id] = l;
+          stats.lessons++;
+        } else if (l.date >= merged[l.id].date) {
+          merged[l.id] = l;
+          stats.lessons++;
+        }
+      });
+      DB.saveLessons(Object.values(merged));
+    }
+
+    if (data.g && data.g.length) {
+      var mergedLogs = {};
+      DB.logs().forEach(function(l) { mergedLogs[l.id] = l; });
+      data.g.forEach(function(l) {
+        if (!mergedLogs[l.id]) {
+          mergedLogs[l.id] = l;
+          stats.logs++;
+        } else if (l.entries.length > mergedLogs[l.id].entries.length) {
+          mergedLogs[l.id] = l;
+          stats.logs++;
+        }
+      });
+      DB.saveLogs(Object.values(mergedLogs));
+    }
+
+    if (data.r && data.r.length && !DB.repertoire().length) {
+      DB.saveRepertoire(data.r);
+    }
+
+    return { success: true, stats: stats };
+  }
+};
 
 console.log('✅ Core modules loaded');
 /* ==========================================
