@@ -171,16 +171,21 @@ body::after {
 
 @media (min-width: 600px) {
   .app {
-    padding-left: max(var(--safe-left), 20px);
-    padding-right: max(var(--safe-right), 20px);
+    padding-left: max(var(--safe-left), 16px);
+    padding-right: max(var(--safe-right), 16px);
   }
 }
 
 @media (min-width: 900px) {
   .app {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 40px;
+    max-width: 100%;
+    margin: 0;
+    padding: 0 24px;
+  }
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 100%;
   }
 }
 
@@ -1283,7 +1288,13 @@ body::after {
 
 @media (min-width: 768px) {
   .modal {
-    max-width: 720px;
+    max-width: 800px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .modal {
+    max-width: 960px;
   }
 }
 
@@ -2551,6 +2562,78 @@ const RepertoireManager = {
       memorized: rep.filter(p => p.memorized).length,
       totalMinutes: rep.reduce((sum, p) => sum + (p.totalMinutes || 0), 0)
     };
+  },
+
+  // 获取所有分册列表
+  getBookList() {
+    const rep = DB.repertoire();
+    const books = new Set(rep.map(p => p.book));
+    return [...books].sort((a, b) => a - b);
+  },
+
+  // 获取下一个曲目编号
+  getNextNum(book) {
+    const rep = DB.repertoire().filter(p => p.book === book);
+    if (!rep.length) return 1;
+    return Math.max(...rep.map(p => p.num || 0)) + 1;
+  },
+
+  // 添加新曲目
+  addPiece(pieceData) {
+    const rep = DB.repertoire();
+    const id = 's' + pieceData.book + '-' + String(pieceData.num).padStart(2, '0');
+    rep.push({
+      id,
+      book: pieceData.book,
+      num: pieceData.num,
+      name: pieceData.name,
+      en: pieceData.en || '',
+      jp: pieceData.jp || '',
+      composer: pieceData.composer || '',
+      difficulty: pieceData.difficulty || 1,
+      duration: pieceData.duration || 1,
+      status: 'untouched',
+      memorized: false,
+      startedDate: null,
+      completedDate: null,
+      totalMinutes: 0,
+      practiceCount: 0,
+      lastPracticeDate: null
+    });
+    DB.saveRepertoire(rep);
+    return true;
+  },
+
+  // 更新曲目信息
+  updatePiece(id, updates) {
+    const rep = DB.repertoire();
+    const idx = rep.findIndex(p => p.id === id);
+    if (idx < 0) return false;
+    // 只允许更新元数据字段
+    const allowed = ['name', 'en', 'jp', 'composer', 'difficulty', 'duration', 'book', 'num'];
+    for (const key of allowed) {
+      if (updates[key] !== undefined) rep[idx][key] = updates[key];
+    }
+    DB.saveRepertoire(rep);
+    return true;
+  },
+
+  // 删除曲目
+  removePiece(id) {
+    const rep = DB.repertoire().filter(p => p.id !== id);
+    DB.saveRepertoire(rep);
+    return true;
+  },
+
+  // 重新编号指定册的曲目
+  renumberBook(book) {
+    const rep = DB.repertoire();
+    const pieces = rep.filter(p => p.book === book).sort((a, b) => a.num - b.num);
+    pieces.forEach((p, i) => {
+      p.num = i + 1;
+      p.id = 's' + book + '-' + String(i + 1).padStart(2, '0');
+    });
+    DB.saveRepertoire(rep);
   }
 };
 
@@ -2708,6 +2791,58 @@ window.handleLogoUpload = async function(event) {
 };
 
 /* ==========================================
+   🎻 铃木曲目两级选择器辅助
+   ========================================== */
+const SuzukiSelectHelper = {
+  // 获取所有分册
+  getBooks() {
+    const rep = DB.repertoire();
+    const books = new Set(rep.map(p => p.book));
+    return [...books].sort((a, b) => a - b);
+  },
+
+  // 获取指定册的曲目
+  getPieces(book) {
+    return DB.repertoire().filter(p => p.book === book).sort((a, b) => a.num - b.num);
+  },
+
+  // 构建 book select HTML
+  buildBookSelect(selectedBook, cat, idx) {
+    const books = this.getBooks();
+    if (!selectedBook) selectedBook = books[0] || 1;
+    return '<select class="form-input suzuki-book-select" data-cat="' + cat + '" data-idx="' + idx + '" onchange="onSuzukiBookChange(this)" style="padding:8px 10px;font-size:0.8rem;margin-bottom:6px">' +
+      '<option value="">选择分册...</option>' +
+      books.map(b => '<option value="' + b + '"' + (b == selectedBook ? ' selected' : '') + '>📖 Book ' + b + '</option>').join('') +
+      '</select>';
+  },
+
+  // 构建 piece select HTML
+  buildPieceSelect(book, cat, idx, repId, pieceName) {
+    const pieces = this.getPieces(book || this.getBooks()[0] || 1);
+    return '<select class="form-input piece-name-select suzuki-piece-select" data-cat="' + cat + '" data-idx="' + idx + '" style="padding:8px 10px;font-size:0.8rem">' +
+      '<option value="">选择曲目...</option>' +
+      pieces.map(rp => {
+        const label = 'Book ' + rp.book + '-' + rp.num + ' ' + Utils.escape(rp.en) + ' ' + Utils.escape(rp.name);
+        const selected = (repId && repId === rp.id) || pieceName === rp.name || pieceName === rp.en;
+        return '<option value="' + Utils.escape(rp.name) + '" data-repid="' + rp.id + '"' + (selected ? ' selected' : '') + '>' + label + '</option>';
+      }).join('') +
+      '</select>';
+  }
+};
+
+// book 切换时更新曲目列表
+window.onSuzukiBookChange = function(bookSelect) {
+  const book = parseInt(bookSelect.value) || 1;
+  const cat = bookSelect.dataset.cat;
+  const idx = bookSelect.dataset.idx;
+  const pieceSelect = document.querySelector('.suzuki-piece-select[data-cat="' + cat + '"][data-idx="' + idx + '"]');
+  if (!pieceSelect) return;
+  const pieces = SuzukiSelectHelper.getPieces(book);
+  pieceSelect.innerHTML = '<option value="">选择曲目...</option>' +
+    pieces.map(rp => '<option value="' + Utils.escape(rp.name) + '" data-repid="' + rp.id + '">Book ' + rp.book + '-' + rp.num + ' ' + Utils.escape(rp.en) + ' ' + Utils.escape(rp.name) + '</option>').join('');
+};
+
+/* ==========================================
    🔄 数据同步管理器（准备）
    ========================================== */
 const SyncManager = {
@@ -2826,6 +2961,7 @@ function pieceCardHTML(p) {
           </div>
         </div>
 
+        ${(p.focusAreas && p.focusAreas.length) ? '<div class="tag-row" style="margin:6px 0">' + p.focusAreas.map(t => '<span class="badge badge-info" style="font-size:0.65rem">' + Utils.escape(t) + '</span>').join('') + '</div>' : ''}
         ${p.details ? '<div class="teacher-notes"><div class="teacher-notes-label">老师的要求</div><div class="teacher-notes-content">' + Utils.escape(p.details) + '</div></div>' : ''}
 
         <div class="star-rating" data-index="${p.index}">
@@ -3632,17 +3768,12 @@ function renderLessons() {
 window.showLessonForm = function(lessonId) {
   const lesson = lessonId ? DB.lessons().find(l => l.id === lessonId) : null;
   const isEdit = !!lesson;
-  
-  const pieces = lesson ? lesson.pieces : [{ name: '', details: '', category: 'suzuki', score: '' }];
-  
-  // 曲目分类
-  const categoryLabels = {
-    suzuki: '🎻 铃木',
-    beyer: '🎼 拜厄',
-    pieces: '🎵 小曲集'
-  };
+  const pieces = lesson ? lesson.pieces : [{ name: '', details: '', category: 'suzuki', score: '', focusAreas: [] }];
+
+  const categoryLabels = { suzuki: '🎻 铃木', beyer: '🎼 拜厄', pieces: '🎵 小曲集' };
   const categoryOrder = ['suzuki', 'beyer', 'pieces'];
-  
+  const focusOptions = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
+
   // 按分类分组
   const grouped = {};
   pieces.forEach((piece, i) => {
@@ -3650,83 +3781,89 @@ window.showLessonForm = function(lessonId) {
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push({ ...piece, originalIndex: i });
   });
-  
-  // 生成分类区块
+
+  // 生成单个曲目卡片 HTML
+  function lessonPieceCardHTML(piece, idx, cat) {
+    const repOptions = cat === 'suzuki'
+      ? RepertoireManager.getByBook(1).concat(RepertoireManager.getByBook(2))
+      : [];
+    const scoreStars = (piece.score || '').length;
+    const pieceFocusAreas = piece.focusAreas || [];
+
+    return `
+      <div class="card mb-8" style="background:rgba(255,255,255,0.03);border-left:3px solid var(--accent-primary);padding:12px">
+        <div class="flex-between mb-8">
+          <span class="font-bold text-sm">#${idx + 1}</span>
+          <button class="btn btn-sm btn-danger" onclick="removeLessonPiece(this)" style="font-size:0.65rem;padding:3px 8px">✕</button>
+        </div>
+
+        ${cat === 'suzuki' ? `
+          <div class="form-group" style="margin-bottom:10px">
+            ${SuzukiSelectHelper.buildBookSelect(piece.book || (repOptions.length > 0 ? repOptions[0].book : 1), cat, idx)}
+            ${SuzukiSelectHelper.buildPieceSelect(piece.book || (repOptions.length > 0 ? repOptions[0].book : 1), cat, idx, piece.repId, piece.name)}
+          </div>
+        ` : `
+          <div class="form-group" style="margin-bottom:10px">
+            <input class="form-input piece-name-input" placeholder="曲目名称" value="${Utils.escape(piece.name || '')}" style="padding:10px 12px;font-size:0.85rem">
+          </div>
+        `}
+
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">🏷 本曲练习重点</label>
+          <div class="tag-row piece-focus-tags" data-piece-idx="${idx}" data-cat="${cat}">
+            ${focusOptions.map(tag => {
+              const sel = pieceFocusAreas.includes(tag);
+              return `<span class="tag${sel ? ' selected' : ''}" onclick="this.classList.toggle('selected')">${tag}</span>`;
+            }).join('')}
+          </div>
+          <input type="text" class="form-input mt-4 piece-focus-custom" placeholder="自定义重点..." value="${Utils.escape((pieceFocusAreas.filter(t => !focusOptions.includes(t))).join('、'))}" style="font-size:0.8rem;padding:8px 10px">
+        </div>
+
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">📝 老师要求</label>
+          <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:50px;font-size:0.85rem">${Utils.escape(piece.details || '')}</textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px">
+          <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">⭐ 回课评分</label>
+          <div class="star-rating" data-piece-idx="${idx}" data-cat="${cat}">
+            ${[1,2,3,4,5].map(s => `
+              <button type="button" class="star-btn${s <= scoreStars ? ' active' : ''}" data-star="${s}" onclick="setLessonPieceStar('${cat}', ${idx}, ${s})">⭐</button>
+            `).join('')}
+          </div>
+        </div>
+
+        <input type="hidden" class="piece-category" value="${cat}">
+        <input type="hidden" class="piece-repid" value="${piece.repId || ''}">
+        <input type="hidden" class="piece-score" value="${piece.score || ''}">
+      </div>
+    `;
+  }
+
+  // 按分类生成折叠区块
   const categoryBlocks = categoryOrder.map(cat => {
     const categoryPieces = grouped[cat] || [];
-    
-    const pieceCards = categoryPieces.map((piece, idx) => {
-      const repOptions = cat === 'suzuki' 
-        ? RepertoireManager.getByBook(1).concat(RepertoireManager.getByBook(2))
-        : [];
-      
-      const scoreStars = (piece.score || '').length;
-      
-      return `
-        <div class="card mb-12" style="background:rgba(255,255,255,0.04);border-left:3px solid var(--accent-primary)">
-          <div class="flex-between mb-8">
-            <span class="font-bold text-sm">#${idx + 1}</span>
-            <button class="btn btn-sm btn-danger" onclick="removeLessonPiece(this)" style="font-size:0.7rem;padding:4px 10px">
-              ✕ 删除
-            </button>
-          </div>
-          
-          ${cat === 'suzuki' ? `
-            <div class="form-group">
-              <select class="form-select piece-name-select" data-cat="${cat}">
-                <option value="">选择曲目...</option>
-                ${repOptions.map(rp => {
-                  const label = `Book ${rp.book}-${rp.num} ${rp.en} ${rp.name}`;
-                  const selected = piece.repId === rp.id || piece.name === rp.name || piece.name === rp.en;
-                  return `<option value="${Utils.escape(rp.name)}" data-repid="${rp.id}" ${selected ? 'selected' : ''}>${Utils.escape(label)}</option>`;
-                }).join('')}
-              </select>
-            </div>
-          ` : `
-            <div class="form-group">
-              <input class="form-input piece-name-input" placeholder="曲目名称" value="${Utils.escape(piece.name || '')}">
-            </div>
-          `}
-          
-          <div class="form-group">
-            <label class="form-label">老师要求与重点</label>
-            <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:60px">${Utils.escape(piece.details || '')}</textarea>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">回课评分</label>
-            <div class="star-rating" data-piece-idx="${idx}" data-cat="${cat}">
-              ${[1,2,3,4,5].map(s => `
-                <button type="button" class="star-btn ${s <= scoreStars ? 'active' : ''}" 
-                        data-star="${s}" onclick="setLessonPieceStar('${cat}', ${idx}, ${s})">
-                  ⭐
-                </button>
-              `).join('')}
-            </div>
-          </div>
-          
-          <input type="hidden" class="piece-category" value="${cat}">
-          <input type="hidden" class="piece-repid" value="${piece.repId || ''}">
-          <input type="hidden" class="piece-score" value="${piece.score || ''}">
-        </div>
-      `;
-    }).join('');
-    
+
+    const pieceCards = categoryPieces.map((piece, idx) => lessonPieceCardHTML(piece, idx, cat)).join('');
+
+    const hasPieces = categoryPieces.length > 0;
     return `
-      <div class="mb-16">
-        <div class="flex-between mb-12">
-          <span class="font-bold">${categoryLabels[cat]}</span>
-          <button type="button" class="btn btn-sm btn-secondary" onclick="addLessonPiece('${cat}')" style="font-size:0.7rem;padding:4px 10px">
-            ➕ 添加
-          </button>
+      <div class="practice-category mb-8${hasPieces ? ' open' : ''}" data-cat="lesson-${cat}">
+        <div class="practice-category-header" onclick="toggleCategory('lesson-${cat}')" style="padding:10px 14px">
+          <span class="font-bold text-sm">${categoryLabels[cat]}</span>
+          <span class="cat-info">
+            <span class="text-xs text-2">${categoryPieces.length}首</span>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();addLessonPiece('${cat}')" style="font-size:0.65rem;padding:3px 8px;margin-left:6px">＋</button>
+            <span class="cat-toggle-icon">▸</span>
+          </span>
         </div>
-        <div id="pieces-${cat}">
-          ${pieceCards}
+        <div class="practice-category-body" data-cat-body="lesson-${cat}"${hasPieces ? '' : ' style="display:none"'}>
+          ${pieceCards || '<p class="text-xs text-3 text-center p-8">暂无曲目</p>'}
         </div>
       </div>
     `;
   }).join('');
-  
+
   const modal = document.getElementById('modalContainer');
   modal.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
@@ -3735,45 +3872,29 @@ window.showLessonForm = function(lessonId) {
           <h2 class="modal-title">${isEdit ? '✏️ 编辑课程' : '📒 新增课程'}</h2>
           <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
-        
         <div class="modal-body">
           <form id="lessonForm">
             <div class="form-group">
               <label class="form-label">📅 上课日期</label>
               <input type="date" class="form-input" id="lessonDate" value="${lesson ? lesson.date : Utils.today()}" required>
             </div>
-            
             <div class="form-group">
-              <label class="form-label">🎵 布置曲目</label>
               <div id="lessonPiecesContainer">
                 ${categoryBlocks}
               </div>
             </div>
-            
             <div class="form-group">
-              <label class="form-label">🏷 练习重点</label>
-              <div class="tag-row" id="focusTags">
-                ${['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'].map(tag => {
-                  const selected = lesson && lesson.focusAreas && lesson.focusAreas.includes(tag);
-                  return `<span class="tag ${selected ? 'selected' : ''}" onclick="this.classList.toggle('selected')">${tag}</span>`;
-                }).join('')}
-              </div>
-              <input type="text" class="form-input mt-8" id="customFocus" placeholder="自定义重点...">
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label">📝 备注</label>
-              <textarea class="form-input" id="lessonNotes" placeholder="老师的叮嘱、下节课安排...">${lesson ? Utils.escape(lesson.notes || '') : ''}</textarea>
+              <label class="form-label">📝 整课备注</label>
+              <textarea class="form-input" id="lessonNotes" placeholder="老师的叮嘱、下节课安排..." style="min-height:70px">${lesson ? Utils.escape(lesson.notes || '') : ''}</textarea>
             </div>
           </form>
         </div>
-        
         <div class="modal-footer">
-          <button class="btn btn-primary" onclick="saveLesson('${lessonId || ''}')">
+          <button class="btn btn-primary" onclick="saveLesson('${lessonId || ''}')" style="width:100%">
             💾 保存课程
           </button>
           ${isEdit ? `
-            <button class="btn btn-danger mt-8" onclick="deleteLesson('${lesson.id}')">
+            <button class="btn btn-danger mt-8" onclick="deleteLesson('${lesson.id}')" style="width:100%">
               🗑 删除此课程
             </button>
           ` : ''}
@@ -3789,66 +3910,73 @@ window.showLessonForm = function(lessonId) {
 
 // 添加曲目
 window.addLessonPiece = function(category) {
-  const container = document.getElementById('pieces-' + category);
-  if (!container) return;
-  
-  const idx = container.querySelectorAll('.card').length;
-  const categoryLabels = { suzuki: '🎻 铃木', beyer: '🎼 拜厄', pieces: '🎵 小曲集' };
-  
-  const repOptions = category === 'suzuki' 
+  const body = document.querySelector('.practice-category-body[data-cat-body="lesson-' + category + '"]');
+  if (!body) return;
+
+  // Count existing cards in this category body
+  const existingCards = body.querySelectorAll('.card');
+  const idx = existingCards.length;
+
+  const repOptions = category === 'suzuki'
     ? RepertoireManager.getByBook(1).concat(RepertoireManager.getByBook(2))
     : [];
-  
+  const focusOptions = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
+
+  // Ensure body is visible
+  body.style.display = 'block';
+  const catEl = document.querySelector('.practice-category[data-cat="lesson-' + category + '"]');
+  if (catEl) catEl.classList.add('open');
+
+  // Remove "暂无曲目" placeholder
+  const placeholder = body.querySelector('p');
+  if (placeholder) placeholder.remove();
+
   const card = document.createElement('div');
-  card.className = 'card mb-12';
-  card.style.cssText = 'background:rgba(255,255,255,0.04);border-left:3px solid var(--accent-primary)';
-  
+  card.className = 'card mb-8';
+  card.style.cssText = 'background:rgba(255,255,255,0.03);border-left:3px solid var(--accent-primary);padding:12px';
+
   card.innerHTML = `
     <div class="flex-between mb-8">
       <span class="font-bold text-sm">#${idx + 1}</span>
-      <button class="btn btn-sm btn-danger" onclick="removeLessonPiece(this)" style="font-size:0.7rem;padding:4px 10px">
-        ✕ 删除
-      </button>
+      <button class="btn btn-sm btn-danger" onclick="removeLessonPiece(this)" style="font-size:0.65rem;padding:3px 8px">✕</button>
     </div>
-    
     ${category === 'suzuki' ? `
-      <div class="form-group">
-        <select class="form-select piece-name-select" data-cat="${category}">
-          <option value="">选择曲目...</option>
-          ${repOptions.map(rp => {
-            const label = `Book ${rp.book}-${rp.num} ${rp.en} ${rp.name}`;
-            return `<option value="${Utils.escape(rp.name)}" data-repid="${rp.id}">${Utils.escape(label)}</option>`;
-          }).join('')}
-        </select>
+      <div class="form-group" style="margin-bottom:10px">
+        ${SuzukiSelectHelper.buildBookSelect(null, category, idx)}
+        ${SuzukiSelectHelper.buildPieceSelect(null, category, idx, '', '')}
       </div>
     ` : `
-      <div class="form-group">
-        <input class="form-input piece-name-input" placeholder="曲目名称">
+      <div class="form-group" style="margin-bottom:10px">
+        <input class="form-input piece-name-input" placeholder="曲目名称" style="padding:10px 12px;font-size:0.85rem">
       </div>
     `}
-    
-    <div class="form-group">
-      <label class="form-label">老师要求与重点</label>
-      <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:60px"></textarea>
+    <div class="form-group" style="margin-bottom:10px">
+      <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">🏷 本曲练习重点</label>
+      <div class="tag-row piece-focus-tags" data-piece-idx="${idx}" data-cat="${category}">
+        ${focusOptions.map(tag => '<span class="tag" onclick="this.classList.toggle(\'selected\')">' + tag + '</span>').join('')}
+      </div>
+      <input type="text" class="form-input mt-4 piece-focus-custom" placeholder="自定义重点..." style="font-size:0.8rem;padding:8px 10px">
     </div>
-    
-    <div class="form-group">
-      <label class="form-label">回课评分</label>
+    <div class="form-group" style="margin-bottom:10px">
+      <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">📝 老师要求</label>
+      <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:50px;font-size:0.85rem"></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:4px">
+      <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">⭐ 回课评分</label>
       <div class="star-rating" data-piece-idx="${idx}" data-cat="${category}">
-        ${[1,2,3,4,5].map(s => `
-          <button type="button" class="star-btn" data-star="${s}" onclick="setLessonPieceStar('${category}', ${idx}, ${s})">
-            ⭐
-          </button>
-        `).join('')}
+        ${[1,2,3,4,5].map(s => '<button type="button" class="star-btn" data-star="' + s + '" onclick="setLessonPieceStar(\'' + category + '\', ' + idx + ', ' + s + ')">⭐</button>').join('')}
       </div>
     </div>
-    
     <input type="hidden" class="piece-category" value="${category}">
     <input type="hidden" class="piece-repid" value="">
     <input type="hidden" class="piece-score" value="">
   `;
-  
-  container.appendChild(card);
+
+  body.appendChild(card);
+
+  // Update count in header
+  const headerCount = catEl.querySelector('.text-xs.text-2');
+  if (headerCount) headerCount.textContent = (idx + 1) + '首';
 };
 
 // 删除曲目
@@ -3897,6 +4025,8 @@ window.saveLesson = function(lessonId) {
     return;
   }
   
+  const focusOptions = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
+  
   // 收集曲目
   const pieces = [];
   document.querySelectorAll('#lessonPiecesContainer .card').forEach(card => {
@@ -3912,22 +4042,44 @@ window.saveLesson = function(lessonId) {
     
     if (nameSelect) {
       name = nameSelect.value.trim();
-      const selectedOption = nameSelect.options[nameSelect.selectedIndex];
-      repId = selectedOption ? selectedOption.dataset.repid : '';
+      // 两级选择器（suzuki 系列用 piece-select class）
+      if (nameSelect.classList.contains('suzuki-piece-select')) {
+        const selectedOption = nameSelect.options[nameSelect.selectedIndex];
+        repId = selectedOption ? selectedOption.dataset.repid : '';
+      } else {
+        const selectedOption = nameSelect.options[nameSelect.selectedIndex];
+        repId = selectedOption ? selectedOption.dataset.repid : '';
+      }
     } else if (nameInput) {
       name = nameInput.value.trim();
-      // 尝试从曲库匹配
       const repPiece = RepertoireManager.findByName(name);
       if (repPiece) repId = repPiece.id;
     }
     
     if (name) {
+      // Collect per-piece focus areas
+      const focusAreas = [];
+      const focusTagsEl = card.querySelector('.piece-focus-tags');
+      if (focusTagsEl) {
+        focusTagsEl.querySelectorAll('.tag.selected').forEach(tag => {
+          focusAreas.push(tag.textContent);
+        });
+      }
+      const customFocus = card.querySelector('.piece-focus-custom');
+      if (customFocus && customFocus.value.trim()) {
+        customFocus.value.trim().split(/[、,，]/).forEach(t => {
+          const tt = t.trim();
+          if (tt) focusAreas.push(tt);
+        });
+      }
+      
       pieces.push({
         name,
         details,
         category,
         repId: repId || repIdInput.value,
-        score: scoreInput.value
+        score: scoreInput.value,
+        focusAreas: focusAreas
       });
     }
   });
@@ -3937,20 +4089,12 @@ window.saveLesson = function(lessonId) {
     return;
   }
   
-  // 收集重点
-  const focusAreas = [];
-  document.querySelectorAll('#focusTags .tag.selected').forEach(tag => {
-    focusAreas.push(tag.textContent);
-  });
-  const customFocus = document.getElementById('customFocus').value.trim();
-  if (customFocus) focusAreas.push(customFocus);
-  
   // 构建课程对象
   const lesson = {
     id: lessonId || Utils.uid(),
     date,
     pieces,
-    focusAreas,
+    focusAreas: [],  // 保留向后兼容
     notes
   };
   
@@ -4273,10 +4417,18 @@ function renderRepertoire() {
     return;
   }
   
-  const books = [
-    { num: 1, title: '铃木钢琴第一册', subtitle: 'Vol.1 · 18曲', pieces: repertoire.filter(p => p.book === 1) },
-    { num: 2, title: '铃木钢琴第二册', subtitle: 'Vol.2 · 14曲', pieces: repertoire.filter(p => p.book === 2) }
-  ];
+  // 动态获取所有分册
+  const bookNums = RepertoireManager.getBookList();
+  const books = bookNums.map(bn => {
+    const pieces = repertoire.filter(p => p.book === bn);
+    const learned = pieces.filter(p => p.status === 'learned').length;
+    return {
+      num: bn,
+      title: '铃木钢琴第' + ['', '一', '二', '三', '四', '五', '六', '七', '八'][bn] + '册',
+      subtitle: 'Vol.' + bn + ' · ' + pieces.length + '曲 · 已学' + learned + '首',
+      pieces
+    };
+  });
   
   const booksHtml = books.map(book => {
     const total = book.pieces.length;
@@ -4346,7 +4498,15 @@ function renderRepertoire() {
     `;
   }).join('');
   
-  page.innerHTML = booksHtml;
+  page.innerHTML = `
+    <div class="flex-between mb-16">
+      <span class="text-lg font-bold">🎵 铃木曲库</span>
+      <button class="btn btn-primary btn-sm" onclick="showRepertoireEditor()">
+        🔧 编辑曲库
+      </button>
+    </div>
+    ${booksHtml}
+  `;
 }
 
 /* ------------------------------------------
@@ -4389,6 +4549,236 @@ window.toggleRepMemorized = function(pieceId) {
   const newState = RepertoireManager.toggleMemorized(pieceId);
   Utils.showToast(newState ? '🧠 可以背谱了！' : '📖 还需要看谱', 'success');
   renderRepertoire();
+};
+
+// 曲库编辑器
+window.showRepertoireEditor = function() {
+  const repertoire = DB.repertoire();
+  const books = RepertoireManager.getBookList();
+  const modal = document.getElementById('modalContainer');
+
+  // 按册生成曲目列表
+  const bookTables = books.map(bn => {
+    const pieces = repertoire.filter(p => p.book === bn).sort((a, b) => a.num - b.num);
+    const rows = pieces.map(p => `
+      <tr>
+        <td style="width:40px;text-align:center">${p.num}</td>
+        <td>${Utils.escape(p.name)}</td>
+        <td style="color:var(--text-2);font-size:0.8rem">${Utils.escape(p.en)}</td>
+        <td style="color:var(--text-3);font-size:0.75rem">${Utils.escape(p.composer)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-sm btn-secondary" onclick="editRepPiece('${p.id}')" style="font-size:0.65rem;padding:3px 8px">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteRepPiece('${p.id}')" style="font-size:0.65rem;padding:3px 8px">✕</button>
+        </td>
+      </tr>
+    `).join('');
+
+    return `
+      <div class="mb-16">
+        <div class="flex-between mb-8" style="padding:0 4px">
+          <span class="font-bold text-sm">📖 Book ${bn}（${pieces.length}首）</span>
+          <button class="btn btn-sm btn-primary" onclick="addRepPiece(${bn})" style="font-size:0.7rem;padding:4px 10px">＋ 添加曲目</button>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="color:var(--text-3);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em">
+              <th style="width:40px;padding:6px 4px;text-align:center">#</th>
+              <th style="padding:6px 4px;text-align:left">中文名</th>
+              <th style="padding:6px 4px;text-align:left">English</th>
+              <th style="padding:6px 4px;text-align:left">作曲家</th>
+              <th style="width:60px;padding:6px 4px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:800px">
+        <div class="modal-header">
+          <h2 class="modal-title">🔧 编辑曲库</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom:16px">
+            <button class="btn btn-primary btn-sm" onclick="addRepBook()">📚 新建分册</button>
+            <span class="text-xs text-3" style="margin-left:8px">添加空白分册后可向其中添加曲目</span>
+          </div>
+          ${bookTables}
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="closeModal();renderRepertoire();" style="width:100%">
+            ✅ 完成编辑
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// 编辑单首曲目
+window.editRepPiece = function(pieceId) {
+  const piece = RepertoireManager.findById(pieceId);
+  if (!piece) return;
+  const books = RepertoireManager.getBookList();
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+          <h2 class="modal-title">✏️ 编辑曲目</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">分册</label>
+            <select class="form-input" id="repEditBook">
+              ${books.map(b => '<option value="' + b + '"' + (b === piece.book ? ' selected' : '') + '>Book ' + b + '</option>').join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">编号</label>
+            <input type="number" class="form-input" id="repEditNum" value="${piece.num}" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">中文名</label>
+            <input type="text" class="form-input" id="repEditName" value="${Utils.escape(piece.name)}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">英文名</label>
+            <input type="text" class="form-input" id="repEditEn" value="${Utils.escape(piece.en || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">日文名</label>
+            <input type="text" class="form-input" id="repEditJp" value="${Utils.escape(piece.jp || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">作曲家</label>
+            <input type="text" class="form-input" id="repEditComposer" value="${Utils.escape(piece.composer || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">难度 (1-5)</label>
+            <input type="number" class="form-input" id="repEditDifficulty" value="${piece.difficulty || 1}" min="1" max="5">
+          </div>
+          <div class="flex-row gap-8">
+            <button class="btn btn-primary" onclick="saveRepEdit('${pieceId}')" style="flex:1">💾 保存</button>
+            <button class="btn btn-secondary" onclick="showRepertoireEditor()">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// 保存曲目编辑
+window.saveRepEdit = function(pieceId) {
+  const updates = {
+    book: parseInt(document.getElementById('repEditBook').value) || 1,
+    num: parseInt(document.getElementById('repEditNum').value) || 1,
+    name: document.getElementById('repEditName').value.trim(),
+    en: document.getElementById('repEditEn').value.trim(),
+    jp: document.getElementById('repEditJp').value.trim(),
+    composer: document.getElementById('repEditComposer').value.trim(),
+    difficulty: parseInt(document.getElementById('repEditDifficulty').value) || 1
+  };
+  if (!updates.name) { Utils.showToast('⚠️ 曲目名称不能为空', 'warning'); return; }
+  RepertoireManager.updatePiece(pieceId, updates);
+  Utils.showToast('✅ 曲目已更新', 'success');
+  showRepertoireEditor();
+};
+
+// 删除曲目
+window.deleteRepPiece = function(pieceId) {
+  const piece = RepertoireManager.findById(pieceId);
+  if (!piece) return;
+  if (!confirm('确定删除「' + piece.name + '」吗？\n\n此操作不可恢复！')) return;
+  RepertoireManager.removePiece(pieceId);
+  RepertoireManager.renumberBook(piece.book);
+  Utils.showToast('✅ 已删除', 'success');
+  showRepertoireEditor();
+};
+
+// 添加曲目
+window.addRepPiece = function(bookNum) {
+  const nextNum = RepertoireManager.getNextNum(bookNum);
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+          <h2 class="modal-title">➕ 添加曲目（Book ${bookNum} #${nextNum}）</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">中文名 *</label>
+            <input type="text" class="form-input" id="repAddName" placeholder="例如：G大调小步舞曲">
+          </div>
+          <div class="form-group">
+            <label class="form-label">英文名</label>
+            <input type="text" class="form-input" id="repAddEn" placeholder="例如：Minuet in G">
+          </div>
+          <div class="form-group">
+            <label class="form-label">日文名</label>
+            <input type="text" class="form-input" id="repAddJp" placeholder="例如：メヌエット">
+          </div>
+          <div class="form-group">
+            <label class="form-label">作曲家</label>
+            <input type="text" class="form-input" id="repAddComposer" placeholder="例如：J.S. Bach">
+          </div>
+          <div class="form-group">
+            <label class="form-label">难度 (1-5)</label>
+            <input type="number" class="form-input" id="repAddDifficulty" value="3" min="1" max="5">
+          </div>
+          <button class="btn btn-primary" onclick="saveNewRepPiece(${bookNum})" style="width:100%">💾 添加</button>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// 保存新曲目
+window.saveNewRepPiece = function(bookNum) {
+  const name = document.getElementById('repAddName').value.trim();
+  if (!name) { Utils.showToast('⚠️ 请输入曲目名称', 'warning'); return; }
+  const pieceData = {
+    book: bookNum,
+    num: RepertoireManager.getNextNum(bookNum),
+    name: name,
+    en: document.getElementById('repAddEn').value.trim(),
+    jp: document.getElementById('repAddJp').value.trim(),
+    composer: document.getElementById('repAddComposer').value.trim(),
+    difficulty: parseInt(document.getElementById('repAddDifficulty').value) || 1,
+    duration: 1
+  };
+  RepertoireManager.addPiece(pieceData);
+  Utils.showToast('✅ 曲目已添加', 'success');
+  showRepertoireEditor();
+};
+
+// 新建分册
+window.addRepBook = function() {
+  const books = RepertoireManager.getBookList();
+  const newBook = (books[books.length - 1] || 0) + 1;
+  if (!confirm('确定新建 Book ' + newBook + ' 吗？\n\n将会创建一个空白分册，之后可以向其中添加曲目。')) return;
+  // 添加一首占位曲目，然后删除（让 book 编号生效）
+  RepertoireManager.addPiece({
+    book: newBook,
+    num: 1,
+    name: '待编辑曲目',
+    en: '',
+    jp: '',
+    composer: '',
+    difficulty: 1,
+    duration: 1
+  });
+  Utils.showToast('✅ Book ' + newBook + ' 已创建', 'success');
+  showRepertoireEditor();
 };
 
 console.log('✅ Lessons, Calendar, Repertoire modules loaded');
