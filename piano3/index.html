@@ -2970,7 +2970,7 @@ window.onSuzukiBookChange = function(bookSelect) {
    🔄 同步码管理器
    ========================================== */
 
-console.log('✅ Core modules loaded');\n
+console.log('✅ Core modules loaded');
 /* ==========================================
    👨‍👩‍👧 家庭管理器
    ========================================== */
@@ -4010,7 +4010,7 @@ window.showLessonForm = function(lessonId) {
 
         ${cat === 'suzuki' ? `
           <div class="form-group" style="margin-bottom:10px">
-            ${SuzukiSelectHelper.buildBookSelect(piece.book || (repOptions.length > 0 ? repOptions[0].book : 1), cat, idx)}
+            ${SuzukiSelectHelper.buildBookSelect(piece.book || (repOptions.length > 0 && repOptions.some(function(r){return r.book===2}) ? 2 : (repOptions.length > 0 ? repOptions[0].book : 1)), cat, idx)}
             ${SuzukiSelectHelper.buildPieceSelect(piece.book || (repOptions.length > 0 ? repOptions[0].book : 1), cat, idx, piece.repId, piece.name)}
           </div>
         ` : `
@@ -4993,11 +4993,54 @@ window.addRepBook = function() {
 };
 
 console.log('✅ Lessons, Calendar, Repertoire modules loaded');
-/* ==========================================
-   ☁️ 云端同步 - GitHub Gist 完整实现
-   ========================================== */
 
-// 自动保存后无需额外操作（同步改为手动同步码）
+/* ------------------------------------------
+   角色切换
+   ------------------------------------------ */
+window.showRoleSwitcher = function() {
+  const currentRole = RoleManager.get();
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+          <h2 class="modal-title">👤 切换角色</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding:12px">
+          ${Object.entries(RoleManager.ROLES).map(function(e) {
+            var key = e[0], info = e[1];
+            return '<div class="card mb-8' + (currentRole === key ? ' card-highlight' : '') + '" data-role="' + key + '" onclick="switchRole(this.dataset.role)" style="cursor:pointer"><div class="flex-between"><span><div class="font-bold" style="font-size:1rem">' + info.label + '</div><div class="text-xs text-2">' + info.desc + '</div></span>' + (currentRole === key ? '<span style="font-size:1.2rem">✅</span>' : '') + '</div></div>';
+          }).join('')}
+          <button class="btn btn-danger btn-sm mt-8" onclick="logoutFamily()" style="width:100%">
+            🚪 退出家庭（重新登录）
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+window.switchRole = function(role) {
+  RoleManager.set(role);
+  applyRoleView();
+  renderAll();
+  closeModal();
+  var families = FamilyManager.getAll();
+  var lastId = localStorage.getItem('piano_last_family');
+  var family = families.find(function(f) { return f.id === lastId; });
+  var tag = document.getElementById('familyTagName');
+  if (tag && family) {
+    tag.textContent = RoleManager.ROLES[role].icon + ' ' + family.name;
+  }
+  Utils.showToast('✅ 已切换为' + RoleManager.ROLES[role].label, 'success');
+};
+
+window.logoutFamily = function() {
+  localStorage.removeItem('piano_last_pin');
+  closeModal();
+  showStartupScreen();
+};
 
 /* ------------------------------------------
    同步面板
