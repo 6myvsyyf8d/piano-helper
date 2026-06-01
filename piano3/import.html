@@ -1,0 +1,76 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Import</title>
+<style>body{margin:0;background:#1A1D35;color:#E8E8EE;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}.c{background:rgba(255,255,255,0.1);border-radius:20px;padding:28px;text-align:center;max-width:400px}.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin:8px 0}.p{background:#F5A098;color:#fff}.s{background:rgba(255,255,255,0.1);color:#E8E8EE;border:1px solid rgba(255,255,255,0.2)}pre{background:rgba(0,0,0,0.4);border-radius:8px;padding:12px;font-size:0.65rem;text-align:left;overflow:auto;max-height:200px}</style></head><body>
+<div class="c"><h2 style="margin-bottom:12px">📥 导入 5/30 上课记录</h2>
+<p style="font-size:0.8rem;color:#A0A0B0;margin-bottom:16px" id="msg">检测中...</p>
+<button class="btn p" id="btn" onclick="go()">📥 导入数据并打开应用</button>
+<pre id="log"></pre>
+</div>
+<script>
+var DATA = {"lessons": [{"id": "lesson_mkvl9c", "date": "2026-05-30", "pieces": [{"name": "埃科塞兹舞曲", "en": "Écossaise", "details": "A段左手，手腕不要抖，要上下；B段", "category": "suzuki", "repId": "s2-01", "score": ""}, {"name": "小故事", "en": "A Short Story", "details": "lafare，等拍子的时候手在晃", "category": "suzuki", "repId": "s2-02", "score": ""}, {"name": "快乐的农夫", "en": "The Happy Farmer", "details": "转弯的地方不要划回来", "category": "suzuki", "repId": "s2-03", "score": ""}, {"name": "G小调小步舞曲 第一首", "en": "Minuet 1, Klavier Suite in g minor", "details": "左手等拍子的时候不要晃；A段合手；B段最后一行不熟", "category": "suzuki", "repId": "s2-04", "score": ""}, {"name": "狮子大游行", "details": "分手练，再合手", "category": "pieces", "score": ""}, {"name": "往事难忘", "details": "要试一试d", "category": "pieces", "score": ""}, {"name": "五指练习", "details": "合手", "category": "beyer", "score": ""}], "focusAreas": ["手腕稳定", "分手练", "合手", "节奏"], "notes": ""}], "logs": [], "repertoire": [], "version": "2.1"};
+
+function go() {
+  var log = document.getElementById('log');
+  log.textContent = '';
+  var p = function(m){ log.textContent += m + '\n'; };
+
+  try {
+    // Find existing family prefix
+    var prefix = null;
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      var m = k.match(/^(piano_[a-z0-9]+)_lessons$/);
+      if (m) { prefix = m[1]; break; }
+    }
+    
+    if (!prefix) {
+      p("❌ 请先在钢琴助手中创建家庭并登录");
+      p("然后回到此页点击导入");
+      return;
+    }
+    p("✅ 找到家庭前缀: " + prefix);
+
+    // Import lessons
+    if (DATA.lessons && DATA.lessons.length) {
+      var existing = JSON.parse(localStorage.getItem(prefix + '_lessons') || '[]');
+      var merged = {};
+      existing.forEach(function(l){ merged[l.id] = l; });
+      DATA.lessons.forEach(function(l){
+        if (!merged[l.id]) { merged[l.id] = l; p("+ 新增: " + l.date); }
+        else { p("⏭ 已存在: " + l.date); }
+      });
+      localStorage.setItem(prefix + '_lessons', JSON.stringify(Object.values(merged)));
+    }
+    
+    // Import logs
+    if (DATA.logs && DATA.logs.length) {
+      var existing2 = JSON.parse(localStorage.getItem(prefix + '_logs') || '[]');
+      var merged2 = {};
+      existing2.forEach(function(l){ merged2[l.id] = l; });
+      DATA.logs.forEach(function(l){
+        if (!merged2[l.id]) { merged2[l.id] = l; p("+ 练习: " + l.date); }
+      });
+      localStorage.setItem(prefix + '_logs', JSON.stringify(Object.values(merged2)));
+    }
+
+    localStorage.setItem('piano_imported_v3', '1');
+    p("✅ 导入完成！即将跳转...");
+    
+    setTimeout(function(){ window.location.href = 'piano3/index.html'; }, 800);
+  } catch(e) {
+    p("❌ 错误: " + e.message);
+  }
+}
+
+// Auto-detect
+setTimeout(function() {
+  var found = false;
+  for (var i = 0; i < localStorage.length; i++) {
+    if (localStorage.key(i).match(/^piano_[a-z0-9]+_lessons/)) { found = true; break; }
+  }
+  document.getElementById('msg').textContent = found ? '已检测到家庭，点击下方按钮导入' : '尚未创建家庭，请先去应用创建';
+  if (!found) {
+    document.getElementById('btn').textContent = '🎹 先去创建家庭';
+    document.getElementById('btn').onclick = function(){ window.location.href = 'piano3/index.html'; };
+  }
+}, 300);
+</script></body></html>
