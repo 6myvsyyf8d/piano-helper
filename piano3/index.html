@@ -3078,13 +3078,13 @@ function renderTodayCompleted(log) {
       <div style="width:40px;height:1px;background:var(--border-2);margin:${avgRating === '-' ? '20px' : '0'} auto 20px"></div>
 
       <!-- 星星分布 -->
-      <div style="display:flex;flex-direction:column;gap:8px;width:198px;margin:0 auto">
+      <div style="display:flex;flex-direction:column;gap:8px;width:246px;margin:0 auto">
         ${[5,4,3,2,1].map(s => {
           const count = starDist[s] || 0;
           const pct = totalRated > 0 ? Math.round(count / totalRated * 100) : 0;
           const stars = '⭐'.repeat(s);
-          return '<div style="display:flex;align-items:center;gap:8px;white-space:nowrap">' +
-            '<span style="font-size:0.85rem;width:80px;text-align:left;flex-shrink:0">' + stars + '</span>' +
+          return '<div style="display:flex;align-items:center;gap:14px;white-space:nowrap">' +
+            '<span style="font-size:0.85rem;width:100px;text-align:left;flex-shrink:0">' + stars + '</span>' +
             '<div style="width:84px;height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;flex-shrink:0">' +
               '<div style="height:100%;width:' + pct + '%;background:var(--accent-yellow);border-radius:3px;min-width:2px"></div>' +
             '</div>' +
