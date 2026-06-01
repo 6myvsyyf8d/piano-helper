@@ -85,146 +85,6 @@
 }
 
 /* === Body 基础 === */
-/* ========================================
-   🏠 启动页面
-   ======================================== */
-.startup-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: linear-gradient(170deg, #0E1020 0%, #13162C 25%, #101327 50%, #12152A 75%, #0E1020 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-}
-
-.startup-card {
-  background: var(--surface-1);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-1);
-  border-radius: var(--r-xl);
-  padding: 32px 24px;
-  width: 90%;
-  max-width: 400px;
-  text-align: center;
-  animation: modal-slide 0.4s var(--ease-spring);
-}
-
-.startup-logo {
-  font-size: 3.5rem;
-  margin-bottom: 12px;
-  animation: celebration-bounce 1.5s var(--ease-spring) infinite;
-}
-
-.startup-title {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: var(--text-1);
-  margin-bottom: 6px;
-}
-
-.startup-sub {
-  font-size: 0.78rem;
-  color: var(--text-3);
-  margin-bottom: 24px;
-}
-
-.family-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 260px;
-  overflow-y: auto;
-  margin-bottom: 16px;
-}
-
-.family-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid var(--border-1);
-  border-radius: var(--r-md);
-  cursor: pointer;
-  transition: all 0.25s var(--ease-out);
-}
-
-.family-item:hover {
-  background: rgba(255,255,255,0.1);
-  border-color: var(--accent-primary);
-  transform: translateY(-1px);
-}
-
-.family-item:active { transform: scale(0.97); }
-
-.family-item-name {
-  font-weight: 700;
-  color: var(--text-1);
-  font-size: 1rem;
-}
-
-.family-item-arrow {
-  color: var(--text-3);
-  font-size: 0.9rem;
-}
-
-.pin-input-group {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.pin-dot {
-  width: 44px;
-  height: 52px;
-  border: 2px solid var(--border-3);
-  border-radius: var(--r-sm);
-  background: rgba(255,255,255,0.04);
-  color: var(--text-1);
-  font-size: 1.3rem;
-  font-weight: 800;
-  text-align: center;
-  transition: all 0.2s var(--ease-out);
-}
-
-.pin-dot.filled { border-color: var(--accent-primary); background: var(--accent-primary-soft); }
-
-.startup-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* ========================================
-   👤 角色 / 家庭标签
-   ======================================== */
-.header-family-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid var(--border-1);
-  border-radius: var(--r-full);
-  padding: 4px 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-2);
-  cursor: pointer;
-  transition: all 0.25s var(--ease-out);
-  white-space: nowrap;
-}
-
-.header-family-tag:hover {
-  background: var(--surface-3);
-  border-color: var(--accent-primary);
-}
-
-/* ========================================
-   Body
-   ======================================== */
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", 
                "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -1759,9 +1619,6 @@ body::after {
       </div>
       
       <div class="header-actions">
-        <button class="header-family-tag" id="headerFamilyTag" onclick="showRoleSwitcher()" title="切换角色/家庭">
-          <span id="familyTagName">家庭</span>
-        </button>
         <button class="sync-btn synced" id="syncBtn" onclick="showSyncPanel()" title="多设备同步">
           <span class="sync-icon">🔄</span>
           <span>同步</span>
@@ -1818,30 +1675,21 @@ body::after {
    📦 数据层 - LocalStorage 封装
    ========================================== */
 const DB = {
-  _family: null,
-  
-  _prefix() {
-    return 'piano_' + (this._family || 'default') + '_';
-  },
-  
-  // 设置当前家庭
-  setFamily(id) {
-    this._family = id;
-  },
-  
+  _key(k) { return 'piano_' + k; },
+
   get(key, fallback = null) {
     try {
-      const value = localStorage.getItem(this._prefix() + key);
+      const value = localStorage.getItem(this._key(key));
       return value ? JSON.parse(value) : fallback;
     } catch (error) {
       console.error('DB.get error:', key, error);
       return fallback;
     }
   },
-  
+
   set(key, value) {
     try {
-      localStorage.setItem(this._prefix() + key, JSON.stringify(value));
+      localStorage.setItem(this._key(key), JSON.stringify(value));
       return true;
     } catch (error) {
       console.error('DB.set error:', key, error);
@@ -1851,17 +1699,17 @@ const DB = {
       return false;
     }
   },
-  
+
   remove(key) {
     try {
-      localStorage.removeItem(this._prefix() + key);
+      localStorage.removeItem(this._key(key));
       return true;
     } catch (error) {
       console.error('DB.remove error:', key, error);
       return false;
     }
   },
-  
+
   lessons() { return this.get('lessons', []); },
   saveLessons(data) { return this.set('lessons', data); },
   logs() { return this.get('logs', []); },
@@ -1870,12 +1718,11 @@ const DB = {
   saveRepertoire(data) { return this.set('repertoire', data); },
   config() { return this.get('config', {}); },
   saveConfig(data) { return this.set('config', data); },
-  
+
   getStorageInfo() {
     let total = 0;
-    const prefix = this._prefix();
     for (let key in localStorage) {
-      if (localStorage.hasOwnProperty(key) && key.startsWith(prefix)) {
+      if (localStorage.hasOwnProperty(key) && key.startsWith('piano_')) {
         total += localStorage[key].length + key.length;
       }
     }
@@ -3002,119 +2849,6 @@ const SyncCode = {
 
 console.log('✅ Core modules loaded');
 /* ==========================================
-   👨‍👩‍👧 家庭管理器
-   ========================================== */
-const FAMILY_STORE = 'piano_families';
-
-const FamilyManager = {
-  // 获取所有家庭
-  getAll() {
-    try {
-      return JSON.parse(localStorage.getItem(FAMILY_STORE) || '[]');
-    } catch (e) { return []; }
-  },
-
-  // 保存家庭列表
-  save(families) {
-    localStorage.setItem(FAMILY_STORE, JSON.stringify(families));
-  },
-
-  // 创建家庭
-  create(name, pin) {
-    const families = this.getAll();
-    if (families.find(f => f.name === name)) return null;
-    const newFamily = {
-      id: Utils.uid(),
-      name: name,
-      pin: String(pin).slice(0, 4).padStart(4, '0'),
-      createdAt: new Date().toISOString()
-    };
-    families.push(newFamily);
-    this.save(families);
-    return newFamily;
-  },
-
-  // 验证 PIN
-  authenticate(familyId, pin) {
-    const family = this.getAll().find(f => f.id === familyId);
-    return family && String(family.pin) === String(pin).slice(0, 4).padStart(4, '0');
-  },
-
-  // 删除家庭
-  remove(familyId) {
-    const families = this.getAll().filter(f => f.id !== familyId);
-    this.save(families);
-    // 清除该家庭数据
-    for (let key of Object.keys(localStorage)) {
-      if (key.startsWith('piano_' + familyId + '_')) {
-        localStorage.removeItem(key);
-      }
-    }
-  },
-
-  // 迁移旧数据（从 piano_ 前缀迁移到某个家庭）
-  migrateTo(familyId) {
-    const oldKeys = [];
-    for (let key of Object.keys(localStorage)) {
-      if (key.match(/^piano_[a-z]+$/)) {  // piano_lessons, piano_logs, etc.
-        oldKeys.push(key);
-      }
-    }
-    if (!oldKeys.length) return 0;
-    oldKeys.forEach(key => {
-      const newKey = 'piano_' + familyId + '_' + key.replace('piano_', '');
-      localStorage.setItem(newKey, localStorage.getItem(key));
-      localStorage.removeItem(key);
-    });
-    return oldKeys.length;
-  }
-};
-
-/* ==========================================
-   👤 角色管理器
-   ========================================== */
-const ROLE_STORE = 'piano_current_role';
-
-const RoleManager = {
-  ROLES: {
-    parent: { label: '👨‍👩‍👧 家长', icon: '👨‍👩‍👧', desc: '全部功能' },
-    child: { label: '🧒 孩子', icon: '🧒', desc: '练琴打卡' },
-    teacher: { label: '👩‍🏫 老师', icon: '👩‍🏫', desc: '查看课程' }
-  },
-
-  get() {
-    return localStorage.getItem(ROLE_STORE) || 'parent';
-  },
-
-  set(role) {
-    localStorage.setItem(ROLE_STORE, role);
-    return role;
-  },
-
-  isParent() { return this.get() === 'parent'; },
-  isChild() { return this.get() === 'child'; },
-  isTeacher() { return this.get() === 'teacher'; },
-
-  // 孩子角色可访问的 tab
-  getChildTabs() {
-    return ['today'];
-  },
-
-  // 老师角色可访问的 tab
-  getTeacherTabs() {
-    return ['lessons', 'calendar', 'repertoire'];
-  },
-
-  // 当前可访问的 tab 列表
-  getAllowedTabs() {
-    if (this.isChild()) return this.getChildTabs();
-    if (this.isTeacher()) return this.getTeacherTabs();
-    return ['today', 'lessons', 'calendar', 'repertoire']; // parent
-  }
-};
-
-console.log('✅ Family & Role modules loaded');
-/* ==========================================
    🏠 今日练琴页面 - 完整逻辑
    ========================================== */
 
@@ -3348,12 +3082,12 @@ function renderTodayCompleted(log) {
         ${[5,4,3,2,1].map(s => {
           const count = starDist[s] || 0;
           const pct = totalRated > 0 ? Math.round(count / totalRated * 100) : 0;
-          return '<div style="display:flex;align-items:center;gap:8px;white-space:nowrap">' +
-            '<span style="font-size:0.72rem;flex-shrink:0;width:70px;text-align:right">' + '⭐'.repeat(s) + '</span>' +
-            '<div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;min-width:40px">' +
-              '<div style="height:100%;width:' + pct + '%;background:var(--accent-yellow);border-radius:4px"></div>' +
+          return '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap">' +
+            '<span style="font-size:0.85rem;flex-shrink:0;min-width:85px">' + '⭐'.repeat(s) + '</span>' +
+            '<div style="flex:1;height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden">' +
+              '<div style="height:100%;width:' + pct + '%;background:var(--accent-yellow);border-radius:3px;min-width:2px"></div>' +
             '</div>' +
-            '<span style="width:24px;text-align:left;font-size:0.75rem;font-weight:700;color:var(--text-1);flex-shrink:0">' + count + '</span>' +
+            '<span style="width:26px;text-align:center;font-size:0.88rem;font-weight:800;color:var(--text-1);flex-shrink:0">' + count + '</span>' +
           '</div>';
         }).join('')}
       </div>
@@ -5313,54 +5047,6 @@ window.addRepBook = function() {
 console.log('✅ Lessons, Calendar, Repertoire modules loaded');
 
 /* ------------------------------------------
-   角色切换
-   ------------------------------------------ */
-window.showRoleSwitcher = function() {
-  const currentRole = RoleManager.get();
-  const modal = document.getElementById('modalContainer');
-  modal.innerHTML = `
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="max-width:400px">
-        <div class="modal-header">
-          <h2 class="modal-title">👤 切换角色</h2>
-          <button class="modal-close" onclick="closeModal()">✕</button>
-        </div>
-        <div class="modal-body" style="padding:12px">
-          ${Object.entries(RoleManager.ROLES).map(function(e) {
-            var key = e[0], info = e[1];
-            return '<div class="card mb-8' + (currentRole === key ? ' card-highlight' : '') + '" data-role="' + key + '" onclick="switchRole(this.dataset.role)" style="cursor:pointer"><div class="flex-between"><span><div class="font-bold" style="font-size:1rem">' + info.label + '</div><div class="text-xs text-2">' + info.desc + '</div></span>' + (currentRole === key ? '<span style="font-size:1.2rem">✅</span>' : '') + '</div></div>';
-          }).join('')}
-          <button class="btn btn-danger btn-sm mt-8" onclick="logoutFamily()" style="width:100%">
-            🚪 退出家庭（重新登录）
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-};
-
-window.switchRole = function(role) {
-  RoleManager.set(role);
-  applyRoleView();
-  renderAll();
-  closeModal();
-  var families = FamilyManager.getAll();
-  var lastId = localStorage.getItem('piano_last_family');
-  var family = families.find(function(f) { return f.id === lastId; });
-  var tag = document.getElementById('familyTagName');
-  if (tag && family) {
-    tag.textContent = RoleManager.ROLES[role].icon + ' ' + family.name;
-  }
-  Utils.showToast('✅ 已切换为' + RoleManager.ROLES[role].label, 'success');
-};
-
-window.logoutFamily = function() {
-  localStorage.removeItem('piano_last_pin');
-  closeModal();
-  showStartupScreen();
-};
-
-/* ------------------------------------------
    同步面板
    ------------------------------------------ */
 window.showSyncPanel = function() {
@@ -5650,12 +5336,6 @@ window.clearAllData = function() {
    ========================================== */
 
 window.switchToTab = function(tabName) {
-  // 角色权限检查
-  if (!isTabAllowed(tabName)) {
-    Utils.showToast('🔒 当前角色无法访问此页面', 'warning');
-    return;
-  }
-
   // 更新标签按钮状态
   document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === tabName) {
@@ -5761,300 +5441,28 @@ console.log(`
 ╚════════════════════════════════════════╝
 `);
 
-/* ==========================================
-   🏠 启动屏与家庭登录
-   ========================================== */
-window.showStartupScreen = function(mode) {
-  const families = FamilyManager.getAll();
-  const modal = document.getElementById('modalContainer');
-
-  if (mode === 'create') {
-    modal.innerHTML = `
-      <div class="startup-overlay">
-        <div class="startup-card">
-          <div class="startup-logo">🎹</div>
-          <div class="startup-title">新建家庭</div>
-          <div class="startup-sub">为你的家庭设置名称和 PIN 码</div>
-          <div class="form-group" style="text-align:left">
-            <label class="form-label">🏠 家庭名称</label>
-            <input type="text" class="form-input" id="newFamilyName" placeholder="例如：张家" style="font-size:1rem;text-align:center">
-          </div>
-          <div class="form-group" style="text-align:left">
-            <label class="form-label">🔐 4 位 PIN 码</label>
-            <input type="password" class="form-input" id="newFamilyPin" placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="font-size:1.3rem;text-align:center;letter-spacing:8px">
-            <p class="text-xs text-3 mt-4">用于保护家庭数据，不要忘记</p>
-          </div>
-          <div class="startup-actions">
-            <button class="btn btn-primary" onclick="createFamily()" style="width:100%;padding:14px">✅ 创建家庭</button>
-            <button class="btn btn-secondary btn-sm" onclick="showStartupScreen()">← 返回</button>
-          </div>
-        </div>
-      </div>
-    `;
-    setTimeout(() => document.getElementById('newFamilyName')?.focus(), 200);
-    return;
-  }
-
-  if (mode === 'pin') {
-    const family = families.find(f => f.id === window._selectedFamilyId);
-    if (!family) { showStartupScreen(); return; }
-    window._pinInput = '';
-    modal.innerHTML = `
-      <div class="startup-overlay">
-        <div class="startup-card">
-          <div class="startup-logo">🔐</div>
-          <div class="startup-title">${Utils.escape(family.name)}</div>
-          <div class="startup-sub">请输入 4 位 PIN 码</div>
-          <div class="pin-input-group" id="pinDots">
-            ${[1,2,3,4].map(i => '<div class="pin-dot" id="pinDot' + i + '"></div>').join('')}
-          </div>
-          <p class="text-xs text-3 mb-16" id="pinError" style="color:var(--accent-red);display:none">PIN 码错误，请重试</p>
-          <div class="startup-actions">
-            <button class="btn btn-secondary btn-sm" onclick="showStartupScreen()">← 返回</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // 绑定键盘输入
-    window._onPinKey = function(e) {
-      if (e.key >= '0' && e.key <= '9' && window._pinInput.length < 4) {
-        window._pinInput += e.key;
-      } else if (e.key === 'Backspace') {
-        window._pinInput = window._pinInput.slice(0, -1);
-      } else {
-        return;
-      }
-      // 更新圆点
-      for (let i = 1; i <= 4; i++) {
-        const dot = document.getElementById('pinDot' + i);
-        if (dot) {
-          if (window._pinInput.length >= i) {
-            dot.textContent = '●';
-            dot.classList.add('filled');
-          } else {
-            dot.textContent = '';
-            dot.classList.remove('filled');
-          }
-        }
-      }
-      // 输入完整后验证
-      if (window._pinInput.length === 4) {
-        setTimeout(() => {
-          if (FamilyManager.authenticate(family.id, window._pinInput)) {
-            document.removeEventListener('keydown', window._onPinKey);
-            localStorage.setItem('piano_last_family', family.id);
-            localStorage.setItem('piano_last_pin', window._pinInput);
-            enterFamily(family.id);
-          } else {
-            window._pinInput = '';
-            for (let i = 1; i <= 4; i++) {
-              const dot = document.getElementById('pinDot' + i);
-              if (dot) { dot.textContent = ''; dot.classList.remove('filled'); }
-            }
-            const err = document.getElementById('pinError');
-            if (err) err.style.display = 'block';
-          }
-        }, 200);
-      }
-    };
-    document.addEventListener('keydown', window._onPinKey);
-
-    // 也支持点击数字键盘
-    const dots = document.getElementById('pinDots');
-    if (dots) {
-      dots.style.cursor = 'pointer';
-      dots.addEventListener('click', () => {
-        // 提示用户用键盘输入
-        Utils.showToast('请用键盘输入 4 位 PIN 码', 'info', 1500);
-      });
-    }
-    return;
-  }
-
-  // Default: family list
-  modal.innerHTML = `
-    <div class="startup-overlay">
-      <div class="startup-card">
-        <div class="startup-logo">🎹</div>
-        <div class="startup-title">哆哩的钢琴助手</div>
-        <div class="startup-sub">选择你的家庭</div>
-        ${families.length ? `
-          <div class="family-list">
-            ${families.map(f => `
-              <div class="family-item" onclick="window._selectedFamilyId='${f.id}';showStartupScreen('pin')">
-                <span class="family-item-name">🏠 ${Utils.escape(f.name)}</span>
-                <span class="family-item-arrow">▶</span>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-        <div class="startup-actions">
-          <button class="btn btn-primary" onclick="showStartupScreen('create')" style="width:100%;padding:14px">➕ 创建新家庭</button>
-        </div>
-      </div>
-    </div>
-  `;
-};
-
-// 进入家庭
-window.enterFamily = function(familyId) {
-  const family = FamilyManager.getAll().find(f => f.id === familyId);
-  if (!family) return;
-
-  // 设 DB 前缀
-  DB.setFamily(familyId);
-
-  // 迁移旧数据（如果存在）
-  FamilyManager.migrateTo(familyId);
-
-  // 初始化
-  RepertoireManager.init();
-  LogoManager.load();
-  renderAll();
-  applyRoleView();
-
-  // 更新 header
-  const tag = document.getElementById('familyTagName');
-  if (tag) {
-    const role = RoleManager.get();
-    const roleIcon = RoleManager.ROLES[role].icon;
-    tag.textContent = roleIcon + ' ' + family.name;
-  }
-
-  // 关闭启动屏
-  document.getElementById('modalContainer').innerHTML = '';
-
-  // 绑定标签栏
-  const tabBar = document.querySelector('.tab-bar');
-  if (tabBar) {
-    const newTabBar = tabBar.cloneNode(true);
-    tabBar.parentNode.replaceChild(newTabBar, tabBar);
-    newTabBar.addEventListener('click', (e) => {
-      const btn = e.target.closest('.tab-btn');
-      if (btn) {
-        if (!isTabAllowed(btn.dataset.tab)) {
-          Utils.showToast('🔒 当前角色无法访问此页面', 'warning');
-          return;
-        }
-        switchToTab(btn.dataset.tab);
-      }
-    });
-  }
-
-  initScrollEffects();
-  // sync manual via sync code
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(r => console.log('✅ SW')).catch(() => {});
-  }
-};
-
-// 检查 tab 权限
-function isTabAllowed(tabName) {
-  return RoleManager.getAllowedTabs().includes(tabName);
-}
-
-// 应用角色视图
-function applyRoleView() {
-  // 隐藏不允许的 tab
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    const tab = btn.dataset.tab;
-    if (!isTabAllowed(tab)) {
-      btn.style.display = 'none';
-    } else {
-      btn.style.display = '';
-    }
-  });
-
-  // 如果当前 active tab 不被允许，切换到第一个允许的
-  const allowed = RoleManager.getAllowedTabs();
-  const activeTab = document.querySelector('.tab-btn.active');
-  if (activeTab && !isTabAllowed(activeTab.dataset.tab)) {
-    switchToTab(allowed[0]);
-  }
-}
-
-// 创建家庭
-window.createFamily = function() {
-  const name = document.getElementById('newFamilyName').value.trim();
-  const pin = document.getElementById('newFamilyPin').value.trim();
-
-  if (!name) { Utils.showToast('⚠️ 请输入家庭名称', 'warning'); return; }
-  if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-    Utils.showToast('⚠️ 请输入 4 位数字 PIN 码', 'warning'); return;
-  }
-
-  const family = FamilyManager.create(name, pin);
-  if (!family) { Utils.showToast('⚠️ 家庭名称已存在', 'warning'); return; }
-
-  Utils.showToast('✅ 家庭「' + name + '」已创建', 'success');
-  localStorage.setItem('piano_last_family', family.id);
-  localStorage.setItem('piano_last_pin', pin);
-  enterFamily(family.id);
-};
-
 // 结束脚本标签
 
 (async function initApp() {
-  console.log('🎹 Piano Helper v2.1 initializing...');
+  console.log('🎹 Piano Helper v3.0 initializing...');
 
   try {
-    // 0. 先检查家庭，确定 DB 前缀
-    const lastFamily = localStorage.getItem('piano_last_family');
-    const families = FamilyManager.getAll();
-    const validFamily = lastFamily && families.find(f => f.id === lastFamily);
-
-    if (validFamily) {
-      DB.setFamily(lastFamily);
-      FamilyManager.migrateTo(lastFamily);
-    }
-
-    // 1. 初始化曲库（使用正确的家庭前缀）
     RepertoireManager.init();
-
-    // 2. 加载 Logo
     LogoManager.load();
-
-    // 3. 渲染所有页面
     renderAll();
 
-    // 4. 绑定标签栏点击
     const tabBar = document.querySelector('.tab-bar');
     if (tabBar) {
       tabBar.addEventListener('click', (e) => {
         const btn = e.target.closest('.tab-btn');
-        if (btn) {
-          if (!isTabAllowed(btn.dataset.tab)) {
-            Utils.showToast('🔒 当前角色无法访问此页面', 'warning');
-            return;
-          }
-          switchToTab(btn.dataset.tab);
-        }
+        if (btn) switchToTab(btn.dataset.tab);
       });
     }
 
-    if (validFamily) {
-      // 5a. 有家庭：设置 header 标签 + 应用角色视图
-      const family = families.find(f => f.id === lastFamily);
-      if (family) {
-        const tag = document.getElementById('familyTagName');
-        if (tag) {
-          const role = RoleManager.get();
-          tag.textContent = RoleManager.ROLES[role].icon + ' ' + family.name;
-        }
-      }
-      applyRoleView();
-    } else {
-      // 5b. 无家庭：显示启动覆盖层（app 已渲染在底层）
-      showStartupScreen();
-    }
-
-    // 6. 初始化滚动效果
     initScrollEffects();
 
-    console.log("✅ Startup ready (manual sync)");
+    console.log("✅ Startup ready");
 
-    // 7. 注册 Service Worker（PWA）
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').then(reg => {
         console.log('✅ Service Worker registered');
@@ -6067,10 +5475,9 @@ window.createFamily = function() {
 
   } catch (error) {
     console.error('❌ App initialization error:', error);
-
     const page = document.getElementById('page-today');
     if (page) {
-      page.innerHTML = '<div class="card" style="border-left:4px solid var(--accent-red)"><h3 style="color:var(--accent-red)">⚠️ 启动错误</h3><p class="text-sm text-2 mt-8" style="line-height:1.6">' + Utils.escape(error.message) + '</p><p class="text-xs text-3 mt-8">请尝试刷新页面，如果问题持续请检查浏览器控制台 (F12)</p><button class="btn btn-primary mt-12" onclick="location.reload()">🔄 重新加载</button></div>';
+      page.innerHTML = '<div class="card" style="border-left:4px solid var(--accent-red)"><h3 style="color:var(--accent-red)">⚠️ 启动错误</h3><p class="text-sm text-2 mt-8" style="line-height:1.6">' + Utils.escape(error.message) + '</p><p class="text-xs text-3 mt-8">请尝试刷新页面</p><button class="btn btn-primary mt-12" onclick="location.reload()">🔄 重新加载</button></div>';
     }
   }
 })();
