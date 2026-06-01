@@ -2826,30 +2826,37 @@ function renderTodayCompleted(log) {
     review: '🎲 复习'
   };
   
-  // 生成分类列表
-  const categoryBlocks = Object.entries(grouped).map(([cat, entries]) => {
+  // 生成分类列表（可折叠）
+  const catOrder = ['suzuki', 'beyer', 'pieces', 'review'];
+  const categoryBlocks = catOrder.filter(cat => grouped[cat]).map(cat => {
+    const entries = grouped[cat];
     const catMin = entries.reduce((s, e) => s + (e.durationMin || 0), 0);
     const catStars = entries.reduce((s, e) => s + (e.rating || 0), 0);
-    
+
     const piecesList = entries.map((entry, i) => `
       <div class="flex-between p-12 mb-8" style="background:rgba(255,255,255,0.04);border-radius:12px">
         <span style="flex:1">
           <strong>${i + 1}. ${Utils.escape(entry.pieceName)}</strong>
-          <div class="text-xs text-3 mt-4">
+          <div class="text-xs text-2 mt-4">
             ${entry.durationMin ? `⏱ ${entry.durationMin}分钟` : ''}
             ${entry.rating ? ` · ${'⭐'.repeat(entry.rating)}` : ''}
           </div>
         </span>
       </div>
     `).join('');
-    
+
     return `
-      <div class="mb-16">
-        <div class="flex-between mb-8">
+      <div class="practice-category open" data-cat="done-${cat}">
+        <div class="practice-category-header" onclick="toggleCategory('done-${cat}')">
           <span class="font-bold">${categoryLabels[cat]}</span>
-          <span class="text-sm text-2">${catMin}分钟 · ${catStars}⭐</span>
+          <span class="cat-info">
+            <span class="text-sm text-2">${catMin}分钟 · ${catStars}⭐</span>
+            <span class="cat-toggle-icon">▸</span>
+          </span>
         </div>
-        ${piecesList}
+        <div class="practice-category-body" data-cat-body="done-${cat}">
+          ${piecesList}
+        </div>
       </div>
     `;
   }).join('');
@@ -3021,17 +3028,22 @@ function renderTodayPracticeForm(lesson) {
     <!-- 家长工具 -->
     <div class="card mb-16" id="parentPanel">
       <div class="card-header">
-        <h3 class="card-title" onclick="toggleParentPanel()" style="cursor:pointer">
+        <h3 class="card-title">
           <span class="card-title-icon">👨‍👩‍👧</span>
           家长工具
         </h3>
-        <span class="text-xs text-2" id="parentToggleHint">▸ 展开</span>
       </div>
 
-      <div id="parentContent" style="display:none">
-        <!-- 计时器 -->
-        <div class="parent-sub-card">
-          <div class="parent-sub-title">⏱ 练习计时器</div>
+      <!-- 计时器 -->
+      <div class="practice-category" data-cat="timer">
+        <div class="practice-category-header" onclick="toggleCategory('timer')">
+          <span class="font-bold">⏱ 练习计时器</span>
+          <span class="cat-info">
+            <span class="text-sm text-2" id="timerHeaderTime">00:00</span>
+            <span class="cat-toggle-icon">▸</span>
+          </span>
+        </div>
+        <div class="practice-category-body" data-cat-body="timer" style="display:none">
           <div id="timerDisplay" style="font-size:2.2rem;font-weight:900;text-align:center;color:var(--accent-primary);margin:8px 0;font-variant-numeric:tabular-nums">
             00:00
           </div>
@@ -3041,24 +3053,41 @@ function renderTodayPracticeForm(lesson) {
             <button class="btn btn-secondary btn-sm" id="timerReset">↺ 重置</button>
           </div>
         </div>
+      </div>
 
-        <!-- 分钟数输入 -->
-        <div class="parent-sub-card" id="durationInputs">
-          <div class="parent-sub-title">🎯 各曲目练习分钟</div>
-          ${lesson.pieces.map((p, i) => `
-            <div class="flex-between mb-8">
-              <span class="text-sm">${Utils.escape(p.name)}</span>
-              <input type="number" class="form-input" placeholder="分钟" min="0" max="180"
-                     style="width:70px;padding:8px 10px;font-size:0.85rem"
-                     data-index="${i}" onchange="setPieceDuration(${i}, this.value)">
-            </div>
-          `).join('')}
-          <div id="reviewDurations"></div>
+      <!-- 各曲目练习分钟 -->
+      <div class="practice-category" data-cat="duration">
+        <div class="practice-category-header" onclick="toggleCategory('duration')">
+          <span class="font-bold">🎯 各曲目练习分钟</span>
+          <span class="cat-info">
+            <span class="text-sm text-2">${lesson.pieces.length}首</span>
+            <span class="cat-toggle-icon">▸</span>
+          </span>
         </div>
+        <div class="practice-category-body" data-cat-body="duration" style="display:none">
+          <div id="durationInputs">
+            ${lesson.pieces.map((p, i) => `
+              <div class="flex-between mb-8">
+                <span class="text-sm">${Utils.escape(p.name)}</span>
+                <input type="number" class="form-input" placeholder="分钟" min="0" max="180"
+                       style="width:70px;padding:8px 10px;font-size:0.85rem"
+                       data-index="${i}" onchange="setPieceDuration(${i}, this.value)">
+              </div>
+            `).join('')}
+            <div id="reviewDurations"></div>
+          </div>
+        </div>
+      </div>
 
-        <!-- 家长笔记 -->
-        <div class="parent-sub-card">
-          <div class="parent-sub-title">📝 家长笔记</div>
+      <!-- 家长笔记 -->
+      <div class="practice-category" data-cat="parent-notes">
+        <div class="practice-category-header" onclick="toggleCategory('parent-notes')">
+          <span class="font-bold">📝 家长笔记</span>
+          <span class="cat-info">
+            <span class="cat-toggle-icon">▸</span>
+          </span>
+        </div>
+        <div class="practice-category-body" data-cat-body="parent-notes" style="display:none">
           <textarea class="form-input" id="parentNotes" placeholder="记录孩子的进步、需要注意的地方..."
                     style="min-height:80px"></textarea>
         </div>
@@ -3125,6 +3154,9 @@ function bindTodayEvents(lesson, existingLog = null) {
 function prefillEditUI() {
   const log = TodayState.existingLog;
   if (!log) return;
+  // 展开家长工具中的笔记分类
+  const parentNotesCat = document.querySelector('.practice-category[data-cat="parent-notes"]');
+  if (parentNotesCat) { parentNotesCat.classList.add('open'); parentNotesCat.querySelector('.practice-category-body').style.display = 'block'; }
   const notes = document.getElementById('parentNotes');
   if (notes && log.parentNotes) notes.value = log.parentNotes;
   for (const [idx, piece] of Object.entries(TodayState.pieces)) {
@@ -3155,7 +3187,10 @@ function prefillEditUI() {
   if (display && TodayState.timer.seconds > 0) {
     const mins = Math.floor(TodayState.timer.seconds / 60);
     const secs = TodayState.timer.seconds % 60;
-    display.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    display.textContent = timeStr;
+    const headerTime2 = document.getElementById('timerHeaderTime');
+    if (headerTime2) headerTime2.textContent = timeStr;
   }
 }
 
@@ -3173,7 +3208,10 @@ function bindTimer() {
   function updateDisplay() {
     const mins = Math.floor(TodayState.timer.seconds / 60);
     const secs = TodayState.timer.seconds % 60;
-    display.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    display.textContent = timeStr;
+    const headerTime = document.getElementById('timerHeaderTime');
+    if (headerTime) headerTime.textContent = timeStr;
   }
   
   if (btnStart) {
@@ -3213,6 +3251,8 @@ function bindTimer() {
       TodayState.timer.isRunning = false;
       TodayState.timer.seconds = 0;
       updateDisplay();
+      const th2 = document.getElementById('timerHeaderTime');
+      if (th2) th2.textContent = '00:00';
       
       if (btnStart) {
         btnStart.textContent = '▶ 开始';
@@ -3392,20 +3432,7 @@ window.toggleReviewMemorized = function(index, repId) {
   }
 };
 
-// 展开/收起家长工具
-window.toggleParentPanel = function() {
-  const content = document.getElementById('parentContent');
-  const hint = document.getElementById('parentToggleHint');
-  if (content) {
-    if (content.style.display === 'none') {
-      content.style.display = 'block';
-      if (hint) hint.textContent = '▾ 收起';
-    } else {
-      content.style.display = 'none';
-      if (hint) hint.textContent = '▸ 展开';
-    }
-  }
-};
+// 家长工具内各分类使用统一 toggleCategory
 
 // 完成练习
 async function handleCompletePractice() {
