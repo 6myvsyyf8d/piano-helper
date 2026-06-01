@@ -6013,32 +6013,6 @@ window.createFamily = function() {
   console.log('🎹 Piano Helper v2.1 initializing...');
 
   try {
-    // 0. 检查家庭：无家庭则显示启动页面，不渲染
-    const lastFamily = localStorage.getItem('piano_last_family');
-    const families = FamilyManager.getAll();
-    const validFamily = lastFamily && families.find(f => f.id === lastFamily);
-
-    if (!validFamily) {
-      console.log('No valid family, showing startup screen');
-      RepertoireManager.init();
-      LogoManager.load();
-      showStartupScreen();
-      // 绑定 tab 栏（家庭选择后会重新绑定）
-      const tabBar = document.querySelector('.tab-bar');
-      if (tabBar) {
-        tabBar.addEventListener('click', (e) => {
-          const btn = e.target.closest('.tab-btn');
-          if (btn) switchToTab(btn.dataset.tab);
-        });
-      }
-      console.log('✅ Waiting for family selection...');
-      return;
-    }
-
-    // 设置当前家庭
-    DB.setFamily(lastFamily);
-    FamilyManager.migrateTo(lastFamily);
-
     // 1. 初始化曲库
     RepertoireManager.init();
 
@@ -6048,18 +6022,7 @@ window.createFamily = function() {
     // 3. 渲染所有页面
     renderAll();
 
-    // 4. 更新 header 家庭标签
-    const family = families.find(f => f.id === lastFamily);
-    if (family) {
-      const tag = document.getElementById('familyTagName');
-      if (tag) {
-        const role = RoleManager.get();
-        const roleIcon = RoleManager.ROLES[role].icon;
-        tag.textContent = roleIcon + ' ' + family.name;
-      }
-    }
-
-    // 5. 绑定标签栏点击
+    // 4. 绑定标签栏点击
     const tabBar = document.querySelector('.tab-bar');
     if (tabBar) {
       tabBar.addEventListener('click', (e) => {
@@ -6074,8 +6037,30 @@ window.createFamily = function() {
       });
     }
 
-    // 6. 应用角色视图
+    // 5. 应用角色视图
     applyRoleView();
+
+    // 6. 检查家庭：无家庭则显示启动覆盖层
+    const lastFamily = localStorage.getItem('piano_last_family');
+    const families = FamilyManager.getAll();
+    const validFamily = lastFamily && families.find(f => f.id === lastFamily);
+
+    if (validFamily) {
+      DB.setFamily(lastFamily);
+      FamilyManager.migrateTo(lastFamily);
+      const family = families.find(f => f.id === lastFamily);
+      if (family) {
+        const tag = document.getElementById('familyTagName');
+        if (tag) {
+          const role = RoleManager.get();
+          tag.textContent = RoleManager.ROLES[role].icon + ' ' + family.name;
+        }
+      }
+      renderAll();
+      applyRoleView();
+    } else {
+      showStartupScreen();
+    }
 
     // 7. 初始化滚动效果
     initScrollEffects();
