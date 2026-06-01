@@ -5999,7 +5999,17 @@ window.createFamily = function() {
   console.log('🎹 Piano Helper v2.1 initializing...');
 
   try {
-    // 1. 初始化曲库
+    // 0. 先检查家庭，确定 DB 前缀
+    const lastFamily = localStorage.getItem('piano_last_family');
+    const families = FamilyManager.getAll();
+    const validFamily = lastFamily && families.find(f => f.id === lastFamily);
+
+    if (validFamily) {
+      DB.setFamily(lastFamily);
+      FamilyManager.migrateTo(lastFamily);
+    }
+
+    // 1. 初始化曲库（使用正确的家庭前缀）
     RepertoireManager.init();
 
     // 2. 加载 Logo
@@ -6023,17 +6033,8 @@ window.createFamily = function() {
       });
     }
 
-    // 5. 应用角色视图
-    applyRoleView();
-
-    // 6. 检查家庭：无家庭则显示启动覆盖层
-    const lastFamily = localStorage.getItem('piano_last_family');
-    const families = FamilyManager.getAll();
-    const validFamily = lastFamily && families.find(f => f.id === lastFamily);
-
     if (validFamily) {
-      DB.setFamily(lastFamily);
-      FamilyManager.migrateTo(lastFamily);
+      // 5a. 有家庭：设置 header 标签 + 应用角色视图
       const family = families.find(f => f.id === lastFamily);
       if (family) {
         const tag = document.getElementById('familyTagName');
@@ -6042,19 +6043,18 @@ window.createFamily = function() {
           tag.textContent = RoleManager.ROLES[role].icon + ' ' + family.name;
         }
       }
-      renderAll();
       applyRoleView();
     } else {
+      // 5b. 无家庭：显示启动覆盖层（app 已渲染在底层）
       showStartupScreen();
     }
 
-    // 7. 初始化滚动效果
+    // 6. 初始化滚动效果
     initScrollEffects();
 
-    // 8. 启动时同步（异步，不阻塞）
     console.log("✅ Startup ready (manual sync)");
 
-    // 9. 注册 Service Worker（PWA）
+    // 7. 注册 Service Worker（PWA）
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').then(reg => {
         console.log('✅ Service Worker registered');
@@ -6068,7 +6068,6 @@ window.createFamily = function() {
   } catch (error) {
     console.error('❌ App initialization error:', error);
 
-    // 显示错误信息
     const page = document.getElementById('page-today');
     if (page) {
       page.innerHTML = '<div class="card" style="border-left:4px solid var(--accent-red)"><h3 style="color:var(--accent-red)">⚠️ 启动错误</h3><p class="text-sm text-2 mt-8" style="line-height:1.6">' + Utils.escape(error.message) + '</p><p class="text-xs text-3 mt-8">请尝试刷新页面，如果问题持续请检查浏览器控制台 (F12)</p><button class="btn btn-primary mt-12" onclick="location.reload()">🔄 重新加载</button></div>';
