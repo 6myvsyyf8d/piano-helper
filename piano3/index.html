@@ -747,11 +747,6 @@ body::after {
   transform: scale(0.98);
 }
 
-.piece-card.done {
-  background: var(--accent-green-soft) !important;
-  border-color: var(--accent-green);
-}
-
 .piece-card-top {
   display: flex;
   align-items: flex-start;
@@ -882,49 +877,6 @@ body::after {
   0% { transform: scale(0.7); }
   50% { transform: scale(1.25); }
   100% { transform: scale(1.08); }
-}
-
-/* ========================================
-   ✅ 完成按钮
-   ======================================== */
-.done-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 11px;
-  border: 2px solid var(--border-1);
-  border-radius: var(--r-md);
-  background: transparent;
-  color: var(--text-2);
-  font-size: 0.88rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s var(--ease-out);
-  margin-top: 11px;
-  min-height: 42px;
-}
-
-.done-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--accent-green);
-}
-
-.done-btn:active {
-  transform: scale(0.97);
-}
-
-.done-btn.checked {
-  background: var(--accent-green-soft);
-  border-color: var(--accent-green);
-  color: var(--accent-green);
-}
-
-.done-btn.checked::before {
-  content: '✓';
-  font-size: 1.15rem;
-  font-weight: 900;
 }
 
 /* ========================================
@@ -1169,12 +1121,12 @@ body::after {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 7px 13px;
+  padding: 3px 8px;
   border: 2px solid var(--border-1);
   border-radius: var(--r-full);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-2);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s var(--ease-out);
@@ -1383,6 +1335,90 @@ body::after {
   letter-spacing: 0.03em;
 }
 
+/* 周/月切换 */
+.calendar-view-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-radius: var(--r-full);
+  overflow: hidden;
+  border: 1px solid var(--border-1);
+}
+
+.calendar-view-toggle-btn {
+  flex: 1;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+}
+
+.calendar-view-toggle-btn.active {
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
+}
+
+/* 周视图 */
+.calendar-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.calendar-week-cell {
+  background: var(--surface-1);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-md);
+  padding: 10px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+}
+
+.calendar-week-cell:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-primary);
+}
+
+.calendar-week-cell.today {
+  background: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+}
+
+.calendar-week-cell .week-day-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-3);
+  margin-bottom: 2px;
+}
+
+.calendar-week-cell .week-date {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.calendar-week-cell .week-duration {
+  font-size: 0.65rem;
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.calendar-week-cell .week-stars {
+  font-size: 0.55rem;
+  color: var(--accent-yellow);
+}
+
+.calendar-week-cell.no-practice {
+  opacity: 0.5;
+}
+
 /* ========================================
    🎭 模态框
    ======================================== */
@@ -1499,61 +1535,6 @@ body::after {
   bottom: 0;
   padding: 14px 22px 22px;
   background: linear-gradient(to top, var(--elevated) 70%, transparent);
-}
-
-/* ========================================
-   🎉 庆祝动画
-   ======================================== */
-.celebration {
-  text-align: center;
-  padding: 30px 22px;
-  animation: celebration-pop 0.6s var(--ease-spring);
-}
-
-@keyframes celebration-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.85) translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.celebration-icon {
-  font-size: 4.5rem;
-  margin-bottom: 14px;
-  animation: celebration-bounce 0.8s var(--ease-spring);
-}
-
-@keyframes celebration-bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  25% {
-    transform: translateY(-18px) rotate(-8deg);
-  }
-  50% {
-    transform: translateY(0) rotate(5deg);
-  }
-  75% {
-    transform: translateY(-9px) rotate(-3deg);
-  }
-}
-
-.celebration-title {
-  font-size: 1.7rem;
-  font-weight: 900;
-  color: var(--accent-green);
-  margin-bottom: 7px;
-  letter-spacing: -0.02em;
-}
-
-.celebration-subtitle {
-  font-size: 0.95rem;
-  color: var(--text-2);
-  margin-bottom: 18px;
 }
 
 /* ========================================
@@ -3211,6 +3192,7 @@ const TodayState = {
     this.sticker = '';
     this.existingLog = null;
     if (typeof activeTimerIdx !== 'undefined') activeTimerIdx = null;
+    if (typeof freePieceCount !== 'undefined') freePieceCount = 0;
   },
   
   // 初始化曲目状态
@@ -3218,7 +3200,6 @@ const TodayState = {
     if (!this.pieces[index]) {
       this.pieces[index] = {
         pieceName: pieceName || '',
-        done: false,
         rating: 0,
         durationMin: 0,
         notes: '',
@@ -3231,7 +3212,7 @@ const TodayState = {
   
   // 获取已完成的曲目
   getCompleted() {
-    return Object.values(this.pieces).filter(p => p.done || p.rating > 0 || p.durationMin > 0);
+    return Object.values(this.pieces).filter(p => p.rating > 0 || p.durationMin > 0);
   }
 };
 
@@ -3267,9 +3248,6 @@ function pieceCardHTML(p) {
           <span class="piece-timer-badge" id="timerBadge${p.index}" style="display:none"></span>
         </div>
 
-        <button class="done-btn" data-index="${p.index}" onclick="togglePieceDone('${p.index}')">
-          标记完成
-        </button>
       </div>
     `;
 }
@@ -3317,7 +3295,6 @@ function getLatestLesson() {
 function renderTodayCompleted(log) {
   const totalStars = log.entries.reduce((sum, e) => sum + (e.rating || 0), 0);
   const totalMin = log.totalDurationMin || 0;
-  const pieceCount = log.entries.length;
   
   // 按分类分组
   const grouped = {};
@@ -3331,11 +3308,12 @@ function renderTodayCompleted(log) {
     suzuki: '🎻 铃木',
     beyer: '🎼 拜厄',
     pieces: '🎵 小曲集',
+    free: '🎹 自由练习',
     review: '🎲 复习'
   };
-  
+
   // 生成分类列表（可折叠）
-  const catOrder = ['suzuki', 'beyer', 'pieces', 'review'];
+  const catOrder = ['suzuki', 'beyer', 'pieces', 'free', 'review'];
   const categoryBlocks = catOrder.filter(cat => grouped[cat]).map(cat => {
     const entries = grouped[cat];
     const catMin = entries.reduce((s, e) => s + (e.durationMin || 0), 0);
@@ -3369,20 +3347,33 @@ function renderTodayCompleted(log) {
     `;
   }).join('');
   
+  // 星星分布统计
+  const starDist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  log.entries.forEach(e => { if (e.rating && starDist[e.rating] !== undefined) starDist[e.rating]++; });
+  const starDistHTML = [5, 4, 3, 2, 1].filter(s => starDist[s] > 0).map(s =>
+    `<span class="badge" style="background:rgba(245,216,154,0.15);color:var(--accent-yellow);font-size:0.85rem;padding:5px 12px;font-weight:700">${s}⭐ ${starDist[s]}首</span>`
+  ).join(' ');
+
   return `
-    <div class="card card-success">
-      <div class="celebration">
-        <div class="celebration-icon">🎉</div>
-        <div class="celebration-title">太棒了！</div>
-        <div class="celebration-subtitle">
-          今天练了 <strong>${pieceCount}</strong> 首曲目 · 
-          共 <strong>${totalMin}</strong> 分钟 · 
-          获得 <strong>${totalStars}</strong> ⭐
-          ${log.mood ? ` · 心情 ${log.mood}` : ''}
+    <div class="card card-success" style="padding:18px 20px">
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:1.3rem;font-weight:900;color:var(--accent-green);margin-bottom:2px">🎉 练习完成</div>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center;margin-bottom:14px">
+        <div style="text-align:center;flex:1;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 8px">
+          <div style="font-size:1.5rem;font-weight:900;color:var(--text-1)">${totalMin}</div>
+          <div style="font-size:0.72rem;color:var(--text-3)">练习时长(分钟)</div>
+        </div>
+        <div style="text-align:center;flex:1;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 8px">
+          <div style="font-size:1.5rem;font-weight:900;color:var(--text-1)">${totalStars}</div>
+          <div style="font-size:0.72rem;color:var(--text-3)">获得星星</div>
         </div>
       </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">
+        ${starDistHTML || '<span style="font-size:0.75rem;color:var(--text-3)">未评分</span>'}
+      </div>
     </div>
-    
+
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">
@@ -3392,7 +3383,7 @@ function renderTodayCompleted(log) {
       </div>
       ${categoryBlocks}
     </div>
-    
+
     ${log.parentNotes ? `
       <div class="card">
         <div class="card-header">
@@ -3406,7 +3397,7 @@ function renderTodayCompleted(log) {
         </p>
       </div>
     ` : ''}
-    
+
     <button class="btn btn-secondary" onclick="editTodayLog()" style="width:100%">
       ✏️ 修改今天的记录
     </button>
@@ -3437,9 +3428,10 @@ function renderTodayPracticeForm(lesson) {
     suzuki: '🎻 铃木',
     beyer: '🎼 拜厄',
     pieces: '🎵 小曲集',
+    free: '🎹 自由练习',
     review: '🎲 今日复习'
   };
-  const categoryOrder = ['suzuki', 'beyer', 'pieces', 'review'];
+  const categoryOrder = ['suzuki', 'beyer', 'pieces', 'free', 'review'];
 
   // 按分类分组
   const grouped = {};
@@ -3460,6 +3452,7 @@ function renderTodayPracticeForm(lesson) {
   // 生成曲目卡片（默认折叠）
   const piecesHtml = categoryOrder.filter(cat => {
     if (cat === 'review') return true; // 复习始终显示
+    if (cat === 'free') return false;  // 自由练习在外部独立渲染
     return grouped[cat];
   }).map(cat => {
     if (cat === 'review') {
@@ -3510,6 +3503,25 @@ function renderTodayPracticeForm(lesson) {
 
     ${piecesHtml}
 
+    <!-- 自由练习 -->
+    <div class="practice-category mb-12" data-cat="free">
+      <div class="practice-category-header" onclick="toggleCategory('free')">
+        <span class="font-bold">🎹 自由练习</span>
+        <span class="cat-info">
+          <span class="text-sm text-2" id="freeCount">0首</span>
+          <span class="cat-toggle-icon">▸</span>
+        </span>
+      </div>
+      <div class="practice-category-body" data-cat-body="free" style="display:none">
+        <div id="freeList">
+          <p class="text-xs text-3 text-center p-12">点击下方按钮添加练习曲目</p>
+        </div>
+        <button class="btn btn-sm btn-secondary" id="btnAddFree" style="width:100%;margin-top:8px">
+          ➕ 添加自由练习曲目
+        </button>
+      </div>
+    </div>
+
     <!-- 家长笔记 -->
     <div class="card mb-16">
       <div class="card-header">
@@ -3553,7 +3565,6 @@ function bindTodayEvents(lesson, existingLog = null) {
     existingLog.entries.forEach(entry => {
       for (const [idx, piece] of Object.entries(TodayState.pieces)) {
         if (piece.pieceName === entry.pieceName || piece.pieceName.includes(entry.pieceName)) {
-          piece.done = entry.done || false;
           piece.rating = entry.rating || 0;
           piece.durationMin = entry.durationMin || 0;
           piece.timerSeconds = (entry.durationMin || 0) * 60;
@@ -3577,6 +3588,29 @@ function bindTodayEvents(lesson, existingLog = null) {
   if (btnComplete) {
     btnComplete.addEventListener('click', handleCompletePractice);
   }
+
+  // 自由练习：添加按钮 + 计时器绑定
+  const btnAddFree = document.getElementById('btnAddFree');
+  if (btnAddFree) btnAddFree.addEventListener('click', () => addFreePiece());
+  bindFreePieceTimers();
+
+  // 编辑模式：自由练习预填
+  if (existingLog) {
+    existingLog.entries.forEach(entry => {
+      if (entry.category === 'free') {
+        addFreePiece(entry.pieceName);
+        const lastIdx = 'f' + (freePieceCount - 1);
+        if (TodayState.pieces[lastIdx]) {
+          TodayState.pieces[lastIdx].rating = entry.rating || 0;
+          TodayState.pieces[lastIdx].durationMin = entry.durationMin || 0;
+          TodayState.pieces[lastIdx]._timerSeconds = (entry.durationMin || 0) * 60;
+          TodayState.pieces[lastIdx].notes = entry.notes || '';
+        }
+      }
+    });
+    // 延迟 prefill free piece UI
+    setTimeout(prefillFreeUI, 150);
+  }
 }
   
 function prefillEditUI() {
@@ -3594,13 +3628,6 @@ function prefillEditUI() {
         });
       }
     }
-    // 完成按钮
-    if (piece.done) {
-      const card = document.getElementById('piece' + idx);
-      const btn = document.querySelector(`.done-btn[data-index="${idx}"]`);
-      if (card) card.classList.add('done');
-      if (btn) { btn.classList.add('checked'); btn.textContent = '已完成'; }
-    }
     // 计时器显示与 badge
     if (piece.timerSeconds > 0) {
       updatePieceTimerDisplay(idx);
@@ -3613,10 +3640,38 @@ function prefillEditUI() {
   }
 }
 
+function prefillFreeUI() {
+  const log = TodayState.existingLog;
+  if (!log) return;
+  for (const [idx, piece] of Object.entries(TodayState.pieces)) {
+    if (!idx.startsWith('f')) continue;
+    if (piece.rating > 0) {
+      const container = document.querySelector(`.star-rating[data-index="${idx}"]`);
+      if (container) {
+        container.querySelectorAll('.star-btn').forEach(btn => {
+          if (parseInt(btn.dataset.star) <= piece.rating) btn.classList.add('active');
+        });
+      }
+    }
+    if (piece._timerSeconds > 0 || piece.durationMin > 0) {
+      if (!piece._timerSeconds) piece._timerSeconds = piece.durationMin * 60;
+      updatePieceTimerDisplay(idx);
+      const badge = document.getElementById('timerBadge' + idx);
+      if (badge && piece.durationMin > 0) {
+        badge.textContent = piece.durationMin + '分钟';
+        badge.style.display = '';
+      }
+    }
+    const notes = document.querySelector(`.free-piece-notes[data-index="${idx}"]`);
+    if (notes && piece.notes) notes.value = piece.notes;
+  }
+}
+
 /* ------------------------------------------
    单曲计时器绑定
    ------------------------------------------ */
 let activeTimerIdx = null;  // 当前正在计时的曲目 index
+let freePieceCount = 0;     // 自由练习曲目计数
 
 function bindPieceTimers() {
   // 开始按钮
@@ -3765,9 +3820,6 @@ function generateReviewList(lesson) {
           <span class="piece-timer-badge" id="timerBadge${index}" style="display:none"></span>
         </div>
 
-        <button class="done-btn" data-index="${index}" onclick="togglePieceDone('${index}')">
-          标记完成
-        </button>
       </div>
     `;
   }).join('');
@@ -3789,6 +3841,106 @@ function bindPieceTimersReview() {
       const idx = btn.dataset.timerStop;
       stopPieceTimer(idx);
     });
+  });
+}
+
+/* ------------------------------------------
+   自由练习曲目卡片
+   ------------------------------------------ */
+function freePieceCardHTML(index, pieceName = '') {
+  return `
+    <div class="piece-card" data-index="f${index}" id="piecef${index}">
+      <div class="piece-card-top" style="align-items:center">
+        <span class="piece-number">${index + 1}</span>
+        <div class="piece-info" style="flex:1">
+          <input class="form-input free-piece-name" data-index="f${index}"
+                 placeholder="输入曲目名称..." value="${Utils.escape(pieceName)}"
+                 style="padding:6px 10px;font-size:0.85rem;border:none;background:transparent;font-weight:700;color:var(--text-1)">
+        </div>
+        <button class="btn btn-sm" onclick="removeFreePiece('f${index}')"
+                style="font-size:0.65rem;padding:3px 8px;color:var(--danger);background:transparent">✕</button>
+      </div>
+
+      <div class="star-rating" data-index="f${index}">
+        ${[1,2,3,4,5].map(s => '<button class="star-btn" data-star="' + s + '" onclick="setStarRating(\'f' + index + '\', ' + s + ')">⭐</button>').join('')}
+      </div>
+
+      <div class="piece-timer" data-timer-idx="f${index}">
+        <span class="piece-timer-display" id="timerDisplayf${index}">00:00</span>
+        <button class="btn btn-sm btn-success piece-timer-start" data-timer-start="f${index}">▶ 开始</button>
+        <button class="btn btn-sm btn-secondary piece-timer-stop" data-timer-stop="f${index}" style="display:none">⏹ 结束</button>
+        <span class="piece-timer-badge" id="timerBadgef${index}" style="display:none"></span>
+      </div>
+
+      <div class="form-group" style="margin-top:8px">
+        <textarea class="form-input free-piece-notes" data-index="f${index}"
+                  placeholder="练习备注..." rows="2"
+                  style="min-height:40px;font-size:0.8rem;padding:8px 10px"></textarea>
+      </div>
+    </div>
+  `;
+}
+
+window.addFreePiece = function(name) {
+  const freeList = document.getElementById('freeList');
+  if (!freeList) return;
+
+  const placeholder = freeList.querySelector('p');
+  if (placeholder) placeholder.remove();
+
+  const card = document.createElement('div');
+  card.innerHTML = freePieceCardHTML(freePieceCount, name || '');
+  const cardEl = card.firstElementChild;
+  freeList.appendChild(cardEl);
+
+  const container = document.querySelector('.practice-category[data-cat="free"]');
+  const body = document.querySelector('.practice-category-body[data-cat-body="free"]');
+  if (container) container.classList.add('open');
+  if (body) body.style.display = 'block';
+
+  TodayState.initPiece('f' + freePieceCount, name || '');
+  TodayState.pieces['f' + freePieceCount].category = 'free';
+  TodayState.pieces['f' + freePieceCount].repId = '';
+
+  const idx = 'f' + freePieceCount;
+  const startBtn = cardEl.querySelector('.piece-timer-start');
+  const stopBtn = cardEl.querySelector('.piece-timer-stop');
+  if (startBtn) startBtn.addEventListener('click', () => startPieceTimer(idx));
+  if (stopBtn) stopBtn.addEventListener('click', () => stopPieceTimer(idx));
+
+  freePieceCount++;
+  const countEl = document.getElementById('freeCount');
+  if (countEl) countEl.textContent = freePieceCount + '首';
+};
+
+window.removeFreePiece = function(index) {
+  const card = document.getElementById('piece' + index);
+  if (!card) return;
+  card.remove();
+
+  if (TodayState.pieces[index]) {
+    if (TodayState.pieces[index]._timerInterval) {
+      clearInterval(TodayState.pieces[index]._timerInterval);
+    }
+    delete TodayState.pieces[index];
+  }
+
+  freePieceCount = Math.max(0, freePieceCount - 1);
+  const countEl = document.getElementById('freeCount');
+  if (countEl) countEl.textContent = freePieceCount + '首';
+
+  const freeList = document.getElementById('freeList');
+  if (freeList && freeList.children.length === 0) {
+    freeList.innerHTML = '<p class="text-xs text-3 text-center p-12">点击下方按钮添加练习曲目</p>';
+  }
+};
+
+function bindFreePieceTimers() {
+  document.querySelectorAll('#freeList .piece-timer-start').forEach(btn => {
+    btn.addEventListener('click', () => startPieceTimer(btn.dataset.timerStart));
+  });
+  document.querySelectorAll('#freeList .piece-timer-stop').forEach(btn => {
+    btn.addEventListener('click', () => stopPieceTimer(btn.dataset.timerStop));
   });
 }
 
@@ -3842,34 +3994,6 @@ window.setStarRating = function(index, star) {
   }
 };
 
-// 切换完成状态
-window.togglePieceDone = function(index) {
-  TodayState.initPiece(index, '');
-  TodayState.pieces[index].done = !TodayState.pieces[index].done;
-  
-  // 更新 UI
-  const btn = document.querySelector(`.done-btn[data-index="${index}"]`);
-  const card = document.getElementById('piece' + index);
-  
-  if (btn) {
-    if (TodayState.pieces[index].done) {
-      btn.classList.add('checked');
-      btn.textContent = '已完成';
-    } else {
-      btn.classList.remove('checked');
-      btn.textContent = '标记完成';
-    }
-  }
-  
-  if (card) {
-    if (TodayState.pieces[index].done) {
-      card.classList.add('done');
-    } else {
-      card.classList.remove('done');
-    }
-  }
-};
-
 // 曲目时长由单曲计时器自动计算
 
 // 切换复习曲目背谱状态
@@ -3911,6 +4035,16 @@ async function handleCompletePractice() {
     return;
   }
 
+  // 收集自由练习曲目的名称和备注（来自 DOM 输入）
+  document.querySelectorAll('.free-piece-name').forEach(input => {
+    const idx = input.dataset.index;
+    if (TodayState.pieces[idx]) TodayState.pieces[idx].pieceName = input.value.trim() || '自由练习';
+  });
+  document.querySelectorAll('.free-piece-notes').forEach(textarea => {
+    const idx = textarea.dataset.index;
+    if (TodayState.pieces[idx]) TodayState.pieces[idx].notes = textarea.value.trim();
+  });
+
   // 构建日志
   const entries = Object.values(TodayState.pieces).map(piece => ({
     pieceName: piece.pieceName,
@@ -3918,7 +4052,6 @@ async function handleCompletePractice() {
     durationMin: Math.ceil((piece._timerSeconds || 0) / 60),
     notes: piece.notes || '',
     rating: piece.rating || 0,
-    done: piece.done || false,
     repId: piece.repId || ''
   }));
 
@@ -3945,12 +4078,6 @@ async function handleCompletePractice() {
       RepertoireManager.recordPractice(entry.repId, entry.durationMin);
     }
   });
-
-  // 清除编辑模式下保留的原日志
-  if (TodayState.existingLog) {
-    const logs2 = DB.logs().filter(l => l.date !== Utils.today());
-    DB.saveLogs(logs2);
-  }
 
   // 停止所有计时器
   if (activeTimerIdx !== null) stopPieceTimer(activeTimerIdx);
@@ -4081,6 +4208,13 @@ window.showLessonForm = function(lessonId) {
     const scoreStars = (piece.score || '').length;
     const pieceFocusAreas = piece.focusAreas || [];
 
+    // 从 repId 解析曲目所在 book（如 "s2-01" → 2）
+    let pieceBook = null;
+    if (piece.repId) {
+      var m = piece.repId.match(/^s(\d+)-/);
+      if (m) pieceBook = parseInt(m[1]);
+    }
+
     return `
       <div class="card mb-8" style="background:rgba(255,255,255,0.03);border-left:3px solid var(--accent-primary);padding:12px">
         <div class="flex-between mb-8">
@@ -4090,8 +4224,8 @@ window.showLessonForm = function(lessonId) {
 
         ${cat === 'suzuki' ? `
           <div class="form-group" style="margin-bottom:10px">
-            ${SuzukiSelectHelper.buildBookSelect(piece.book || (repOptions.length > 0 && repOptions.some(function(r){return r.book===2}) ? 2 : (repOptions.length > 0 ? repOptions[0].book : 1)), cat, idx)}
-            ${SuzukiSelectHelper.buildPieceSelect(piece.book || (repOptions.length > 0 ? repOptions[0].book : 1), cat, idx, piece.repId, piece.name)}
+            ${SuzukiSelectHelper.buildBookSelect(pieceBook, cat, idx)}
+            ${SuzukiSelectHelper.buildPieceSelect(pieceBook || (repOptions.length > 0 ? repOptions[0].book : 1), cat, idx, piece.repId, piece.name)}
           </div>
         ` : `
           <div class="form-group" style="margin-bottom:10px">
@@ -4112,7 +4246,7 @@ window.showLessonForm = function(lessonId) {
 
         <div class="form-group" style="margin-bottom:10px">
           <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">📝 老师要求</label>
-          <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:50px;font-size:0.85rem">${Utils.escape(piece.details || '')}</textarea>
+          <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:90px;font-size:0.85rem">${Utils.escape(piece.details || '')}</textarea>
         </div>
 
         <div class="form-group" style="margin-bottom:4px">
@@ -4250,7 +4384,7 @@ window.addLessonPiece = function(category) {
     </div>
     <div class="form-group" style="margin-bottom:10px">
       <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">📝 老师要求</label>
-      <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:50px;font-size:0.85rem"></textarea>
+      <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:90px;font-size:0.85rem"></textarea>
     </div>
     <div class="form-group" style="margin-bottom:4px">
       <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">⭐ 回课评分</label>
@@ -4425,7 +4559,9 @@ window.deleteLesson = function(lessonId) {
 
 let calendarState = {
   year: new Date().getFullYear(),
-  month: new Date().getMonth() // 0-indexed
+  month: new Date().getMonth(), // 0-indexed
+  view: 'month',
+  weekOffset: 0
 };
 
 /* ------------------------------------------
@@ -4434,9 +4570,21 @@ let calendarState = {
 function renderCalendar() {
   const page = document.getElementById('page-calendar');
   if (!page) return;
-  
-  page.innerHTML = buildCalendarHTML(calendarState.year, calendarState.month);
+
+  const viewToggle = `
+    <div class="calendar-view-toggle">
+      <button class="calendar-view-toggle-btn ${calendarState.view === 'week' ? 'active' : ''}" id="viewWeek">📅 周</button>
+      <button class="calendar-view-toggle-btn ${calendarState.view === 'month' ? 'active' : ''}" id="viewMonth">📅 月</button>
+    </div>
+  `;
+
+  const contentHTML = calendarState.view === 'week'
+    ? buildWeekViewHTML()
+    : buildCalendarHTML(calendarState.year, calendarState.month);
+
+  page.innerHTML = viewToggle + contentHTML;
   bindCalendarEvents();
+  bindViewToggleEvents();
 }
 
 /* ------------------------------------------
@@ -4568,6 +4716,109 @@ function bindCalendarEvents() {
   });
 }
 
+function buildWeekViewHTML() {
+  const todayStr = Utils.today();
+  const today = new Date(todayStr + 'T00:00:00');
+  const dayOfWeek = today.getDay();
+
+  // Start from Sunday of week (offset by weekOffset)
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - dayOfWeek + (calendarState.weekOffset * 7));
+
+  const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+  const logsMap = {};
+  DB.logs().forEach(log => { logsMap[log.date] = log; });
+
+  let cells = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const isToday = dateStr === todayStr;
+    const log = logsMap[dateStr];
+
+    const duration = log ? (log.totalDurationMin || 0) : 0;
+    const stars = log ? log.entries.reduce((s, e) => s + (e.rating || 0), 0) : 0;
+
+    cells += `
+      <div class="calendar-week-cell ${isToday ? 'today' : ''} ${!log ? 'no-practice' : ''}"
+           data-date="${dateStr}" onclick="showDayDetail('${dateStr}')">
+        <div class="week-day-name">${dayHeaders[d.getDay()]}</div>
+        <div class="week-date">${d.getDate()}</div>
+        ${duration > 0 ? '<div class="week-duration">⏱ ' + duration + '分</div>' : ''}
+        ${stars > 0 ? '<div class="week-stars">' + stars + '⭐</div>' : ''}
+      </div>
+    `;
+  }
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const totalDays = Object.keys(logsMap).filter(d => {
+    const t = new Date(d + 'T00:00:00');
+    return t >= weekStart && t <= weekEnd;
+  }).length;
+  const totalMin = Object.entries(logsMap).reduce((s, [d, l]) => {
+    const t = new Date(d + 'T00:00:00');
+    return s + (t >= weekStart && t <= weekEnd ? (l.totalDurationMin || 0) : 0);
+  }, 0);
+
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  return `
+    <div class="calendar-nav" style="margin-bottom:10px">
+      <span class="calendar-nav-btn" id="prevWeek" style="cursor:pointer;padding:4px 10px;color:var(--text-2);font-size:0.85rem">◀</span>
+      <span class="calendar-month" style="font-size:0.95rem">${monthNames[weekStart.getMonth()]}${weekStart.getDate()}日 — ${monthNames[weekEnd.getMonth()]}${weekEnd.getDate()}日</span>
+      <span class="calendar-nav-btn" id="nextWeek" style="cursor:pointer;padding:4px 10px;color:var(--text-2);font-size:0.85rem">▶</span>
+    </div>
+
+    <div class="calendar-week-grid">
+      ${cells}
+    </div>
+
+    <div class="calendar-stats">
+      <div class="stat-card">
+        <div class="stat-number">${totalDays}</div>
+        <div class="stat-label">本周练习天数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">${totalMin}</div>
+        <div class="stat-label">本周练习分钟</div>
+      </div>
+    </div>
+
+    <div class="text-xs text-3 text-center mt-16">
+      点击日期查看详情
+    </div>
+  `;
+}
+
+function bindViewToggleEvents() {
+  const weekBtn = document.getElementById('viewWeek');
+  const monthBtn = document.getElementById('viewMonth');
+  if (weekBtn) weekBtn.addEventListener('click', () => {
+    calendarState.view = 'week';
+    calendarState.weekOffset = 0;
+    renderCalendar();
+  });
+  if (monthBtn) monthBtn.addEventListener('click', () => {
+    calendarState.view = 'month';
+    renderCalendar();
+  });
+
+  // Week navigation
+  const prevWeek = document.getElementById('prevWeek');
+  const nextWeek = document.getElementById('nextWeek');
+  if (prevWeek) prevWeek.addEventListener('click', () => {
+    calendarState.weekOffset--;
+    renderCalendar();
+  });
+  if (nextWeek) nextWeek.addEventListener('click', () => {
+    calendarState.weekOffset++;
+    renderCalendar();
+  });
+}
+
 /* ------------------------------------------
    显示某一天的详情
    ------------------------------------------ */
@@ -4607,9 +4858,10 @@ function showDayDetail(date) {
     suzuki: '🎻 铃木',
     beyer: '🎼 拜厄',
     pieces: '🎵 小曲集',
+    free: '🎹 自由练习',
     review: '🎲 复习'
   };
-  
+
   log.entries.forEach(entry => {
     const cat = entry.category || 'pieces';
     if (!grouped[cat]) grouped[cat] = [];
@@ -5513,35 +5765,79 @@ function renderAll() {
 
 (async function initApp() {
   console.log('🎹 Piano Helper v2.1 initializing...');
-  
+
   try {
+    // 0. 检查家庭：无家庭则显示启动页面，不渲染
+    const lastFamily = localStorage.getItem('piano_last_family');
+    const families = FamilyManager.getAll();
+    const validFamily = lastFamily && families.find(f => f.id === lastFamily);
+
+    if (!validFamily) {
+      console.log('No valid family, showing startup screen');
+      RepertoireManager.init();
+      LogoManager.load();
+      showStartupScreen();
+      // 绑定 tab 栏（家庭选择后会重新绑定）
+      const tabBar = document.querySelector('.tab-bar');
+      if (tabBar) {
+        tabBar.addEventListener('click', (e) => {
+          const btn = e.target.closest('.tab-btn');
+          if (btn) switchToTab(btn.dataset.tab);
+        });
+      }
+      console.log('✅ Waiting for family selection...');
+      return;
+    }
+
+    // 设置当前家庭
+    DB.setFamily(lastFamily);
+    FamilyManager.migrateTo(lastFamily);
+
     // 1. 初始化曲库
     RepertoireManager.init();
-    
+
     // 2. 加载 Logo
     LogoManager.load();
-    
+
     // 3. 渲染所有页面
     renderAll();
-    
-    // 4. 绑定标签栏点击
+
+    // 4. 更新 header 家庭标签
+    const family = families.find(f => f.id === lastFamily);
+    if (family) {
+      const tag = document.getElementById('familyTagName');
+      if (tag) {
+        const role = RoleManager.get();
+        const roleIcon = RoleManager.ROLES[role].icon;
+        tag.textContent = roleIcon + ' ' + family.name;
+      }
+    }
+
+    // 5. 绑定标签栏点击
     const tabBar = document.querySelector('.tab-bar');
     if (tabBar) {
       tabBar.addEventListener('click', (e) => {
         const btn = e.target.closest('.tab-btn');
         if (btn) {
+          if (!isTabAllowed(btn.dataset.tab)) {
+            Utils.showToast('🔒 当前角色无法访问此页面', 'warning');
+            return;
+          }
           switchToTab(btn.dataset.tab);
         }
       });
     }
-    
-    // 5. 初始化滚动效果
+
+    // 6. 应用角色视图
+    applyRoleView();
+
+    // 7. 初始化滚动效果
     initScrollEffects();
-    
-    // 6. 启动时同步（异步，不阻塞）
+
+    // 8. 启动时同步（异步，不阻塞）
     console.log("✅ Startup ready (manual sync)");
-    
-    // 7. 注册 Service Worker（PWA）
+
+    // 9. 注册 Service Worker（PWA）
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').then(reg => {
         console.log('✅ Service Worker registered');
@@ -5549,12 +5845,12 @@ function renderAll() {
         console.warn('Service Worker registration failed:', err);
       });
     }
-    
+
     console.log('✅ Piano Helper initialized successfully');
-    
+
   } catch (error) {
     console.error('❌ App initialization error:', error);
-    
+
     // 显示错误信息
     const page = document.getElementById('page-today');
     if (page) {
