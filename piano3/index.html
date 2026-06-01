@@ -231,14 +231,13 @@ body {
   font-size: 16px;
   line-height: 1.5;
   color: var(--text-1);
-  background: linear-gradient(170deg, 
-    var(--bg-primary) 0%, 
-    var(--bg-secondary) 25%, 
-    var(--bg-tertiary) 50%, 
-    var(--bg-secondary) 75%, 
+  background: linear-gradient(170deg,
+    var(--bg-primary) 0%,
+    var(--bg-secondary) 25%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 75%,
     var(--bg-primary) 100%
   );
-  background-attachment: fixed;
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
@@ -266,12 +265,7 @@ body::before {
     radial-gradient(1.5px 1.5px at 90% 45%, rgba(255, 255, 255, 0.8), transparent),
     radial-gradient(1px 1px at 30% 85%, rgba(200, 220, 255, 0.6), transparent);
   background-size: 100% 100%;
-  animation: twinkle 12s ease-in-out infinite alternate;
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.6; }
+  opacity: 0.45;
 }
 
 /* 星云效果 */
@@ -287,13 +281,6 @@ body::after {
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
-  animation: nebula-float 25s ease-in-out infinite;
-}
-
-@keyframes nebula-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(80px, 40px) scale(1.15); }
-  66% { transform: translate(-40px, 80px) scale(0.9); }
 }
 
 /* === 主容器 === */
@@ -612,22 +599,10 @@ body::after {
 /* 页面容器 */
 .page {
   display: none;
-  animation: page-enter 0.4s var(--ease-out);
 }
 
 .page.active {
   display: block;
-}
-
-@keyframes page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* ========================================
@@ -3371,16 +3346,17 @@ function renderTodayCompleted(log) {
       <div style="width:40px;height:1px;background:var(--border-2);margin:${avgRating === '-' ? '20px' : '0'} auto 20px"></div>
 
       <!-- 星星分布 -->
-      <div style="display:flex;flex-direction:column;gap:6px;max-width:240px;margin:0 auto">
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:280px;margin:0 auto">
         ${[5,4,3,2,1].map(s => {
           const count = starDist[s] || 0;
           const pct = totalRated > 0 ? Math.round(count / totalRated * 100) : 0;
-          return '<div style="display:flex;align-items:center;gap:8px">' +
-            '<span style="width:40px;text-align:right;font-size:0.78rem;font-weight:600;color:var(--text-2)">' + '🌟'.repeat(s) + '</span>' +
-            '<div style="flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">' +
-              '<div style="height:100%;width:' + pct + '%;background:var(--accent-yellow);border-radius:3px;transition:width 0.6s var(--ease-out)"></div>' +
+          return '<div style="display:flex;align-items:center;gap:6px">' +
+            '<span style="width:18px;text-align:right;font-size:0.8rem;font-weight:700;color:var(--text-2)">' + s + '</span>' +
+            '<span style="font-size:0.75rem">⭐</span>' +
+            '<div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">' +
+              '<div style="height:100%;width:' + pct + '%;background:var(--accent-yellow);border-radius:4px"></div>' +
             '</div>' +
-            '<span style="width:32px;text-align:left;font-size:0.72rem;font-weight:700;color:var(--text-1)">' + count + '</span>' +
+            '<span style="width:24px;text-align:left;font-size:0.75rem;font-weight:700;color:var(--text-1)">' + count + '</span>' +
           '</div>';
         }).join('')}
       </div>
@@ -4220,12 +4196,13 @@ window.showLessonForm = function(lessonId) {
     const scoreStars = (piece.score || '').length;
     const pieceFocusAreas = piece.focusAreas || [];
 
-    // 从 repId 解析曲目所在 book（如 "s2-01" → 2）
+    // 从 repId 解析曲目所在 book（如 "s2-01" → 2），新曲目默认 Book 2
     let pieceBook = null;
     if (piece.repId) {
       var m = piece.repId.match(/^s(\d+)-/);
       if (m) pieceBook = parseInt(m[1]);
     }
+    if (!pieceBook) pieceBook = 2;
 
     return `
       <div class="card mb-8" style="background:rgba(255,255,255,0.03);border-left:3px solid var(--accent-primary);padding:12px">
