@@ -2961,7 +2961,7 @@ function pieceCardHTML(p) {
           </div>
         </div>
 
-        ${(p.focusAreas && p.focusAreas.length) ? '<div class="tag-row" style="margin:6px 0">' + p.focusAreas.map(t => '<span class="badge badge-info" style="font-size:0.65rem">' + Utils.escape(t) + '</span>').join('') + '</div>' : ''}
+        ${(p.focusAreas && p.focusAreas.length) ? '<div class="tag-row" style="margin:6px 0">' + p.focusAreas.map(t => '<span class="badge" style="font-size:0.78rem;font-weight:800;color:var(--accent-yellow);background:rgba(245,216,154,0.15)">' + Utils.escape(t) + '</span>').join('') + '</div>' : ''}
         ${p.details ? '<div class="teacher-notes"><div class="teacher-notes-label">老师的要求</div><div class="teacher-notes-content">' + Utils.escape(p.details) + '</div></div>' : ''}
 
         <div class="star-rating" data-index="${p.index}">
