@@ -1,39 +1,66 @@
-// Service Worker for 哆哩的钢琴助手 v3.0
-const CACHE = 'piano3-v1';
-const FILES = [
+const CACHE_NAME = 'piano3-v3';
+const ASSETS = [
   '/piano-helper/piano3/',
   '/piano-helper/piano3/index.html',
   '/piano-helper/piano3/manifest.json',
   '/piano-helper/piano3/icon-192.png',
-  '/piano-helper/piano3/icon-512.png',
+  '/piano-helper/piano3/icon-512.png'
 ];
 
-self.addEventListener('install', e => {
+// 安装
+self.addEventListener('install', (event) => {
+  console.log('Service Worker installing...');
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
+  );
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES).catch(() => {})));
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
-    // Network first for HTML
-    e.respondWith(
-      fetch(e.request)
-        .then(r => { caches.open(CACHE).then(c => c.put(e.request, r.clone())); return r; })
-        .catch(() => caches.match(e.request))
-    );
-  } else {
-    // Cache first for assets
-    e.respondWith(
-      caches.match(e.request).then(r => r || fetch(e.request))
-    );
-  }
+// 激活
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker activating...');
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('Deleting old cache:', key);
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    clients.claim().then(() =>
-      caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-    )
+// 拦截请求
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      // 缓存优先策略
+      if (response) {
+        return response;
+      }
+
+      // 网络请求
+      return fetch(event.request).then((fetchResponse) => {
+        // 不缓存 API 请求
+        if (event.request.url.includes('api.github.com')) {
+          return fetchResponse;
+        }
+
+        // 缓存其他资源
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, fetchResponse.clone());
+          return fetchResponse;
+        });
+      });
+    }).catch(() => {
+      // 离线时返回缓存的主页
+      return caches.match('/piano-helper/piano3/index.html');
+    })
   );
 });

@@ -1,11 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=piano-helper.html">
-<title>哆哩的钢琴助手</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0;url=piano-helper.html">
+  <title>哆哩的钢琴助手</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(170deg, #1A1D35 0%, #1F2545 100%);
+      color: #E8E8EE;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .loading {
+      text-align: center;
+      animation: fadeIn 0.5s;
+    }
+    .loading-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: bounce 1s infinite;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+  </style>
 </head>
 <body>
-<a href="piano-helper.html">进入哆哩的钢琴助手</a>
+  <div class="loading">
+    <div class="loading-icon">🎹</div>
+    <p>加载中...</p>
+  </div>
+  <script>
+    setTimeout(() => {
+      window.location.href = 'piano-helper.html';
+    }, 100);
+  </script>
 </body>
 </html>
