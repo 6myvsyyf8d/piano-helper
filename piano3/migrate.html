@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据迁移 - 钢琴助手</title>
+<style>
+  body {
+    margin: 0;
+    background: linear-gradient(170deg, #1A1D35 0%, #1F2545 100%);
+    color: #E8E8EE;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 28px 24px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+  }
+  h2 { margin: 0 0 8px; font-size: 1.3rem; }
+  .sub { font-size: 0.8rem; color: #A0A0B0; margin-bottom: 20px; }
+  .info {
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    padding: 14px;
+    margin: 12px 0;
+    text-align: left;
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  .info strong { color: #F5A098; }
+  select, input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.06);
+    color: #E8E8EE;
+    font-size: 0.95rem;
+    margin: 6px 0;
+    box-sizing: border-box;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 8px 0;
+  }
+  .btn-primary { background: #F5A098; color: #fff; }
+  .btn-secondary { background: rgba(255,255,255,0.1); color: #E8E8EE; border: 1px solid rgba(255,255,255,0.2); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  pre {
+    background: rgba(0,0,0,0.4);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.7rem;
+    text-align: left;
+    overflow: auto;
+    max-height: 180px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .success { color: #7DE38D; }
+  .warn { color: #F5A098; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>📦 数据迁移</h2>
+  <p class="sub">将旧版练琴记录导入新版</p>
+  <div id="step1">
+    <div class="info" id="detectInfo">检测中...</div>
+    <div id="migrateSection" class="hidden">
+      <p style="font-size:0.82rem;color:#A0A0B0">选择要导入到哪个家庭：</p>
+      <select id="familySelect"></select>
+      <p style="font-size:0.72rem;color:#888">或输入新家庭名：</p>
+      <input type="text" id="newFamily" placeholder="新家庭名称（选填）" maxlength="20">
+      <button class="btn btn-primary" id="btnMigrate" onclick="doMigrate()">📥 导入数据</button>
+    </div>
+    <div id="noData" class="info hidden" style="text-align:center">
+      没有检测到需要迁移的旧数据。<br>如果练琴记录在旧版中，请先打开一次旧版应用。
+    </div>
+  </div>
+  <div id="step2" class="hidden">
+    <div class="info" id="resultInfo"></div>
+    <button class="btn btn-primary" onclick="location.href='./'">🎹 打开新版应用</button>
+  </div>
+  <pre id="log"></pre>
+</div>
+
+<script>
+var OLD_KEYS = ['lessons', 'logs', 'repertoire'];
+var found = {};
+
+function log(m) {
+  document.getElementById('log').textContent += m + '\n';
+}
+
+// Detect old data
+(function detect() {
+  var info = document.getElementById('detectInfo');
+  var total = 0;
+
+  OLD_KEYS.forEach(function(k) {
+    var raw = localStorage.getItem('piano_' + k);
+    if (raw) {
+      try {
+        var data = JSON.parse(raw);
+        if (Array.isArray(data) && data.length > 0) {
+          found[k] = data;
+          total += data.length;
+        }
+      } catch(e) {}
+    }
+  });
+
+  if (total === 0) {
+    document.getElementById('noData').classList.remove('hidden');
+    info.classList.add('hidden');
+    return;
+  }
+
+  var lines = [];
+  if (found.lessons) lines.push('<strong>' + found.lessons.length + '</strong> 节课程记录');
+  if (found.logs) lines.push('<strong>' + found.logs.length + '</strong> 天练习记录');
+  if (found.repertoire) lines.push('<strong>' + found.repertoire.length + '</strong> 首曲目');
+  info.innerHTML = '✅ 检测到旧数据：<br>' + lines.join('<br>');
+
+  // Populate family list
+  var sel = document.getElementById('familySelect');
+  var families = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    var m = k.match(/^piano_([a-z0-9]+)_lessons$/);
+    if (m && m[1] !== 'default' && families.indexOf(m[1]) === -1) {
+      families.push(m[1]);
+    }
+  }
+  if (families.length === 0) {
+    // Check if there's a default family already
+    if (localStorage.getItem('piano_default_lessons')) {
+      families.push('default');
+    }
+  }
+  families.forEach(function(f) {
+    var opt = document.createElement('option');
+    opt.value = f;
+    opt.textContent = f;
+    sel.appendChild(opt);
+  });
+  if (families.length === 0) {
+    var opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '（创建新家庭）';
+    sel.appendChild(opt);
+    document.getElementById('newFamily').value = '家庭';
+  }
+
+  document.getElementById('migrateSection').classList.remove('hidden');
+})();
+
+function doMigrate() {
+  var btn = document.getElementById('btnMigrate');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+  var logEl = document.getElementById('log');
+  logEl.textContent = '';
+
+  var familyName = document.getElementById('newFamily').value.trim() || document.getElementById('familySelect').value || '家庭';
+
+  var prefix = 'piano_' + familyName + '_';
+  log('目标: ' + prefix + '*');
+
+  Object.keys(found).forEach(function(k) {
+    var existing = [];
+    try {
+      existing = JSON.parse(localStorage.getItem(prefix + k) || '[]');
+    } catch(e) {}
+
+    var existingMap = {};
+    existing.forEach(function(item) { existingMap[item.id] = item; });
+
+    var added = 0, skipped = 0;
+    found[k].forEach(function(item) {
+      if (!existingMap[item.id]) {
+        existing.push(item);
+        existingMap[item.id] = item;
+        added++;
+      } else {
+        skipped++;
+      }
+    });
+
+    localStorage.setItem(prefix + k, JSON.stringify(existing));
+    log(k + ': +' + added + ' 新增, ' + skipped + ' 跳过');
+  });
+
+  document.getElementById('step1').classList.add('hidden');
+  document.getElementById('step2').classList.remove('hidden');
+  document.getElementById('resultInfo').innerHTML = '✅ 迁移完成！<br>数据已导入「<strong>' + familyName + '</strong>」';
+}
+</script>
+</body>
+</html>
