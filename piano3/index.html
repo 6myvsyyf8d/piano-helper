@@ -3084,7 +3084,7 @@ function renderTodayCompleted(log) {
           const pct = totalRated > 0 ? Math.round(count / totalRated * 100) : 0;
           const stars = '⭐'.repeat(s);
           return '<div style="display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap">' +
-            '<span style="font-size:0.85rem;width:80px;text-align:right;flex-shrink:0">' + stars + '</span>' +
+            '<span style="font-size:0.85rem;width:80px;text-align:left;flex-shrink:0">' + stars + '</span>' +
             '<div style="width:84px;height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;flex-shrink:0">' +
               '<div style="height:100%;width:' + pct + '%;background:var(--accent-yellow);border-radius:3px;min-width:2px"></div>' +
             '</div>' +
