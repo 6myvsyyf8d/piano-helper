@@ -1,0 +1,5490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="钢琴助手">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>🎹 哆哩的钢琴助手 · 演示版</title>
+
+<style>
+/* ========================================
+   🍎 APPLE DESIGN SYSTEM - 优化版 v2.1
+   ======================================== */
+
+/* === 全局重置 === */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* === CSS 变量系统 === */
+:root {
+  /* 背景色 */
+  --bg-primary: #1A1D35;
+  --bg-secondary: #1F2545;
+  --bg-tertiary: #1C2845;
+  
+  /* 卡片与层级 */
+  --surface-1: rgba(255, 255, 255, 0.10);
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --surface-3: rgba(255, 255, 255, 0.14);
+  --elevated: rgba(20, 25, 52, 0.98);
+  
+  /* 品牌色 */
+  --accent-primary: #F5A098;
+  --accent-primary-soft: rgba(245, 160, 152, 0.15);
+  --accent-green: #8ED4A6;
+  --accent-green-soft: rgba(142, 212, 166, 0.15);
+  --accent-mint: #9BD9CE;
+  --accent-yellow: #F5D89A;
+  --accent-lavender: #BAB8E0;
+  --accent-blue: #9BB9DC;
+  --accent-red: #FF6B6B;
+  
+  /* 文本层级 */
+  --text-1: #E8E8EE;
+  --text-2: #A0A0B0;
+  --text-3: #9494A8;
+  --text-4: #6A6A78;
+  
+  /* 边框 */
+  --border-1: rgba(255, 255, 255, 0.12);
+  --border-2: rgba(255, 255, 255, 0.08);
+  --border-3: rgba(255, 255, 255, 0.20);
+  
+  /* 圆角 */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-full: 9999px;
+  
+  /* 阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
+  
+  /* 动画曲线 - Apple 标准 */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  /* 安全区域 */
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-left: env(safe-area-inset-left);
+  --safe-right: env(safe-area-inset-right);
+}
+
+/* === Body 基础 === */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", 
+               "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-1);
+  background: linear-gradient(170deg,
+    var(--bg-primary) 0%,
+    var(--bg-secondary) 25%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 75%,
+    var(--bg-primary) 100%
+  );
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === 星空背景 === */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(1.5px 1.5px at 10% 15%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 25% 50%, rgba(200, 220, 255, 0.7), transparent),
+    radial-gradient(2px 2px at 40% 20%, rgba(255, 255, 255, 1), transparent),
+    radial-gradient(1px 1px at 60% 70%, rgba(220, 200, 255, 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 75% 35%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 85% 80%, rgba(200, 240, 255, 0.6), transparent),
+    radial-gradient(2px 2px at 15% 65%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 50% 10%, rgba(255, 200, 240, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 90% 45%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 30% 85%, rgba(200, 220, 255, 0.6), transparent);
+  background-size: 100% 100%;
+  opacity: 0.45;
+}
+
+/* 星云效果 */
+body::after {
+  content: '';
+  position: fixed;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(100, 140, 255, 0.1), transparent 70%);
+  top: 5%;
+  left: -15%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* === 主容器 === */
+.app {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+@media (min-width: 600px) {
+  .app {
+    padding-left: max(var(--safe-left), 16px);
+    padding-right: max(var(--safe-right), 16px);
+  }
+}
+
+@media (min-width: 900px) {
+  .app {
+    max-width: 100%;
+    margin: 0;
+    padding: 0 24px;
+  }
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+}
+
+/* ========================================
+   📱 头部导航
+   ======================================== */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 14, 39, 0.7);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-bottom: 1px solid var(--border-1);
+  padding: max(var(--safe-top), 10px) 16px 10px;
+  transition: all 0.3s var(--ease-out);
+}
+
+.header.scrolled {
+  background: rgba(10, 14, 39, 0.88);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Logo */
+.logo-area {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  border: 2px solid var(--border-1);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logo-area:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-primary);
+  transform: scale(1.05);
+}
+
+.logo-area:active {
+  transform: scale(0.95);
+}
+
+.logo-area img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logo-placeholder {
+  font-size: 1.5rem;
+  opacity: 0.7;
+}
+
+/* 标题 */
+.header-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.header-title h1 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-subtitle {
+  font-size: 0.68rem;
+  color: var(--text-3);
+  font-weight: 500;
+  margin-top: 1px;
+  letter-spacing: 0.02em;
+}
+
+/* 操作按钮组 */
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Streak 徽章 */
+.streak-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
+  border-radius: var(--r-full);
+  padding: 5px 11px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: all 0.3s var(--ease-spring);
+  border: 1px solid rgba(245, 160, 152, 0.2);
+}
+
+.streak-badge:hover {
+  transform: scale(1.05);
+  background: rgba(245, 160, 152, 0.22);
+}
+
+.streak-icon {
+  font-size: 1rem;
+  animation: flame 2s ease-in-out infinite;
+}
+
+@keyframes flame {
+  0%, 100% { transform: scale(1) rotate(-3deg); }
+  50% { transform: scale(1.08) rotate(3deg); }
+}
+
+/* 同步按钮 */
+.sync-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: var(--r-full);
+  border: none;
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  white-space: nowrap;
+}
+
+.sync-btn:hover {
+  background: var(--surface-3);
+  transform: translateY(-1px);
+}
+
+.sync-btn:active {
+  transform: scale(0.96);
+}
+
+.sync-btn.synced {
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+  border: 1px solid rgba(142, 212, 166, 0.25);
+}
+
+.sync-icon {
+  font-size: 0.95rem;
+}
+
+.sync-btn.syncing .sync-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   🎯 底部标签栏 - iOS 风格
+   ======================================== */
+.tab-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 99;
+  display: flex;
+  gap: 4px;
+  padding: 6px 6px max(var(--safe-bottom), 6px);
+  background: rgba(10, 14, 39, 0.85);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-top: 1px solid var(--border-1);
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.2);
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 7px 4px;
+  border: none;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-3);
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  min-height: 50px;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-primary-soft);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.25s var(--ease-out);
+}
+
+.tab-btn:active::before {
+  opacity: 0.4;
+}
+
+.tab-btn.active {
+  color: var(--accent-primary);
+}
+
+.tab-btn.active::before {
+  opacity: 1;
+}
+
+.tab-icon {
+  font-size: 1.5rem;
+  transition: transform 0.25s var(--ease-spring);
+  position: relative;
+  z-index: 1;
+}
+
+.tab-btn.active .tab-icon {
+  transform: scale(1.12);
+}
+
+.tab-label {
+  position: relative;
+  z-index: 1;
+  letter-spacing: -0.01em;
+}
+
+/* ========================================
+   📄 主内容区
+   ======================================== */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 12px 14px;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.main::-webkit-scrollbar {
+  width: 5px;
+}
+
+.main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 3px;
+}
+
+.main::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+}
+
+/* 页面容器 */
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
+
+/* ========================================
+   🎴 卡片系统
+   ======================================== */
+.card {
+  background: var(--surface-1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-1);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s var(--ease-out);
+}
+
+.card:hover {
+  background: var(--surface-3);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-title-icon {
+  font-size: 1.1rem;
+}
+
+/* 卡片变体 */
+.card-elevated {
+  background: var(--elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+.card-highlight {
+  border-left: 4px solid var(--accent-primary);
+  background: linear-gradient(to right, rgba(245, 160, 152, 0.08), var(--surface-1));
+}
+
+.card-success {
+  border-left: 4px solid var(--accent-green);
+  background: linear-gradient(to right, var(--accent-green-soft), var(--surface-1));
+}
+
+/* ========================================
+   🎹 曲目卡片
+   ======================================== */
+.piece-card {
+  background: var(--surface-1);
+  backdrop-filter: blur(12px);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-1);
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Macaron 配色 */
+.piece-card:nth-child(6n+1) {
+  background: linear-gradient(135deg, rgba(245, 160, 152, 0.1), var(--surface-1));
+  border-left-color: var(--accent-primary);
+}
+
+.piece-card:nth-child(6n+2) {
+  background: linear-gradient(135deg, rgba(142, 212, 166, 0.1), var(--surface-1));
+  border-left-color: var(--accent-green);
+}
+
+.piece-card:nth-child(6n+3) {
+  background: linear-gradient(135deg, rgba(155, 217, 206, 0.1), var(--surface-1));
+  border-left-color: var(--accent-mint);
+}
+
+.piece-card:nth-child(6n+4) {
+  background: linear-gradient(135deg, rgba(245, 216, 154, 0.1), var(--surface-1));
+  border-left-color: var(--accent-yellow);
+}
+
+.piece-card:nth-child(6n+5) {
+  background: linear-gradient(135deg, rgba(186, 184, 224, 0.1), var(--surface-1));
+  border-left-color: var(--accent-lavender);
+}
+
+.piece-card:nth-child(6n+6) {
+  background: linear-gradient(135deg, rgba(155, 185, 220, 0.1), var(--surface-1));
+  border-left-color: var(--accent-blue);
+}
+
+.piece-card:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: var(--shadow-md);
+}
+
+.piece-card:active {
+  transform: scale(0.98);
+}
+
+.piece-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.piece-number {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
+  border-radius: var(--r-xs);
+  font-weight: 800;
+  font-size: 0.82rem;
+  border: 1px solid rgba(245, 160, 152, 0.2);
+}
+
+.piece-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.piece-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+
+.piece-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.expand-hint {
+  font-size: 0.68rem;
+  color: var(--text-2);
+  transition: opacity 0.3s var(--ease-out);
+}
+
+.piece-card.expanded .expand-hint {
+  opacity: 0.4;
+}
+
+/* 老师笔记 */
+.teacher-notes {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-md);
+  padding: 0;
+  margin-top: 0;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.4s var(--ease-out);
+}
+
+.piece-card.expanded .teacher-notes {
+  padding: 11px 13px;
+  margin-top: 11px;
+  max-height: 600px;
+  opacity: 1;
+}
+
+.teacher-notes-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.teacher-notes-content {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* ========================================
+   ⭐ 评分系统
+   ======================================== */
+.star-rating {
+  display: flex;
+  gap: 3px;
+  margin: 9px 0;
+}
+
+.star-btn {
+  font-size: 1.7rem;
+  background: none;
+  border: none;
+  padding: 3px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-spring);
+  filter: grayscale(1) opacity(0.3);
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.star-btn:hover {
+  transform: scale(1.15);
+  filter: grayscale(0.6) opacity(0.6);
+}
+
+.star-btn.active {
+  filter: none;
+  transform: scale(1.08);
+  animation: star-pop 0.3s var(--ease-spring);
+}
+
+.star-btn:active {
+  transform: scale(1.3);
+}
+
+@keyframes star-pop {
+  0% { transform: scale(0.7); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1.08); }
+}
+
+/* ========================================
+   🎨 按钮系统
+   ======================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: var(--r-full);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.btn:hover::before {
+  opacity: 1;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+/* 按钮变体 */
+.btn-primary {
+  background: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(245, 160, 152, 0.35);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(to bottom, var(--accent-primary), #F08070);
+  box-shadow: 0 6px 18px rgba(245, 160, 152, 0.45);
+}
+
+.btn-success {
+  background: var(--accent-green);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(142, 212, 166, 0.35);
+}
+
+.btn-secondary {
+  background: var(--surface-1);
+  color: var(--text-2);
+  border: 1px solid var(--border-1);
+}
+
+.btn-danger {
+  background: var(--accent-red);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(255, 107, 107, 0.35);
+}
+
+.btn-sm {
+  padding: 7px 15px;
+  font-size: 0.78rem;
+}
+
+.btn-lg {
+  padding: 15px 30px;
+  font-size: 1.05rem;
+  border-radius: var(--r-xl);
+}
+
+/* 大按钮 - CTA */
+.btn-big {
+  width: 100%;
+  max-width: 420px;
+  margin: 18px auto;
+  padding: 17px 34px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  border-radius: var(--r-xl);
+  background: linear-gradient(135deg, var(--accent-primary), #F08080);
+  color: #fff;
+  box-shadow: 0 6px 22px rgba(245, 160, 152, 0.45);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-spring);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-big:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 8px 26px rgba(245, 160, 152, 0.55);
+}
+
+.btn-big:active {
+  transform: scale(0.98);
+}
+
+/* ========================================
+   📝 表单系统
+   ======================================== */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 7px;
+  letter-spacing: -0.01em;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: 13px 15px;
+  border: 2px solid var(--border-1);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-1);
+  font-size: 0.92rem;
+  font-family: inherit;
+  transition: all 0.3s var(--ease-out);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--text-4);
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(245, 160, 152, 0.12);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 75px;
+  line-height: 1.5;
+}
+
+.form-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23A0A0B0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
+}
+
+/* ========================================
+   🏷️ 练习分类折叠
+   ======================================== */
+.practice-category {
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.practice-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  user-select: none;
+}
+
+.practice-category-header:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-primary);
+}
+
+.practice-category-header:active {
+  transform: scale(0.98);
+}
+
+.cat-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-toggle-icon {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  transition: transform 0.3s var(--ease-out);
+}
+
+.practice-category.open .cat-toggle-icon {
+  transform: rotate(90deg);
+}
+
+.practice-category-body {
+  padding: 4px 0 0;
+}
+
+/* ========================================
+   🏷️ 标签系统
+   ======================================== */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 2px solid var(--border-1);
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  white-space: nowrap;
+}
+
+.tag:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+.tag:active {
+  transform: scale(0.95);
+}
+
+.tag.selected {
+  background: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* 徽章 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 9px;
+  border-radius: var(--r-full);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.badge-success {
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+}
+
+.badge-warning {
+  background: rgba(245, 216, 154, 0.15);
+  color: var(--accent-yellow);
+}
+
+.badge-info {
+  background: rgba(155, 217, 206, 0.15);
+  color: var(--accent-mint);
+}
+
+/* ========================================
+   📅 日历组件
+   ======================================== */
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding: 0 4px;
+}
+
+.calendar-month {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-1);
+  letter-spacing: -0.02em;
+}
+
+.calendar-nav-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: 50%;
+  color: var(--text-2);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+}
+
+.calendar-nav-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-primary);
+  transform: scale(1.05);
+}
+
+.calendar-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  text-align: center;
+}
+
+.calendar-weekday {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-3);
+  padding: 9px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  border: 1px solid var(--border-2);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  position: relative;
+  min-height: 36px;
+  overflow: hidden;
+}
+
+.calendar-day:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-primary);
+  transform: scale(1.05);
+}
+
+.calendar-day:active {
+  transform: scale(0.95);
+}
+
+.calendar-day.today {
+  background: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  font-weight: 800;
+}
+
+.calendar-day.other-month {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.calendar-day.has-practice::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent-green);
+}
+
+.calendar-day.missed::after {
+  background: var(--border-1);
+}
+
+.day-star {
+  font-size: 0.55rem;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--accent-yellow);
+  margin-top: 1px;
+}
+
+/* 统计卡片 */
+.calendar-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 11px;
+  margin-top: 18px;
+}
+
+.stat-card {
+  background: var(--surface-1);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  padding: 15px;
+  text-align: center;
+  transition: all 0.3s var(--ease-out);
+}
+
+.stat-card:hover {
+  background: var(--surface-3);
+  transform: translateY(-2px);
+}
+
+.stat-number {
+  font-size: 1.9rem;
+  font-weight: 900;
+  color: var(--accent-primary);
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 0.68rem;
+  color: var(--text-3);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* 周/月切换 */
+.calendar-view-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-radius: var(--r-full);
+  overflow: hidden;
+  border: 1px solid var(--border-1);
+}
+
+.calendar-view-toggle-btn {
+  flex: 1;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+}
+
+.calendar-view-toggle-btn.active {
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
+}
+
+/* 周视图 */
+.calendar-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.calendar-week-cell {
+  background: var(--surface-1);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-md);
+  padding: 10px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+}
+
+.calendar-week-cell:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-primary);
+}
+
+.calendar-week-cell.today {
+  background: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+}
+
+.calendar-week-cell .week-day-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-3);
+  margin-bottom: 2px;
+}
+
+.calendar-week-cell .week-date {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.calendar-week-cell .week-duration {
+  font-size: 0.65rem;
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.calendar-week-cell .week-stars {
+  font-size: 0.55rem;
+  color: var(--accent-yellow);
+}
+
+.calendar-week-cell.no-practice {
+  opacity: 0.5;
+}
+
+/* ========================================
+   🎭 模态框
+   ======================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  animation: modal-fade 0.3s var(--ease-out);
+}
+
+@keyframes modal-fade {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(10px);
+  }
+}
+
+.modal {
+  background: var(--elevated);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  max-height: 88dvh;
+  overflow-y: auto;
+  animation: modal-slide 0.4s var(--ease-spring);
+}
+
+@media (min-width: 768px) {
+  .modal {
+    max-width: 800px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .modal {
+    max-width: 960px;
+  }
+}
+
+@keyframes modal-slide {
+  from {
+    opacity: 0;
+    transform: translateY(35px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  background: var(--elevated);
+  backdrop-filter: saturate(180%) blur(24px);
+  border-bottom: 1px solid var(--border-2);
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-1);
+  letter-spacing: -0.02em;
+}
+
+.modal-close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 50%;
+  color: var(--text-2);
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+}
+
+.modal-close:hover {
+  background: rgba(255, 107, 107, 0.2);
+  color: var(--accent-red);
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  padding: 22px;
+}
+
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  padding: 14px 22px 22px;
+  background: linear-gradient(to top, var(--elevated) 70%, transparent);
+}
+
+/* ========================================
+   💫 空状态
+   ======================================== */
+.empty-state {
+  text-align: center;
+  padding: 55px 30px;
+  animation: empty-fade 0.5s var(--ease-out);
+}
+
+@keyframes empty-fade {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.empty-icon {
+  font-size: 3.8rem;
+  margin-bottom: 15px;
+  opacity: 0.5;
+  filter: grayscale(0.3);
+}
+
+.empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 7px;
+}
+
+.empty-description {
+  font-size: 0.82rem;
+  color: var(--text-3);
+  line-height: 1.5;
+  max-width: 290px;
+  margin: 0 auto 22px;
+}
+
+/* ========================================
+   ⏱ 单曲计时器
+   ======================================== */
+.piece-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm);
+}
+
+.piece-timer-display {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-green);
+  min-width: 50px;
+}
+
+.piece-timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  background: var(--accent-green-soft);
+  padding: 3px 8px;
+  border-radius: var(--r-full);
+  margin-left: 4px;
+}
+
+/* ========================================
+   🎛️ 工具类
+   ======================================== */
+.parent-sub-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-md);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.parent-sub-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flex-row {
+  display: flex;
+  align-items: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gap-4 { gap: 4px; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+
+.mt-4 { margin-top: 4px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+
+.mb-4 { margin-bottom: 4px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+
+.p-8 { padding: 8px; }
+.p-12 { padding: 12px; }
+.p-16 { padding: 16px; }
+
+.text-center { text-align: center; }
+.text-sm { font-size: 0.78rem; }
+.text-xs { font-size: 0.68rem; }
+.text-lg { font-size: 1.05rem; }
+
+.text-1 { color: var(--text-1); }
+.text-2 { color: var(--text-2); }
+.text-3 { color: var(--text-3); }
+
+.font-bold { font-weight: 700; }
+.font-black { font-weight: 900; }
+
+/* ========================================
+   📱 响应式
+   ======================================== */
+@media (max-width: 375px) {
+  .header-title h1 {
+    font-size: 0.98rem;
+  }
+  
+  .tab-label {
+    font-size: 0.6rem;
+  }
+  
+  .piece-title {
+    font-size: 0.92rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .calendar-grid {
+    gap: 9px;
+  }
+  
+  .piece-card {
+    padding: 18px;
+  }
+  
+  .tab-bar {
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    margin: 0 14px;
+  }
+}
+
+/* ========================================
+   🌙 暗色主题增强
+   ======================================== */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(170deg, 
+      #0E1020 0%, 
+      #13162C 25%, 
+      #101327 50%, 
+      #12152A 75%, 
+      #0E1020 100%
+    );
+  }
+}
+
+/* ========================================
+   ♿ 无障碍
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ========================================
+   🖨️ 打印
+   ======================================== */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .header,
+  .tab-bar,
+  .sync-btn,
+  .btn {
+    display: none !important;
+  }
+  
+  .card {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+  <!-- 头部 -->
+  <div class="header" id="header">
+    <div class="header-content">
+      <div class="logo-area" id="logoArea" onclick="document.getElementById('logoInput').click()" title="更换头像">
+        <img id="logoImg" src="" style="display:none" alt="Logo">
+        <span class="logo-placeholder" id="logoPlaceholder">🎹</span>
+      </div>
+      <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+      
+      <div class="header-title">
+        <h1>哆哩的钢琴助手</h1>
+        <div class="header-subtitle">v3.0 · 演示版</div>
+      </div>
+      
+      <div class="header-actions">
+        <button class="sync-btn synced" id="syncBtn" onclick="showSyncPanel()" title="多设备同步">
+          <span class="sync-icon">🔄</span>
+          <span>同步</span>
+        </button>
+        <div class="streak-badge" id="streakBadge">
+          <span class="streak-icon">🔥</span>
+          <span id="streakCount">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 主内容 -->
+  <div class="main" id="mainContent">
+    <div class="page active" id="page-today"></div>
+    <div class="page" id="page-lessons"></div>
+    <div class="page" id="page-calendar"></div>
+    <div class="page" id="page-repertoire"></div>
+  </div>
+  
+  <!-- 底部标签栏 -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="today">
+      <span class="tab-icon">🏠</span>
+      <span class="tab-label">今日</span>
+    </button>
+    <button class="tab-btn" data-tab="lessons">
+      <span class="tab-icon">📒</span>
+      <span class="tab-label">课程</span>
+    </button>
+    <button class="tab-btn" data-tab="calendar">
+      <span class="tab-icon">📅</span>
+      <span class="tab-label">日历</span>
+    </button>
+    <button class="tab-btn" data-tab="repertoire">
+      <span class="tab-icon">🎵</span>
+      <span class="tab-label">曲库</span>
+    </button>
+  </div>
+</div>
+
+<!-- 模态框容器 -->
+<div id="modalContainer"></div>
+
+
+<script>
+/* ==========================================
+   🎹 哆哩钢琴助手 v2.1 - JavaScript 核心
+   ========================================== */
+
+"use strict";
+
+/* ==========================================
+   📦 数据层 - LocalStorage 封装
+   ========================================== */
+const DB = {
+  _key(k) { return 'piano_' + k; },
+
+  get(key, fallback = null) {
+    try {
+      const value = localStorage.getItem(this._key(key));
+      return value ? JSON.parse(value) : fallback;
+    } catch (error) {
+      console.error('DB.get error:', key, error);
+      return fallback;
+    }
+  },
+
+  set(key, value) {
+    try {
+      localStorage.setItem(this._key(key), JSON.stringify(value));
+      return true;
+    } catch (error) {
+      console.error('DB.set error:', key, error);
+      if (error.name === 'QuotaExceededError') {
+        alert('⚠️ 存储空间不足，请清理旧数据或联系开发者');
+      }
+      return false;
+    }
+  },
+
+  remove(key) {
+    try {
+      localStorage.removeItem(this._key(key));
+      return true;
+    } catch (error) {
+      console.error('DB.remove error:', key, error);
+      return false;
+    }
+  },
+
+  lessons() { return this.get('lessons', []); },
+  saveLessons(data) { return this.set('lessons', data); },
+  logs() { return this.get('logs', []); },
+  saveLogs(data) { return this.set('logs', data); },
+  repertoire() { return this.get('repertoire', []); },
+  saveRepertoire(data) { return this.set('repertoire', data); },
+  config() { return this.get('config', {}); },
+  saveConfig(data) { return this.set('config', data); },
+
+  getStorageInfo() {
+    let total = 0;
+    for (let key in localStorage) {
+      if (localStorage.hasOwnProperty(key) && key.startsWith('piano_')) {
+        total += localStorage[key].length + key.length;
+      }
+    }
+    return {
+      used: total,
+      usedKB: (total / 1024).toFixed(2),
+      usedMB: (total / 1024 / 1024).toFixed(2)
+    };
+  }
+};
+
+/* ==========================================
+   🛠️ 工具函数集合
+   ========================================== */
+const Utils = {
+  // HTML 转义（防止 XSS）
+  escape(str) {
+    if (typeof str !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  },
+  
+  // HTML 反转义
+  unescape(str) {
+    if (typeof str !== 'string') return '';
+    const div = document.createElement('div');
+    div.innerHTML = str;
+    return div.textContent;
+  },
+  
+  // 获取今日日期 (YYYY-MM-DD)
+  today() {
+    return new Date().toISOString().slice(0, 10);
+  },
+  
+  // 格式化日期：2024-03-15 → 3月15日
+  formatDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr + 'T00:00:00');
+      return `${date.getMonth() + 1}月${date.getDate()}日`;
+    } catch (error) {
+      return dateStr;
+    }
+  },
+  
+  // 格式化日期：2024-03-15 → 03-15
+  formatDateShort(dateStr) {
+    if (!dateStr) return '';
+    return dateStr.slice(5);
+  },
+  
+  // 格式化日期：2024-03-15 → 2024年3月15日
+  formatDateFull(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr + 'T00:00:00');
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    } catch (error) {
+      return dateStr;
+    }
+  },
+  
+  // 计算日期差（天数）
+  daysBetween(date1, date2) {
+    const d1 = new Date(date1 + 'T00:00:00');
+    const d2 = new Date(date2 + 'T00:00:00');
+    const diff = Math.abs(d2 - d1);
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  },
+  
+  // 生成唯一 ID
+  uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  },
+  
+  // 防抖函数
+  debounce(func, wait = 300) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  },
+  
+  // 节流函数
+  throttle(func, limit = 200) {
+    let inThrottle;
+    return function(...args) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    };
+  },
+  
+  // 深拷贝
+  deepClone(obj) {
+    try {
+      return JSON.parse(JSON.stringify(obj));
+    } catch (error) {
+      console.error('deepClone error:', error);
+      return obj;
+    }
+  },
+  
+  // 数组去重
+  unique(arr, key) {
+    if (!key) {
+      return [...new Set(arr)];
+    }
+    const seen = new Set();
+    return arr.filter(item => {
+      const val = item[key];
+      if (seen.has(val)) return false;
+      seen.add(val);
+      return true;
+    });
+  },
+  
+  // 格式化时长：120秒 → 02:00
+  formatDuration(seconds) {
+    if (!seconds) return '00:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  },
+  
+  // 随机数
+  random(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  },
+  
+  // 随机打乱数组
+  shuffle(arr) {
+    const result = [...arr];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  },
+  
+  // 延迟执行
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  },
+  
+  // 复制到剪贴板
+  async copyToClipboard(text) {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } else {
+        // 降级方案
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return success;
+      }
+    } catch (error) {
+      console.error('copyToClipboard error:', error);
+      return false;
+    }
+  },
+  
+  // 显示 Toast 提示
+  showToast(message, type = 'info', duration = 2000) {
+    // 移除旧的 toast
+    const oldToast = document.querySelector('.toast');
+    if (oldToast) oldToast.remove();
+    
+    // 创建新的 toast
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      top: calc(var(--safe-top, 0px) + 20px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--elevated);
+      color: var(--text-1);
+      padding: 12px 24px;
+      border-radius: var(--r-full);
+      box-shadow: var(--shadow-lg);
+      z-index: 9999;
+      font-size: 0.9rem;
+      font-weight: 600;
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      animation: toast-in 0.3s var(--ease-spring);
+      border: 1px solid var(--border-1);
+    `;
+    
+    if (type === 'success') {
+      toast.style.background = 'var(--accent-green-soft)';
+      toast.style.color = 'var(--accent-green)';
+      toast.style.borderColor = 'var(--accent-green)';
+    } else if (type === 'error') {
+      toast.style.background = 'rgba(255, 107, 107, 0.2)';
+      toast.style.color = 'var(--accent-red)';
+      toast.style.borderColor = 'var(--accent-red)';
+    } else if (type === 'warning') {
+      toast.style.background = 'rgba(245, 216, 154, 0.2)';
+      toast.style.color = 'var(--accent-yellow)';
+      toast.style.borderColor = 'var(--accent-yellow)';
+    }
+    
+    document.body.appendChild(toast);
+    
+    // 添加动画样式
+    if (!document.getElementById('toast-styles')) {
+      const style = document.createElement('style');
+      style.id = 'toast-styles';
+      style.textContent = `
+        @keyframes toast-in {
+          from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes toast-out {
+          from { opacity: 1; transform: translateX(-50%) translateY(0); }
+          to { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    // 自动移除
+    setTimeout(() => {
+      toast.style.animation = 'toast-out 0.3s var(--ease-out)';
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  }
+};
+
+/* ==========================================
+   🎵 铃木钢琴曲库数据
+   ========================================== */
+const SUZUKI_DATA = [
+  // ===== Book 1 (18首) =====
+  {
+    id: "s1-01",
+    book: 1,
+    num: 1,
+    name: "小星星变奏曲",
+    en: "Twinkle, Twinkle, Little Star Variations",
+    jp: "きらきらぼし変奏曲",
+    composer: "铃木镇一",
+    difficulty: 1,
+    duration: 3 // 预估演奏时长（分钟）
+  },
+  {
+    id: "s1-02",
+    book: 1,
+    num: 2,
+    name: "小蜜蜂",
+    en: "The Honeybee",
+    jp: "ぶんぶんぶん",
+    composer: "Folk Song",
+    difficulty: 1,
+    duration: 1
+  },
+  {
+    id: "s1-03",
+    book: 1,
+    num: 3,
+    name: "布谷鸟",
+    en: "Cuckoo",
+    jp: "かっこう",
+    composer: "Folk Song",
+    difficulty: 1,
+    duration: 1
+  },
+  {
+    id: "s1-04",
+    book: 1,
+    num: 4,
+    name: "轻轻划",
+    en: "Lightly Row",
+    jp: "こぎつね",
+    composer: "Folk Song",
+    difficulty: 1,
+    duration: 1
+  },
+  {
+    id: "s1-05",
+    book: 1,
+    num: 5,
+    name: "法国童谣",
+    en: "French Children's Song",
+    jp: "フランスのこどもの歌",
+    composer: "Folk Song",
+    difficulty: 1,
+    duration: 1
+  },
+  {
+    id: "s1-06",
+    book: 1,
+    num: 6,
+    name: "伦敦桥",
+    en: "London Bridge",
+    jp: "ロンドン橋",
+    composer: "Folk Song",
+    difficulty: 1,
+    duration: 1
+  },
+  {
+    id: "s1-07",
+    book: 1,
+    num: 7,
+    name: "玛丽有只小羔羊",
+    en: "Mary Had a Little Lamb",
+    jp: "メリーさんのひつじ",
+    composer: "Folk Song",
+    difficulty: 1,
+    duration: 1
+  },
+  {
+    id: "s1-08",
+    book: 1,
+    num: 8,
+    name: "告诉罗迪阿姨",
+    en: "Go Tell Aunt Rhody",
+    jp: "おばあさんに伝えて",
+    composer: "Folk Song",
+    difficulty: 1,
+    duration: 1
+  },
+  {
+    id: "s1-09",
+    book: 1,
+    num: 9,
+    name: "月光下",
+    en: "Au Clair de la Lune",
+    jp: "月の光に",
+    composer: "J.B. Lully",
+    difficulty: 2,
+    duration: 1
+  },
+  {
+    id: "s1-10",
+    book: 1,
+    num: 10,
+    name: "很久以前",
+    en: "Long, Long Ago",
+    jp: "むかし、むかし",
+    composer: "T.H. Bayly",
+    difficulty: 2,
+    duration: 2
+  },
+  {
+    id: "s1-11",
+    book: 1,
+    num: 11,
+    name: "小伙伴",
+    en: "Little Playmates",
+    jp: "小さな遊び仲間",
+    composer: "F.X. Chwatal",
+    difficulty: 2,
+    duration: 1
+  },
+  {
+    id: "s1-12",
+    book: 1,
+    num: 12,
+    name: "阿拉伯之歌",
+    en: "Chant Arabe",
+    jp: "アラビアの歌",
+    composer: "Anonymous",
+    difficulty: 2,
+    duration: 1
+  },
+  {
+    id: "s1-13",
+    book: 1,
+    num: 13,
+    name: "小快板1",
+    en: "Allegretto 1",
+    jp: "アレグレット 1",
+    composer: "C. Czerny",
+    difficulty: 2,
+    duration: 1
+  },
+  {
+    id: "s1-14",
+    book: 1,
+    num: 14,
+    name: "告别冬天",
+    en: "Good-bye to Winter",
+    jp: "冬よさようなら",
+    composer: "Folk Song",
+    difficulty: 2,
+    duration: 1
+  },
+  {
+    id: "s1-15",
+    book: 1,
+    num: 15,
+    name: "小快板2",
+    en: "Allegretto 2",
+    jp: "アレグレット 2",
+    composer: "C. Czerny",
+    difficulty: 2,
+    duration: 1
+  },
+  {
+    id: "s1-16",
+    book: 1,
+    num: 16,
+    name: "圣诞节的秘密",
+    en: "Christmas-Day Secrets",
+    jp: "クリスマスの秘密",
+    composer: "T. Dutton",
+    difficulty: 2,
+    duration: 2
+  },
+  {
+    id: "s1-17",
+    book: 1,
+    num: 17,
+    name: "快板",
+    en: "Allegro",
+    jp: "アレグロ",
+    composer: "铃木镇一",
+    difficulty: 3,
+    duration: 2
+  },
+  {
+    id: "s1-18",
+    book: 1,
+    num: 18,
+    name: "风笛舞曲",
+    en: "Musette",
+    jp: "ミュゼット",
+    composer: "Anonymous",
+    difficulty: 3,
+    duration: 2
+  },
+  
+  // ===== Book 2 (14首) =====
+  {
+    id: "s2-01",
+    book: 2,
+    num: 1,
+    name: "埃科塞兹舞曲",
+    en: "Écossaise",
+    jp: "エコセーズ",
+    composer: "J.N. Hummel",
+    difficulty: 3,
+    duration: 2
+  },
+  {
+    id: "s2-02",
+    book: 2,
+    num: 2,
+    name: "小故事",
+    en: "A Short Story",
+    jp: "短いお話",
+    composer: "H. Lichner",
+    difficulty: 3,
+    duration: 2
+  },
+  {
+    id: "s2-03",
+    book: 2,
+    num: 3,
+    name: "快乐的农夫",
+    en: "The Happy Farmer",
+    jp: "楽しい農夫",
+    composer: "R. Schumann",
+    difficulty: 3,
+    duration: 1
+  },
+  {
+    id: "s2-04",
+    book: 2,
+    num: 4,
+    name: "G小调小步舞曲 第一首",
+    en: "Minuet 1, Klavier Suite in g minor",
+    jp: "メヌエット 1",
+    composer: "J.S. Bach",
+    difficulty: 4,
+    duration: 2
+  },
+  {
+    id: "s2-05",
+    book: 2,
+    num: 5,
+    name: "小步舞曲 第二首",
+    en: "Minuet 2, Notebook for AMB",
+    jp: "メヌエット 2",
+    composer: "Anonymous",
+    difficulty: 4,
+    duration: 2
+  },
+  {
+    id: "s2-06",
+    book: 2,
+    num: 6,
+    name: "小步舞曲 第三首",
+    en: "Minuet 3",
+    jp: "メヌエット 3",
+    composer: "C. Petzold",
+    difficulty: 4,
+    duration: 2
+  },
+  {
+    id: "s2-07",
+    book: 2,
+    num: 7,
+    name: "G小调小步舞曲",
+    en: "Minuet, Klavier Suite in g minor",
+    jp: "メヌエット",
+    composer: "J.S. Bach",
+    difficulty: 4,
+    duration: 3
+  },
+  {
+    id: "s2-08",
+    book: 2,
+    num: 8,
+    name: "摇篮曲",
+    en: "Cradle Song",
+    jp: "子守歌",
+    composer: "C.M. von Weber",
+    difficulty: 3,
+    duration: 2
+  },
+  {
+    id: "s2-09",
+    book: 2,
+    num: 9,
+    name: "小步舞曲 K.2",
+    en: "Minuet K.2",
+    jp: "メヌエット K.2",
+    composer: "W.A. Mozart",
+    difficulty: 4,
+    duration: 2
+  },
+  {
+    id: "s2-10",
+    book: 2,
+    num: 10,
+    name: "小咏叹调",
+    en: "Arietta",
+    jp: "アリエッタ",
+    composer: "W.A. Mozart",
+    difficulty: 3,
+    duration: 1
+  },
+  {
+    id: "s2-11",
+    book: 2,
+    num: 11,
+    name: "旋律",
+    en: "Melody",
+    jp: "メロディー",
+    composer: "R. Schumann",
+    difficulty: 3,
+    duration: 2
+  },
+  {
+    id: "s2-12",
+    book: 2,
+    num: 12,
+    name: "小奏鸣曲",
+    en: "Sonatina",
+    jp: "ソナチネ",
+    composer: "L. van Beethoven",
+    difficulty: 4,
+    duration: 3
+  },
+  {
+    id: "s2-13",
+    book: 2,
+    num: 13,
+    name: "风笛舞曲",
+    en: "Musette, English Suite No.3",
+    jp: "ミュゼット",
+    composer: "J.S. Bach",
+    difficulty: 4,
+    duration: 2
+  },
+  {
+    id: "s2-14",
+    book: 2,
+    num: 14,
+    name: "小步舞曲",
+    en: "Minuet, Notebook for AMB",
+    jp: "メヌエット",
+    composer: "C. Petzold",
+    difficulty: 4,
+    duration: 3
+  }
+];
+
+/* ==========================================
+   🎼 曲库初始化与管理
+   ========================================== */
+const RepertoireManager = {
+  // 曲库版本（升级时递增）
+  VERSION: 3,
+  
+  // 初始化曲库
+  init() {
+    const storedVersion = localStorage.getItem('piano_rep_version');
+    const currentRep = DB.repertoire();
+    
+    // 如果版本不匹配或曲库为空，重新初始化
+    if (!currentRep.length || storedVersion != this.VERSION) {
+      console.log('Initializing repertoire, version:', this.VERSION);
+      
+      const repertoire = SUZUKI_DATA.map(piece => ({
+        ...piece,
+        // 默认状态：Book 1 全部已学会，Book 2 前 4 首已学会
+        status: piece.book === 1 ? 'learned' : 
+                (piece.book === 2 && piece.num <= 4 ? 'learned' : 'untouched'),
+        // 默认背谱：Book 1 全部可背谱，Book 2 前 4 首可背谱
+        memorized: piece.book === 1 ? true : 
+                   (piece.book === 2 && piece.num <= 4 ? true : false),
+        // 学习日期
+        startedDate: null,
+        completedDate: piece.book === 1 ? '2026-01-01' : 
+                       (piece.book === 2 && piece.num <= 4 ? '2026-03-01' : null),
+        // 总练习时长（分钟）
+        totalMinutes: 0,
+        // 练习次数
+        practiceCount: 0,
+        // 最后练习日期
+        lastPracticeDate: null
+      }));
+      
+      DB.saveRepertoire(repertoire);
+      localStorage.setItem('piano_rep_version', this.VERSION);
+      
+      Utils.showToast('✅ 曲库已初始化', 'success');
+    }
+  },
+  
+  // 根据 ID 查找曲目
+  findById(id) {
+    return DB.repertoire().find(p => p.id === id);
+  },
+  
+  // 根据名称查找曲目（模糊匹配）
+  findByName(name) {
+    if (!name) return null;
+    const rep = DB.repertoire();
+    // 精确匹配
+    let match = rep.find(p => p.name === name || p.en === name);
+    if (match) return match;
+    // 模糊匹配
+    return rep.find(p => 
+      p.name.includes(name) || 
+      name.includes(p.name) ||
+      p.en.toLowerCase().includes(name.toLowerCase()) ||
+      name.toLowerCase().includes(p.en.toLowerCase())
+    );
+  },
+  
+  // 获取指定 book 的所有曲目
+  getByBook(bookNum) {
+    return DB.repertoire().filter(p => p.book === bookNum);
+  },
+  
+  // 获取已学会的曲目
+  getLearned() {
+    return DB.repertoire().filter(p => p.status === 'learned');
+  },
+  
+  // 获取正在学习的曲目
+  getLearning() {
+    return DB.repertoire().filter(p => p.status === 'learning');
+  },
+  
+  // 更新曲目状态
+  updateStatus(id, status) {
+    const rep = DB.repertoire();
+    const piece = rep.find(p => p.id === id);
+    if (!piece) return false;
+    
+    const today = Utils.today();
+    piece.status = status;
+    
+    if (status === 'learning' && !piece.startedDate) {
+      piece.startedDate = today;
+    } else if (status === 'learned' && !piece.completedDate) {
+      piece.completedDate = today;
+    } else if (status === 'untouched') {
+      piece.startedDate = null;
+      piece.completedDate = null;
+      piece.memorized = false;
+    }
+    
+    DB.saveRepertoire(rep);
+    return true;
+  },
+  
+  // 切换背谱状态
+  toggleMemorized(id) {
+    const rep = DB.repertoire();
+    const piece = rep.find(p => p.id === id);
+    if (!piece) return false;
+    
+    piece.memorized = !piece.memorized;
+    DB.saveRepertoire(rep);
+    return piece.memorized;
+  },
+  
+  // 记录练习
+  recordPractice(id, minutes) {
+    const rep = DB.repertoire();
+    const piece = rep.find(p => p.id === id);
+    if (!piece) return false;
+    
+    piece.totalMinutes = (piece.totalMinutes || 0) + minutes;
+    piece.practiceCount = (piece.practiceCount || 0) + 1;
+    piece.lastPracticeDate = Utils.today();
+    
+    DB.saveRepertoire(rep);
+    return true;
+  },
+  
+  // 随机获取复习曲目
+  getRandomReview(count = 4, excludeNames = [], bookFilter = null) {
+    const learned = DB.repertoire().filter(p => {
+      if (p.status !== 'learned') return false;
+      if (excludeNames.includes(p.name)) return false;
+      if (bookFilter && p.book !== bookFilter) return false;
+      return true;
+    });
+    
+    return Utils.shuffle(learned).slice(0, count);
+  },
+  
+  // 获取统计信息
+  getStats() {
+    const rep = DB.repertoire();
+    return {
+      total: rep.length,
+      learned: rep.filter(p => p.status === 'learned').length,
+      learning: rep.filter(p => p.status === 'learning').length,
+      untouched: rep.filter(p => p.status === 'untouched').length,
+      memorized: rep.filter(p => p.memorized).length,
+      totalMinutes: rep.reduce((sum, p) => sum + (p.totalMinutes || 0), 0)
+    };
+  },
+
+  // 获取所有分册列表
+  getBookList() {
+    const rep = DB.repertoire();
+    const books = new Set(rep.map(p => p.book));
+    return [...books].sort((a, b) => a - b);
+  },
+
+  // 获取下一个曲目编号
+  getNextNum(book) {
+    const rep = DB.repertoire().filter(p => p.book === book);
+    if (!rep.length) return 1;
+    return Math.max(...rep.map(p => p.num || 0)) + 1;
+  },
+
+  // 添加新曲目
+  addPiece(pieceData) {
+    const rep = DB.repertoire();
+    const id = 's' + pieceData.book + '-' + String(pieceData.num).padStart(2, '0');
+    rep.push({
+      id,
+      book: pieceData.book,
+      num: pieceData.num,
+      name: pieceData.name,
+      en: pieceData.en || '',
+      jp: pieceData.jp || '',
+      composer: pieceData.composer || '',
+      difficulty: pieceData.difficulty || 1,
+      duration: pieceData.duration || 1,
+      status: 'untouched',
+      memorized: false,
+      startedDate: null,
+      completedDate: null,
+      totalMinutes: 0,
+      practiceCount: 0,
+      lastPracticeDate: null
+    });
+    DB.saveRepertoire(rep);
+    return true;
+  },
+
+  // 更新曲目信息
+  updatePiece(id, updates) {
+    const rep = DB.repertoire();
+    const idx = rep.findIndex(p => p.id === id);
+    if (idx < 0) return false;
+    // 只允许更新元数据字段
+    const allowed = ['name', 'en', 'jp', 'composer', 'difficulty', 'duration', 'book', 'num'];
+    for (const key of allowed) {
+      if (updates[key] !== undefined) rep[idx][key] = updates[key];
+    }
+    DB.saveRepertoire(rep);
+    return true;
+  },
+
+  // 删除曲目
+  removePiece(id) {
+    const rep = DB.repertoire().filter(p => p.id !== id);
+    DB.saveRepertoire(rep);
+    return true;
+  },
+
+  // 重新编号指定册的曲目
+  renumberBook(book) {
+    const rep = DB.repertoire();
+    const pieces = rep.filter(p => p.book === book).sort((a, b) => a.num - b.num);
+    pieces.forEach((p, i) => {
+      p.num = i + 1;
+      p.id = 's' + book + '-' + String(i + 1).padStart(2, '0');
+    });
+    DB.saveRepertoire(rep);
+  }
+};
+
+/* ==========================================
+   📊 连续打卡计算
+   ========================================== */
+const StreakManager = {
+  // 计算连续打卡天数
+  calculate() {
+    const logs = DB.logs();
+    if (!logs.length) return 0;
+    
+    const dates = new Set(logs.map(log => log.date));
+    let streak = 0;
+    const today = new Date(Utils.today() + 'T00:00:00');
+    
+    // 从今天开始往前数
+    while (true) {
+      const dateStr = today.toISOString().slice(0, 10);
+      if (dates.has(dateStr)) {
+        streak++;
+        today.setDate(today.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    
+    return streak;
+  },
+  
+  // 获取本月练习天数
+  getMonthDays(year, month) {
+    const logs = DB.logs();
+    return logs.filter(log => {
+      const date = new Date(log.date + 'T00:00:00');
+      return date.getFullYear() === year && date.getMonth() === month;
+    }).length;
+  },
+  
+  // 获取本月练习总分钟数
+  getMonthMinutes(year, month) {
+    const logs = DB.logs();
+    return logs.filter(log => {
+      const date = new Date(log.date + 'T00:00:00');
+      return date.getFullYear() === year && date.getMonth() === month;
+    }).reduce((sum, log) => sum + (log.totalDurationMin || 0), 0);
+  },
+  
+  // 获取总统计
+  getTotalStats() {
+    const logs = DB.logs();
+    return {
+      totalDays: logs.length,
+      totalMinutes: logs.reduce((sum, log) => sum + (log.totalDurationMin || 0), 0),
+      totalStars: logs.reduce((sum, log) => 
+        sum + log.entries.reduce((s, e) => s + (e.rating || 0), 0), 0
+      ),
+      avgMinutesPerDay: logs.length ? 
+        Math.round(logs.reduce((sum, log) => sum + (log.totalDurationMin || 0), 0) / logs.length) : 0
+    };
+  }
+};
+
+/* ==========================================
+   📝 Logo 头像管理
+   ========================================== */
+const LogoManager = {
+  // 加载头像
+  load() {
+    const saved = localStorage.getItem('piano_logo');
+    const img = document.getElementById('logoImg');
+    const placeholder = document.getElementById('logoPlaceholder');
+    
+    if (saved && img && placeholder) {
+      img.src = saved;
+      img.style.display = 'block';
+      placeholder.style.display = 'none';
+    }
+  },
+  
+  // 上传并压缩头像
+  upload(file) {
+    return new Promise((resolve, reject) => {
+      if (!file) {
+        reject(new Error('No file selected'));
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('Please select an image file'));
+        return;
+      }
+      
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const img = new Image();
+        
+        img.onload = () => {
+          // 压缩图片到最大 200px
+          const canvas = document.createElement('canvas');
+          const maxSize = 200;
+          let width = img.width;
+          let height = img.height;
+          
+          const ratio = Math.min(maxSize / width, maxSize / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const compressed = canvas.toDataURL('image/jpeg', 0.8);
+          
+          try {
+            localStorage.setItem('piano_logo', compressed);
+            this.load();
+            Utils.showToast('✅ 头像更新成功', 'success');
+            resolve(compressed);
+          } catch (error) {
+            reject(new Error('Storage error: ' + error.message));
+          }
+        };
+        
+        img.onerror = () => {
+          reject(new Error('Failed to load image'));
+        };
+        
+        img.src = e.target.result;
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  }
+};
+
+// 全局 Logo 上传处理函数
+window.handleLogoUpload = async function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  try {
+    await LogoManager.upload(file);
+  } catch (error) {
+    console.error('Logo upload error:', error);
+    Utils.showToast('❌ ' + error.message, 'error');
+  }
+};
+
+/* ==========================================
+   🎻 铃木曲目两级选择器辅助
+   ========================================== */
+const SuzukiSelectHelper = {
+  // 获取所有分册
+  getBooks() {
+    const rep = DB.repertoire();
+    const books = new Set(rep.map(p => p.book));
+    return [...books].sort((a, b) => a - b);
+  },
+
+  // 获取指定册的曲目
+  getPieces(book) {
+    return DB.repertoire().filter(p => p.book === book).sort((a, b) => a.num - b.num);
+  },
+
+  // 构建 book select HTML
+  buildBookSelect(selectedBook, cat, idx) {
+    const books = this.getBooks();
+    if (!selectedBook) selectedBook = books.includes(2) ? 2 : (books[0] || 1);
+    return '<select class="form-input suzuki-book-select" data-cat="' + cat + '" data-idx="' + idx + '" onchange="onSuzukiBookChange(this)" style="padding:8px 10px;font-size:0.8rem;margin-bottom:6px">' +
+      '<option value="">选择分册...</option>' +
+      books.map(b => '<option value="' + b + '"' + (b == selectedBook ? ' selected' : '') + '>📖 Book ' + b + '</option>').join('') +
+      '</select>';
+  },
+
+  // 构建 piece select HTML
+  buildPieceSelect(book, cat, idx, repId, pieceName) {
+    const dft = this.getBooks().includes(2) ? 2 : (this.getBooks()[0] || 1);
+    const pieces = this.getPieces(book || dft);
+    return '<select class="form-input piece-name-select suzuki-piece-select" data-cat="' + cat + '" data-idx="' + idx + '" style="padding:8px 10px;font-size:0.8rem">' +
+      '<option value="">选择曲目...</option>' +
+      pieces.map(rp => {
+        const label = 'Book ' + rp.book + '-' + rp.num + ' ' + Utils.escape(rp.en) + ' ' + Utils.escape(rp.name);
+        const selected = (repId && repId === rp.id) || pieceName === rp.name || pieceName === rp.en;
+        return '<option value="' + Utils.escape(rp.name) + '" data-repid="' + rp.id + '"' + (selected ? ' selected' : '') + '>' + label + '</option>';
+      }).join('') +
+      '</select>';
+  }
+};
+
+// book 切换时更新曲目列表
+window.onSuzukiBookChange = function(bookSelect) {
+  const book = parseInt(bookSelect.value) || 1;
+  const cat = bookSelect.dataset.cat;
+  const idx = bookSelect.dataset.idx;
+  const pieceSelect = document.querySelector('.suzuki-piece-select[data-cat="' + cat + '"][data-idx="' + idx + '"]');
+  if (!pieceSelect) return;
+  const pieces = SuzukiSelectHelper.getPieces(book);
+  pieceSelect.innerHTML = '<option value="">选择曲目...</option>' +
+    pieces.map(rp => '<option value="' + Utils.escape(rp.name) + '" data-repid="' + rp.id + '">Book ' + rp.book + '-' + rp.num + ' ' + Utils.escape(rp.en) + ' ' + Utils.escape(rp.name) + '</option>').join('');
+};
+
+/* ==========================================
+   🔄 同步码管理器
+   ========================================== */
+const SyncCode = {
+  encode(data) {
+    var json = JSON.stringify(data);
+    var bytes = new TextEncoder().encode(json);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  },
+
+  decode(hash) {
+    try {
+      hash = hash.replace(/-/g, '+').replace(/_/g, '/');
+      while (hash.length % 4) hash += '=';
+      var binary = atob(hash);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) {
+      return null;
+    }
+  },
+
+  generateCode() {
+    var data = {
+      v: 3,
+      l: DB.lessons(),
+      g: DB.logs(),
+      r: DB.repertoire(),
+      t: new Date().toISOString().slice(0, 10)
+    };
+    return this.encode(data);
+  },
+
+  importCode(codeStr) {
+    var data = this.decode(codeStr);
+    if (!data || !data.v) return { success: false, error: '无效的同步码' };
+
+    var stats = { lessons: 0, logs: 0 };
+
+    if (data.l && data.l.length) {
+      var merged = {};
+      DB.lessons().forEach(function(l) { merged[l.id] = l; });
+      data.l.forEach(function(l) {
+        if (!merged[l.id]) {
+          merged[l.id] = l;
+          stats.lessons++;
+        } else if (l.date >= merged[l.id].date) {
+          merged[l.id] = l;
+          stats.lessons++;
+        }
+      });
+      DB.saveLessons(Object.values(merged));
+    }
+
+    if (data.g && data.g.length) {
+      var mergedLogs = {};
+      DB.logs().forEach(function(l) { mergedLogs[l.id] = l; });
+      data.g.forEach(function(l) {
+        if (!mergedLogs[l.id]) {
+          mergedLogs[l.id] = l;
+          stats.logs++;
+        } else if (l.entries.length > mergedLogs[l.id].entries.length) {
+          mergedLogs[l.id] = l;
+          stats.logs++;
+        }
+      });
+      DB.saveLogs(Object.values(mergedLogs));
+    }
+
+    if (data.r && data.r.length && !DB.repertoire().length) {
+      DB.saveRepertoire(data.r);
+    }
+
+    return { success: true, stats: stats };
+  }
+};
+
+console.log('✅ Core modules loaded');
+/* ==========================================
+   🏠 今日练琴页面 - 完整逻辑
+   ========================================== */
+
+/* ------------------------------------------
+   状态管理
+   ------------------------------------------ */
+const TodayState = {
+  // 当前曲目状态（索引 → 状态对象）
+  pieces: {},
+  
+  // 计时器
+  timer: {
+    seconds: 0,
+    interval: null,
+    isRunning: false
+  },
+  
+  // 心情选择
+  mood: '',
+  
+  // 贴纸选择
+  sticker: '',
+  
+  // 编辑模式：保留原日志用于预填
+  existingLog: null,
+  
+  // 重置所有状态
+  reset() {
+    // 清理所有曲目的计时器
+    for (const [idx, piece] of Object.entries(this.pieces)) {
+      if (piece._timerInterval) {
+        clearInterval(piece._timerInterval);
+        piece._timerInterval = null;
+      }
+    }
+    this.pieces = {};
+    this.timer.seconds = 0;
+    this.timer.isRunning = false;
+    if (this.timer.interval) {
+      clearInterval(this.timer.interval);
+      this.timer.interval = null;
+    }
+    this.mood = '';
+    this.sticker = '';
+    this.existingLog = null;
+    if (typeof activeTimerIdx !== 'undefined') activeTimerIdx = null;
+    if (typeof freePieceCount !== 'undefined') freePieceCount = 0;
+  },
+  
+  // 初始化曲目状态
+  initPiece(index, pieceName) {
+    if (!this.pieces[index]) {
+      this.pieces[index] = {
+        pieceName: pieceName || '',
+        rating: 0,
+        durationMin: 0,
+        notes: '',
+        repId: null,
+        category: 'pieces'
+      };
+    }
+    return this.pieces[index];
+  },
+  
+  // 获取已完成的曲目
+  getCompleted() {
+    return Object.values(this.pieces).filter(p => p.rating > 0 || p.durationMin > 0);
+  }
+};
+
+/* ------------------------------------------
+   单曲卡片 HTML 生成（供练习表单和复习共用）
+   ------------------------------------------ */
+function pieceCardHTML(p) {
+  return `
+      <div class="piece-card" data-index="${p.index}" id="piece${p.index}">
+        <div class="piece-card-top" onclick="togglePieceExpand('${p.index}')">
+          <span class="piece-number">${typeof p.num === 'number' ? p.num : ''}</span>
+          <div class="piece-info">
+            <div class="piece-title">
+              ${Utils.escape(p.en || p.name)}
+              ${p.en ? '<span style="font-weight:400;color:var(--text-2);font-size:0.8rem"> ' + Utils.escape(p.name) + '</span>' : ''}
+            </div>
+            ${p.details ? '<div class="piece-subtitle"><span class="expand-hint">点击查看详情 ▸</span></div>' : '<div class="piece-subtitle"><span class="text-xs text-2">' + (p.composer || '') + '</span></div>'}
+          </div>
+        </div>
+
+        ${(p.focusAreas && p.focusAreas.length) ? '<div class="tag-row" style="margin:6px 0">' + p.focusAreas.map(t => '<span class="badge" style="font-size:0.78rem;font-weight:800;color:var(--accent-yellow);background:rgba(245,216,154,0.15)">' + Utils.escape(t) + '</span>').join('') + '</div>' : ''}
+        ${p.details ? '<div class="teacher-notes"><div class="teacher-notes-label">老师的要求</div><div class="teacher-notes-content">' + Utils.escape(p.details) + '</div></div>' : ''}
+
+        <div class="star-rating" data-index="${p.index}">
+          ${[1,2,3,4,5].map(s => '<button class="star-btn" data-star="' + s + '" onclick="setStarRating(\'' + p.index + '\', ' + s + ')">⭐</button>').join('')}
+        </div>
+
+        <!-- 单曲计时器 -->
+        <div class="piece-timer" data-timer-idx="${p.index}">
+          <span class="piece-timer-display" id="timerDisplay${p.index}">00:00</span>
+          <button class="btn btn-sm btn-success piece-timer-start" data-timer-start="${p.index}">▶ 开始</button>
+          <button class="btn btn-sm btn-secondary piece-timer-stop" data-timer-stop="${p.index}" style="display:none">⏹ 结束</button>
+          <span class="piece-timer-badge" id="timerBadge${p.index}" style="display:none"></span>
+        </div>
+
+      </div>
+    `;
+}
+
+/* ------------------------------------------
+   页面渲染
+   ------------------------------------------ */
+function renderToday() {
+  const page = document.getElementById('page-today');
+  if (!page) return;
+
+  // 编辑模式：保留原日志数据
+  if (TodayState.existingLog) {
+    const lesson = getLatestLesson();
+    page.innerHTML = renderTodayPracticeForm(lesson);
+    bindTodayEvents(lesson, TodayState.existingLog);
+    return;
+  }
+
+  const log = DB.logs().find(l => l.date === Utils.today());
+
+  if (log) {
+    // 今天已完成练习
+    page.innerHTML = renderTodayCompleted(log);
+  } else {
+    // 显示练习表单
+    const lesson = getLatestLesson();
+    page.innerHTML = renderTodayPracticeForm(lesson);
+    bindTodayEvents(lesson);
+  }
+}
+
+/* ------------------------------------------
+   获取最新课程
+   ------------------------------------------ */
+function getLatestLesson() {
+  const lessons = DB.lessons();
+  if (!lessons.length) return null;
+  return lessons.sort((a, b) => b.date.localeCompare(a.date))[0];
+}
+
+/* ------------------------------------------
+   渲染：已完成状态
+   ------------------------------------------ */
+function renderTodayCompleted(log) {
+  const totalStars = log.entries.reduce((sum, e) => sum + (e.rating || 0), 0);
+  const totalMin = log.totalDurationMin || 0;
+  
+  // 按分类分组
+  const grouped = {};
+  log.entries.forEach(entry => {
+    const cat = entry.category || 'pieces';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(entry);
+  });
+  
+  const categoryLabels = {
+    suzuki: '🎻 铃木',
+    beyer: '🎼 拜厄',
+    pieces: '🎵 小曲集',
+    free: '🎹 自由练习',
+    review: '🎲 复习'
+  };
+
+  // 生成分类列表（可折叠）
+  const catOrder = ['suzuki', 'beyer', 'pieces', 'free', 'review'];
+  const categoryBlocks = catOrder.filter(cat => grouped[cat]).map(cat => {
+    const entries = grouped[cat];
+    const catMin = entries.reduce((s, e) => s + (e.durationMin || 0), 0);
+    const catStars = entries.reduce((s, e) => s + (e.rating || 0), 0);
+
+    const piecesList = entries.map((entry, i) => `
+      <div class="p-12 mb-8" style="background:rgba(255,255,255,0.04);border-radius:12px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <strong>${i + 1}. ${Utils.escape(entry.pieceName)}</strong>
+          ${entry.rating ? '<span style="white-space:nowrap;flex-shrink:0">' + '⭐'.repeat(entry.rating) + '</span>' : ''}
+        </div>
+        ${entry.durationMin ? '<div class="text-xs text-3 mt-4">⏱ ' + entry.durationMin + '分钟</div>' : ''}
+      </div>
+    `).join('');
+
+    return `
+      <div class="practice-category open" data-cat="done-${cat}">
+        <div class="practice-category-header" onclick="toggleCategory('done-${cat}')">
+          <span class="font-bold">${categoryLabels[cat]}</span>
+          <span class="cat-info">
+            <span class="text-sm text-2">${catMin}分钟 · ${catStars}⭐</span>
+            <span class="cat-toggle-icon">▸</span>
+          </span>
+        </div>
+        <div data-cat-body="done-${cat}">
+          ${piecesList}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // 星星分布统计
+  const starDist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  log.entries.forEach(e => { if (e.rating && starDist[e.rating] !== undefined) starDist[e.rating]++; });
+  const totalRated = [5,4,3,2,1].reduce((s, n) => s + starDist[n], 0);
+  const avgRating = totalRated > 0 ? (Object.entries(starDist).reduce((s, [k,v]) => s + parseInt(k)*v, 0) / totalRated).toFixed(1) : '-';
+
+  return `
+    <!-- 完成卡片 -->
+    <div class="card" style="padding:28px 24px;text-align:center;background:linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);border:1px solid var(--border-1)">
+
+      <!-- 大时间 -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:4rem;font-weight:200;line-height:1;color:var(--text-1);letter-spacing:-0.03em">${totalMin}</div>
+        <div style="font-size:0.8rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em">分钟</div>
+      </div>
+
+      <!-- 分隔线 -->
+      <div style="width:40px;height:1px;background:var(--border-2);margin:0 auto 20px"></div>
+
+      <!-- 星星汇总 -->
+      <div style="margin-bottom:6px">
+        <span style="font-size:1.8rem;font-weight:700;color:var(--text-1);letter-spacing:-0.02em">${totalStars}</span>
+        <span style="font-size:0.85rem;color:var(--text-3);margin-left:4px">颗星星</span>
+      </div>
+      ${avgRating !== '-' ? '<div style="font-size:0.78rem;color:var(--text-3);margin-bottom:20px">平均 ' + avgRating + ' 🌟 / 首</div>' : ''}
+
+      <!-- 分隔线 -->
+      <div style="width:40px;height:1px;background:var(--border-2);margin:${avgRating === '-' ? '20px' : '0'} auto 20px"></div>
+
+      <!-- 星星分布 -->
+      <div style="display:flex;flex-direction:column;gap:8px;width:246px;margin:0 auto">
+        ${[5,4,3,2,1].map(s => {
+          const count = starDist[s] || 0;
+          const stars = '⭐'.repeat(s);
+          return '<div style="display:flex;align-items:center;gap:14px;white-space:nowrap">' +
+            '<span style="font-size:0.85rem;width:100px;text-align:left;flex-shrink:0">' + stars + '</span>' +
+            '<span style="width:26px;text-align:center;font-size:0.88rem;font-weight:800;color:var(--text-1);flex-shrink:0">' + count + '</span>' +
+          '</div>';
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <span class="card-title-icon">🎵</span>
+          今日练习
+        </h3>
+      </div>
+      ${categoryBlocks}
+    </div>
+
+    ${log.parentNotes ? `
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <span class="card-title-icon">📝</span>
+            家长笔记
+          </h3>
+        </div>
+        <p style="font-size:0.9rem;line-height:1.6;color:var(--text-2)">
+          ${Utils.escape(log.parentNotes)}
+        </p>
+      </div>
+    ` : ''}
+
+    <button class="btn btn-secondary" onclick="editTodayLog()" style="width:100%">
+      ✏️ 修改今天的记录
+    </button>
+  `;
+}
+
+/* ------------------------------------------
+   渲染：练习表单
+   ------------------------------------------ */
+function renderTodayPracticeForm(lesson) {
+  if (!lesson) {
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">📒</div>
+        <div class="empty-title">还没有课程记录</div>
+        <div class="empty-description">
+          先去「课程」标签添加最近一次上课内容吧～
+        </div>
+        <button class="btn btn-primary mt-24" onclick="switchToTab('lessons')">
+          📒 添加课程记录
+        </button>
+      </div>
+    `;
+  }
+  
+  // 曲目分类标签
+  const categoryLabels = {
+    suzuki: '🎻 铃木',
+    beyer: '🎼 拜厄',
+    pieces: '🎵 小曲集',
+    free: '🎹 自由练习',
+    review: '🎲 今日复习'
+  };
+  const categoryOrder = ['suzuki', 'beyer', 'pieces', 'free', 'review'];
+
+  // 按分类分组
+  const grouped = {};
+  lesson.pieces.forEach((piece, i) => {
+    const cat = piece.category || 'suzuki';
+    if (!grouped[cat]) grouped[cat] = [];
+    
+    // 尝试从曲库匹配英文名
+    const repPiece = RepertoireManager.findByName(piece.name);
+    grouped[cat].push({
+      ...piece,
+      index: i,
+      en: repPiece ? repPiece.en : '',
+      repId: piece.repId || (repPiece ? repPiece.id : null)
+    });
+  });
+
+  // 生成曲目卡片（默认折叠）
+  const piecesHtml = categoryOrder.filter(cat => {
+    if (cat === 'review') return true; // 复习始终显示
+    if (cat === 'free') return false;  // 自由练习在外部独立渲染
+    return grouped[cat];
+  }).map(cat => {
+    if (cat === 'review') {
+      // 复习：placeholder，由 generateReviewList 填充
+      return `
+        <div class="practice-category mb-12" data-cat="review">
+          <div class="practice-category-header" onclick="toggleCategory('review')">
+            <span class="font-bold">${categoryLabels[cat]}</span>
+            <span class="cat-info">
+              <span class="text-sm text-2" id="reviewCount">从 Book 1 随机</span>
+              <span class="cat-toggle-icon">▸</span>
+            </span>
+          </div>
+          <div class="practice-category-body" data-cat-body="review" style="display:none">
+            <div id="reviewList"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    const pieces = grouped[cat];
+
+    const pieceCards = pieces.map(p => {
+      const cardP = { ...p, num: p.index + 1 };
+      return pieceCardHTML(cardP);
+    }).join('');
+
+    return `
+      <div class="practice-category mb-12" data-cat="${cat}">
+        <div class="practice-category-header" onclick="toggleCategory('${cat}')">
+          <span class="font-bold">${categoryLabels[cat]}</span>
+          <span class="cat-info">
+            <span class="text-sm text-2">${pieces.length}首</span>
+            <span class="cat-toggle-icon">▸</span>
+          </span>
+        </div>
+        <div class="practice-category-body" data-cat-body="${cat}" style="display:none">
+          ${pieceCards}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="text-sm text-2 mb-12" style="padding:0 4px">
+      📅 ${Utils.formatDate(lesson.date)} 上课内容
+    </div>
+
+    ${piecesHtml}
+
+    <!-- 自由练习 -->
+    <div class="practice-category mb-12" data-cat="free">
+      <div class="practice-category-header" onclick="toggleCategory('free')">
+        <span class="font-bold">🎹 自由练习</span>
+        <span class="cat-info">
+          <span class="text-sm text-2" id="freeCount">0首</span>
+          <span class="cat-toggle-icon">▸</span>
+        </span>
+      </div>
+      <div class="practice-category-body" data-cat-body="free" style="display:none">
+        <div id="freeList">
+          <p class="text-xs text-3 text-center p-12">点击下方按钮添加练习曲目</p>
+        </div>
+        <button class="btn btn-sm btn-secondary" id="btnAddFree" style="width:100%;margin-top:8px">
+          ➕ 添加自由练习曲目
+        </button>
+      </div>
+    </div>
+
+    <!-- 家长笔记 -->
+    <div class="card mb-16">
+      <div class="card-header">
+        <h3 class="card-title">
+          <span class="card-title-icon">📝</span>
+          家长笔记
+        </h3>
+      </div>
+      <textarea class="form-input" id="parentNotes" placeholder="记录孩子的进步、需要注意的地方..."
+                style="min-height:80px"></textarea>
+    </div>
+
+    <button class="btn-big" id="btnCompletePractice">
+      🎉 完成今日练习
+    </button>
+  `;
+}
+
+/* ------------------------------------------
+   事件绑定
+   ------------------------------------------ */
+function bindTodayEvents(lesson, existingLog = null) {
+  if (!lesson) return;
+  
+  // 重置状态
+  TodayState.reset();
+  if (existingLog) TodayState.existingLog = existingLog;
+  
+  // 初始化曲目状态
+  lesson.pieces.forEach((piece, i) => {
+    const repPiece = RepertoireManager.findByName(piece.name);
+    TodayState.initPiece(i, piece.name);
+    TodayState.pieces[i].category = piece.category || 'pieces';
+    TodayState.pieces[i].repId = piece.repId || (repPiece ? repPiece.id : null);
+  });
+  
+  // 预填已有数据
+  if (existingLog) {
+    TodayState.mood = existingLog.mood || '';
+    TodayState.sticker = existingLog.sticker || '';
+    existingLog.entries.forEach(entry => {
+      for (const [idx, piece] of Object.entries(TodayState.pieces)) {
+        if (piece.pieceName === entry.pieceName || piece.pieceName.includes(entry.pieceName)) {
+          piece.rating = entry.rating || 0;
+          piece.durationMin = entry.durationMin || 0;
+          piece.timerSeconds = (entry.durationMin || 0) * 60;
+          if (entry.repId) piece.repId = entry.repId;
+          break;
+        }
+      }
+    });
+    // UI 预填（延迟执行，等 DOM 渲染完成）
+    setTimeout(prefillEditUI, 100);
+  }
+
+  // 绑定单曲计时器
+  bindPieceTimers();
+
+  // 生成复习列表
+  generateReviewList(lesson);
+
+  // 完成按钮
+  const btnComplete = document.getElementById('btnCompletePractice');
+  if (btnComplete) {
+    btnComplete.addEventListener('click', handleCompletePractice);
+  }
+
+  // 自由练习：添加按钮 + 计时器绑定
+  const btnAddFree = document.getElementById('btnAddFree');
+  if (btnAddFree) btnAddFree.addEventListener('click', () => addFreePiece());
+  bindFreePieceTimers();
+
+  // 编辑模式：自由练习预填
+  if (existingLog) {
+    existingLog.entries.forEach(entry => {
+      if (entry.category === 'free') {
+        addFreePiece(entry.pieceName);
+        const lastIdx = 'f' + (freePieceCount - 1);
+        if (TodayState.pieces[lastIdx]) {
+          TodayState.pieces[lastIdx].rating = entry.rating || 0;
+          TodayState.pieces[lastIdx].durationMin = entry.durationMin || 0;
+          TodayState.pieces[lastIdx]._timerSeconds = (entry.durationMin || 0) * 60;
+          TodayState.pieces[lastIdx].notes = entry.notes || '';
+        }
+      }
+    });
+    // 延迟 prefill free piece UI
+    setTimeout(prefillFreeUI, 150);
+  }
+}
+  
+function prefillEditUI() {
+  const log = TodayState.existingLog;
+  if (!log) return;
+  const notes = document.getElementById('parentNotes');
+  if (notes && log.parentNotes) notes.value = log.parentNotes;
+  for (const [idx, piece] of Object.entries(TodayState.pieces)) {
+    // 星星
+    if (piece.rating > 0) {
+      const container = document.querySelector(`.star-rating[data-index="${idx}"]`);
+      if (container) {
+        container.querySelectorAll('.star-btn').forEach(btn => {
+          if (parseInt(btn.dataset.star) <= piece.rating) btn.classList.add('active');
+        });
+      }
+    }
+    // 计时器显示与 badge
+    if (piece.timerSeconds > 0) {
+      updatePieceTimerDisplay(idx);
+      const badge = document.getElementById('timerBadge' + idx);
+      if (badge && piece.durationMin > 0) {
+        badge.textContent = piece.durationMin + '分钟';
+        badge.style.display = '';
+      }
+    }
+  }
+}
+
+function prefillFreeUI() {
+  const log = TodayState.existingLog;
+  if (!log) return;
+  for (const [idx, piece] of Object.entries(TodayState.pieces)) {
+    if (!idx.startsWith('f')) continue;
+    if (piece.rating > 0) {
+      const container = document.querySelector(`.star-rating[data-index="${idx}"]`);
+      if (container) {
+        container.querySelectorAll('.star-btn').forEach(btn => {
+          if (parseInt(btn.dataset.star) <= piece.rating) btn.classList.add('active');
+        });
+      }
+    }
+    if (piece._timerSeconds > 0 || piece.durationMin > 0) {
+      if (!piece._timerSeconds) piece._timerSeconds = piece.durationMin * 60;
+      updatePieceTimerDisplay(idx);
+      const badge = document.getElementById('timerBadge' + idx);
+      if (badge && piece.durationMin > 0) {
+        badge.textContent = piece.durationMin + '分钟';
+        badge.style.display = '';
+      }
+    }
+    const notes = document.querySelector(`.free-piece-notes[data-index="${idx}"]`);
+    if (notes && piece.notes) notes.value = piece.notes;
+  }
+}
+
+/* ------------------------------------------
+   单曲计时器绑定
+   ------------------------------------------ */
+let activeTimerIdx = null;  // 当前正在计时的曲目 index
+let freePieceCount = 0;     // 自由练习曲目计数
+
+function bindPieceTimers() {
+  // 开始按钮
+  document.querySelectorAll('.piece-timer-start').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.timerStart;
+      startPieceTimer(idx);
+    });
+  });
+
+  // 结束按钮
+  document.querySelectorAll('.piece-timer-stop').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.timerStop;
+      stopPieceTimer(idx);
+    });
+  });
+}
+
+function startPieceTimer(idx) {
+  // 如果已有其他计时器在运行，先停止
+  if (activeTimerIdx !== null && activeTimerIdx !== idx) {
+    stopPieceTimer(activeTimerIdx);
+  }
+
+  TodayState.initPiece(idx, '');
+  const piece = TodayState.pieces[idx];
+  if (piece._timerRunning) return;
+
+  piece._timerRunning = true;
+  piece._timerSeconds = piece._timerSeconds || 0;
+  activeTimerIdx = idx;
+
+  // UI：切换按钮
+  const startBtn = document.querySelector(`.piece-timer-start[data-timer-start="${idx}"]`);
+  const stopBtn = document.querySelector(`.piece-timer-stop[data-timer-stop="${idx}"]`);
+  if (startBtn) startBtn.style.display = 'none';
+  if (stopBtn) stopBtn.style.display = '';
+
+  const card = document.getElementById('piece' + idx);
+  if (card) card.style.boxShadow = '0 0 0 2px var(--accent-green)';
+
+  // 启动计时
+  piece._timerInterval = setInterval(() => {
+    piece._timerSeconds++;
+    updatePieceTimerDisplay(idx);
+  }, 1000);
+}
+
+function stopPieceTimer(idx) {
+  TodayState.initPiece(idx, '');
+  const piece = TodayState.pieces[idx];
+  if (!piece._timerRunning) return;
+
+  clearInterval(piece._timerInterval);
+  piece._timerInterval = null;
+  piece._timerRunning = false;
+  piece.durationMin = Math.ceil(piece._timerSeconds / 60);
+
+  if (activeTimerIdx === idx) activeTimerIdx = null;
+
+  // UI：切换按钮
+  const startBtn = document.querySelector(`.piece-timer-start[data-timer-start="${idx}"]`);
+  const stopBtn = document.querySelector(`.piece-timer-stop[data-timer-stop="${idx}"]`);
+  if (startBtn) startBtn.style.display = '';
+  if (stopBtn) stopBtn.style.display = 'none';
+
+  const card = document.getElementById('piece' + idx);
+  if (card) card.style.boxShadow = '';
+
+  // 显示记录时长 badge
+  const badge = document.getElementById('timerBadge' + idx);
+  if (badge && piece.durationMin > 0) {
+    badge.textContent = piece.durationMin + '分钟';
+    badge.style.display = '';
+  }
+
+  updatePieceTimerDisplay(idx);
+}
+
+function updatePieceTimerDisplay(idx) {
+  const piece = TodayState.pieces[idx];
+  if (!piece) return;
+  const secs = piece._timerSeconds || 0;
+  const mins = Math.floor(secs / 60);
+  const remainSecs = secs % 60;
+  const timeStr = String(mins).padStart(2, '0') + ':' + String(remainSecs).padStart(2, '0');
+
+  const display = document.getElementById('timerDisplay' + idx);
+  if (display) display.textContent = timeStr;
+}
+
+/* ------------------------------------------
+   生成复习列表
+   ------------------------------------------ */
+function generateReviewList(lesson) {
+  const reviewList = document.getElementById('reviewList');
+  if (!reviewList) return;
+
+  const lessonNames = lesson.pieces.map(p => p.name);
+  const reviews = RepertoireManager.getRandomReview(4, lessonNames, 1);
+  const countEl = document.getElementById('reviewCount');
+  if (countEl) countEl.textContent = reviews.length + '首';
+
+  if (!reviews.length) {
+    reviewList.innerHTML = '<p class="text-sm text-2 text-center p-12">暂无可复习曲目</p>';
+    return;
+  }
+
+  reviewList.innerHTML = reviews.map((piece, i) => {
+    const index = 'r' + i;
+    TodayState.initPiece(index, piece.en || piece.name + '（复习）');
+    TodayState.pieces[index].category = 'review';
+    TodayState.pieces[index].repId = piece.id;
+    TodayState.pieces[index].reviewMem = piece.memorized;
+
+    // 直接生成复习卡片（带背谱按钮和计时器）
+    return `
+      <div class="piece-card" data-index="${index}" id="piece${index}">
+        <div class="piece-card-top">
+          <span class="piece-number">${i + 1}</span>
+          <div class="piece-info" style="flex:1">
+            <div class="piece-title">
+              ${Utils.escape(piece.en || piece.name)}
+              <span style="font-weight:400;color:var(--text-2);font-size:0.8rem"> ${Utils.escape(piece.name)}</span>
+            </div>
+          </div>
+          <button class="btn btn-sm ${piece.memorized ? 'btn-primary' : 'btn-secondary'}"
+                  style="font-size:0.7rem;padding:5px 10px"
+                  onclick="toggleReviewMemorized('${index}', '${piece.id}')">
+            ${piece.memorized ? '🧠 背谱' : '📖 看谱'}
+          </button>
+        </div>
+
+        <div class="star-rating" data-index="${index}">
+          ${[1,2,3,4,5].map(s => `
+            <button class="star-btn" data-star="${s}" onclick="setStarRating('${index}', ${s})">⭐</button>
+          `).join('')}
+        </div>
+
+        <!-- 单曲计时器 -->
+        <div class="piece-timer" data-timer-idx="${index}">
+          <span class="piece-timer-display" id="timerDisplay${index}">00:00</span>
+          <button class="btn btn-sm btn-success piece-timer-start" data-timer-start="${index}">▶ 开始</button>
+          <button class="btn btn-sm btn-secondary piece-timer-stop" data-timer-stop="${index}" style="display:none">⏹ 结束</button>
+          <span class="piece-timer-badge" id="timerBadge${index}" style="display:none"></span>
+        </div>
+
+      </div>
+    `;
+  }).join('');
+
+  // 重新绑定计时器（因为 review 是动态生成）
+  bindPieceTimersReview();
+}
+
+// 为复习曲目绑定计时器（DOM 已存在后调用）
+function bindPieceTimersReview() {
+  document.querySelectorAll('#reviewList .piece-timer-start').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.timerStart;
+      startPieceTimer(idx);
+    });
+  });
+  document.querySelectorAll('#reviewList .piece-timer-stop').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.timerStop;
+      stopPieceTimer(idx);
+    });
+  });
+}
+
+/* ------------------------------------------
+   自由练习曲目卡片
+   ------------------------------------------ */
+function freePieceCardHTML(index, pieceName = '') {
+  return `
+    <div class="piece-card" data-index="f${index}" id="piecef${index}">
+      <div class="piece-card-top" style="align-items:center">
+        <span class="piece-number">${index + 1}</span>
+        <div class="piece-info" style="flex:1">
+          <input class="form-input free-piece-name" data-index="f${index}"
+                 placeholder="输入曲目名称..." value="${Utils.escape(pieceName)}"
+                 style="padding:6px 10px;font-size:0.85rem;border:none;background:transparent;font-weight:700;color:var(--text-1)">
+        </div>
+        <button class="btn btn-sm" onclick="removeFreePiece('f${index}')"
+                style="font-size:0.65rem;padding:3px 8px;color:var(--danger);background:transparent">✕</button>
+      </div>
+
+      <div class="star-rating" data-index="f${index}">
+        ${[1,2,3,4,5].map(s => '<button class="star-btn" data-star="' + s + '" onclick="setStarRating(\'f' + index + '\', ' + s + ')">⭐</button>').join('')}
+      </div>
+
+      <div class="piece-timer" data-timer-idx="f${index}">
+        <span class="piece-timer-display" id="timerDisplayf${index}">00:00</span>
+        <button class="btn btn-sm btn-success piece-timer-start" data-timer-start="f${index}">▶ 开始</button>
+        <button class="btn btn-sm btn-secondary piece-timer-stop" data-timer-stop="f${index}" style="display:none">⏹ 结束</button>
+        <span class="piece-timer-badge" id="timerBadgef${index}" style="display:none"></span>
+      </div>
+
+      <div class="form-group" style="margin-top:8px">
+        <textarea class="form-input free-piece-notes" data-index="f${index}"
+                  placeholder="练习备注..." rows="2"
+                  style="min-height:40px;font-size:0.8rem;padding:8px 10px"></textarea>
+      </div>
+    </div>
+  `;
+}
+
+window.addFreePiece = function(name) {
+  const freeList = document.getElementById('freeList');
+  if (!freeList) return;
+
+  const placeholder = freeList.querySelector('p');
+  if (placeholder) placeholder.remove();
+
+  const card = document.createElement('div');
+  card.innerHTML = freePieceCardHTML(freePieceCount, name || '');
+  const cardEl = card.firstElementChild;
+  freeList.appendChild(cardEl);
+
+  const container = document.querySelector('.practice-category[data-cat="free"]');
+  const body = document.querySelector('.practice-category-body[data-cat-body="free"]');
+  if (container) container.classList.add('open');
+  if (body) body.style.display = 'block';
+
+  TodayState.initPiece('f' + freePieceCount, name || '');
+  TodayState.pieces['f' + freePieceCount].category = 'free';
+  TodayState.pieces['f' + freePieceCount].repId = '';
+
+  const idx = 'f' + freePieceCount;
+  const startBtn = cardEl.querySelector('.piece-timer-start');
+  const stopBtn = cardEl.querySelector('.piece-timer-stop');
+  if (startBtn) startBtn.addEventListener('click', () => startPieceTimer(idx));
+  if (stopBtn) stopBtn.addEventListener('click', () => stopPieceTimer(idx));
+
+  freePieceCount++;
+  const countEl = document.getElementById('freeCount');
+  if (countEl) countEl.textContent = freePieceCount + '首';
+};
+
+window.removeFreePiece = function(index) {
+  const card = document.getElementById('piece' + index);
+  if (!card) return;
+  card.remove();
+
+  if (TodayState.pieces[index]) {
+    if (TodayState.pieces[index]._timerInterval) {
+      clearInterval(TodayState.pieces[index]._timerInterval);
+    }
+    delete TodayState.pieces[index];
+  }
+
+  freePieceCount = Math.max(0, freePieceCount - 1);
+  const countEl = document.getElementById('freeCount');
+  if (countEl) countEl.textContent = freePieceCount + '首';
+
+  const freeList = document.getElementById('freeList');
+  if (freeList && freeList.children.length === 0) {
+    freeList.innerHTML = '<p class="text-xs text-3 text-center p-12">点击下方按钮添加练习曲目</p>';
+  }
+};
+
+function bindFreePieceTimers() {
+  document.querySelectorAll('#freeList .piece-timer-start').forEach(btn => {
+    btn.addEventListener('click', () => startPieceTimer(btn.dataset.timerStart));
+  });
+  document.querySelectorAll('#freeList .piece-timer-stop').forEach(btn => {
+    btn.addEventListener('click', () => stopPieceTimer(btn.dataset.timerStop));
+  });
+}
+
+/* ------------------------------------------
+   交互函数（全局）
+   ------------------------------------------ */
+
+// 折叠/展开练习分类
+window.toggleCategory = function(cat) {
+  const container = document.querySelector(`.practice-category[data-cat="${cat}"]`);
+  const body = document.querySelector(`.practice-category-body[data-cat-body="${cat}"]`);
+  if (!container || !body) return;
+  const isOpen = container.classList.contains('open');
+  if (isOpen) {
+    container.classList.remove('open');
+    body.style.display = 'none';
+  } else {
+    container.classList.add('open');
+    body.style.display = 'block';
+  }
+};
+
+// 展开/收起曲目详情
+window.togglePieceExpand = function(index) {
+  const card = document.getElementById('piece' + index);
+  if (card) {
+    card.classList.toggle('expanded');
+  }
+};
+
+// 设置星星评分
+window.setStarRating = function(index, star) {
+  TodayState.initPiece(index, '');
+  const current = TodayState.pieces[index].rating;
+  
+  // 如果点击的是已选中的，则取消选择
+  TodayState.pieces[index].rating = (current === star) ? 0 : star;
+  
+  // 更新 UI
+  const container = document.querySelector(`.star-rating[data-index="${index}"]`);
+  if (container) {
+    const buttons = container.querySelectorAll('.star-btn');
+    buttons.forEach(btn => {
+      const s = parseInt(btn.dataset.star);
+      if (s <= TodayState.pieces[index].rating) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+};
+
+// 曲目时长由单曲计时器自动计算
+
+// 切换复习曲目背谱状态
+window.toggleReviewMemorized = function(index, repId) {
+  if (!TodayState.pieces[index]) return;
+  
+  TodayState.pieces[index].reviewMem = !TodayState.pieces[index].reviewMem;
+  
+  // 同步到曲库
+  RepertoireManager.toggleMemorized(repId);
+  
+  // 更新按钮
+  const btn = event.target;
+  if (TodayState.pieces[index].reviewMem) {
+    btn.textContent = '🧠 背谱';
+    btn.className = 'btn btn-sm btn-primary';
+  } else {
+    btn.textContent = '📖 看谱';
+    btn.className = 'btn btn-sm btn-secondary';
+  }
+};
+
+// 家长工具已移除，各分类使用统一 toggleCategory
+
+// 完成练习
+async function handleCompletePractice() {
+  const completed = TodayState.getCompleted();
+
+  // 累计所有曲目的计时器时长
+  const totalTimerMin = Object.values(TodayState.pieces).reduce((sum, p) => sum + Math.ceil((p._timerSeconds || 0) / 60), 0);
+
+  if (completed.length === 0 && totalTimerMin === 0) {
+    Utils.showToast('⚠️ 请至少完成一项练习', 'warning');
+    return;
+  }
+
+  // 确认对话框
+  if (!confirm('确认提交今日练习？\n\n已完成 ' + completed.length + ' 首曲目\n总时长 ' + totalTimerMin + ' 分钟')) {
+    return;
+  }
+
+  // 收集自由练习曲目的名称和备注（来自 DOM 输入）
+  document.querySelectorAll('.free-piece-name').forEach(input => {
+    const idx = input.dataset.index;
+    if (TodayState.pieces[idx]) TodayState.pieces[idx].pieceName = input.value.trim() || '自由练习';
+  });
+  document.querySelectorAll('.free-piece-notes').forEach(textarea => {
+    const idx = textarea.dataset.index;
+    if (TodayState.pieces[idx]) TodayState.pieces[idx].notes = textarea.value.trim();
+  });
+
+  // 构建日志
+  const entries = Object.values(TodayState.pieces).map(piece => ({
+    pieceName: piece.pieceName,
+    category: piece.category,
+    durationMin: Math.ceil((piece._timerSeconds || 0) / 60),
+    notes: piece.notes || '',
+    rating: piece.rating || 0,
+    repId: piece.repId || ''
+  }));
+
+  const totalMin = entries.reduce((sum, e) => sum + e.durationMin, 0) || totalTimerMin;
+
+  const log = {
+    id: Utils.uid(),
+    date: Utils.today(),
+    entries: entries,
+    totalDurationMin: totalMin,
+    parentNotes: document.getElementById('parentNotes')?.value || '',
+    mood: TodayState.mood,
+    sticker: TodayState.sticker
+  };
+
+  // 保存到数据库
+  const logs = DB.logs().filter(l => l.date !== Utils.today());
+  logs.push(log);
+  DB.saveLogs(logs);
+
+  // 更新曲库练习记录
+  entries.forEach(entry => {
+    if (entry.repId && entry.durationMin > 0) {
+      RepertoireManager.recordPractice(entry.repId, entry.durationMin);
+    }
+  });
+
+  // 停止所有计时器
+  if (activeTimerIdx !== null) stopPieceTimer(activeTimerIdx);
+
+  // 重置状态
+  TodayState.reset();
+
+  // 显示成功提示
+  Utils.showToast('✅ 今日练习已记录！', 'success');
+
+  // 重新渲染
+  renderAll();
+
+  // 自动同步（异步，不阻塞）
+  // sync now manual via sync code
+}
+
+// 编辑今日记录
+window.editTodayLog = function() {
+  // 保留原有数据，进入编辑模式
+  const log = DB.logs().find(l => l.date === Utils.today());
+  if (!log) return;
+  
+  TodayState.existingLog = log;
+  renderAll();
+  
+  Utils.showToast('📝 编辑模式：修改后请点击「完成今日练习」保存', 'info', 2500);
+};
+
+console.log('✅ Today page module loaded');
+/* ==========================================
+   📒 课程记录页面
+   ========================================== */
+
+/* ------------------------------------------
+   页面渲染
+   ------------------------------------------ */
+function renderLessons() {
+  const page = document.getElementById('page-lessons');
+  if (!page) return;
+  
+  const lessons = DB.lessons().sort((a, b) => b.date.localeCompare(a.date));
+  
+  if (!lessons.length) {
+    page.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📒</div>
+        <div class="empty-title">还没有课程记录</div>
+        <div class="empty-description">
+          记录每次钢琴课的重点，帮助孩子更好地练习
+        </div>
+        <button class="btn btn-primary mt-24" onclick="showLessonForm()">
+          ➕ 添加第一课
+        </button>
+      </div>
+    `;
+    return;
+  }
+  
+  const lessonsHtml = lessons.map(lesson => {
+    const pieceNames = lesson.pieces.map(p => p.name).join('、');
+    const focusTags = lesson.focusAreas && lesson.focusAreas.length 
+      ? lesson.focusAreas.map(tag => `<span class="badge badge-info">${Utils.escape(tag)}</span>`).join('')
+      : '';
+    
+    return `
+      <div class="card card-highlight" onclick="showLessonForm('${lesson.id}')" style="cursor:pointer">
+        <div class="flex-between mb-8">
+          <span class="font-bold">📅 ${Utils.formatDate(lesson.date)}</span>
+          <span class="text-xs text-3">${lesson.pieces.length} 首曲目</span>
+        </div>
+        
+        <div class="text-sm text-2 mb-8">
+          🎵 ${Utils.escape(pieceNames)}
+        </div>
+        
+        ${focusTags ? `
+          <div class="tag-row mb-8">
+            ${focusTags}
+          </div>
+        ` : ''}
+        
+        ${lesson.notes ? `
+          <div class="text-xs text-3" style="line-height:1.5;margin-top:8px">
+            💬 ${Utils.escape(lesson.notes).slice(0, 80)}${lesson.notes.length > 80 ? '...' : ''}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+  
+  page.innerHTML = `
+    <div class="flex-between mb-16">
+      <span class="text-lg font-bold">共 ${lessons.length} 次课</span>
+      <button class="btn btn-primary btn-sm" onclick="showLessonForm()">
+        ➕ 新课程
+      </button>
+    </div>
+    ${lessonsHtml}
+  `;
+}
+
+/* ------------------------------------------
+   显示课程表单（添加/编辑）
+   ------------------------------------------ */
+window.showLessonForm = function(lessonId) {
+  const lesson = lessonId ? DB.lessons().find(l => l.id === lessonId) : null;
+  const isEdit = !!lesson;
+  const pieces = lesson ? lesson.pieces : [{ name: '', details: '', category: 'suzuki', score: '', focusAreas: [] }];
+
+  const categoryLabels = { suzuki: '🎻 铃木', beyer: '🎼 拜厄', pieces: '🎵 小曲集' };
+  const categoryOrder = ['suzuki', 'beyer', 'pieces'];
+  const focusOptions = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
+
+  // 按分类分组
+  const grouped = {};
+  pieces.forEach((piece, i) => {
+    const cat = piece.category || 'suzuki';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push({ ...piece, originalIndex: i });
+  });
+
+  // 生成单个曲目卡片 HTML
+  function lessonPieceCardHTML(piece, idx, cat) {
+    const repOptions = cat === 'suzuki'
+      ? RepertoireManager.getByBook(1).concat(RepertoireManager.getByBook(2))
+      : [];
+    const scoreStars = (piece.score || '').length;
+    const pieceFocusAreas = piece.focusAreas || [];
+
+    // 从 repId 解析曲目所在 book（如 "s2-01" → 2），新曲目默认 Book 2
+    let pieceBook = null;
+    if (piece.repId) {
+      var m = piece.repId.match(/^s(\d+)-/);
+      if (m) pieceBook = parseInt(m[1]);
+    }
+    if (!pieceBook) pieceBook = 2;
+
+    return `
+      <div class="card mb-8" style="background:rgba(255,255,255,0.03);border-left:3px solid var(--accent-primary);padding:12px">
+        <div class="flex-between mb-8">
+          <span class="font-bold text-sm">#${idx + 1}</span>
+          <button class="btn btn-sm btn-danger" onclick="removeLessonPiece(this)" style="font-size:0.65rem;padding:3px 8px">✕</button>
+        </div>
+
+        ${cat === 'suzuki' ? `
+          <div class="form-group" style="margin-bottom:10px">
+            ${SuzukiSelectHelper.buildBookSelect(pieceBook, cat, idx)}
+            ${SuzukiSelectHelper.buildPieceSelect(pieceBook, cat, idx, piece.repId, piece.name)}
+          </div>
+        ` : `
+          <div class="form-group" style="margin-bottom:10px">
+            <input class="form-input piece-name-input" placeholder="曲目名称" value="${Utils.escape(piece.name || '')}" style="padding:10px 12px;font-size:0.85rem">
+          </div>
+        `}
+
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">🏷 本曲练习重点</label>
+          <div class="tag-row piece-focus-tags" data-piece-idx="${idx}" data-cat="${cat}">
+            ${focusOptions.map(tag => {
+              const sel = pieceFocusAreas.includes(tag);
+              return `<span class="tag${sel ? ' selected' : ''}" onclick="this.classList.toggle('selected')">${tag}</span>`;
+            }).join('')}
+          </div>
+          <input type="text" class="form-input mt-4 piece-focus-custom" placeholder="自定义重点..." value="${Utils.escape((pieceFocusAreas.filter(t => !focusOptions.includes(t))).join('、'))}" style="font-size:0.8rem;padding:8px 10px">
+        </div>
+
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">📝 老师要求</label>
+          <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:90px;font-size:0.85rem">${Utils.escape(piece.details || '')}</textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px">
+          <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">⭐ 回课评分</label>
+          <div class="star-rating" data-piece-idx="${idx}" data-cat="${cat}">
+            ${[1,2,3,4,5].map(s => `
+              <button type="button" class="star-btn${s <= scoreStars ? ' active' : ''}" data-star="${s}" onclick="setLessonPieceStar('${cat}', ${idx}, ${s})">⭐</button>
+            `).join('')}
+          </div>
+        </div>
+
+        <input type="hidden" class="piece-category" value="${cat}">
+        <input type="hidden" class="piece-repid" value="${piece.repId || ''}">
+        <input type="hidden" class="piece-score" value="${piece.score || ''}">
+      </div>
+    `;
+  }
+
+  // 按分类生成折叠区块
+  const categoryBlocks = categoryOrder.map(cat => {
+    const categoryPieces = grouped[cat] || [];
+
+    const pieceCards = categoryPieces.map((piece, idx) => lessonPieceCardHTML(piece, idx, cat)).join('');
+
+    const hasPieces = categoryPieces.length > 0;
+    return `
+      <div class="practice-category mb-8${hasPieces ? ' open' : ''}" data-cat="lesson-${cat}">
+        <div class="practice-category-header" onclick="toggleCategory('lesson-${cat}')" style="padding:10px 14px">
+          <span class="font-bold text-sm">${categoryLabels[cat]}</span>
+          <span class="cat-info">
+            <span class="text-xs text-2">${categoryPieces.length}首</span>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();addLessonPiece('${cat}')" style="font-size:0.65rem;padding:3px 8px;margin-left:6px">＋</button>
+            <span class="cat-toggle-icon">▸</span>
+          </span>
+        </div>
+        <div class="practice-category-body" data-cat-body="lesson-${cat}"${hasPieces ? '' : ' style="display:none"'}>
+          ${pieceCards || '<p class="text-xs text-3 text-center p-8">暂无曲目</p>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">${isEdit ? '✏️ 编辑课程' : '📒 新增课程'}</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <form id="lessonForm">
+            <div class="form-group">
+              <label class="form-label">📅 上课日期</label>
+              <input type="date" class="form-input" id="lessonDate" value="${lesson ? lesson.date : Utils.today()}" required>
+            </div>
+            <div class="form-group">
+              <div id="lessonPiecesContainer">
+                ${categoryBlocks}
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">📝 整课备注</label>
+              <textarea class="form-input" id="lessonNotes" placeholder="老师的叮嘱、下节课安排..." style="min-height:70px">${lesson ? Utils.escape(lesson.notes || '') : ''}</textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="saveLesson('${lessonId || ''}')" style="width:100%">
+            💾 保存课程
+          </button>
+          ${isEdit ? `
+            <button class="btn btn-danger mt-8" onclick="deleteLesson('${lesson.id}')" style="width:100%">
+              🗑 删除此课程
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+/* ------------------------------------------
+   课程表单交互
+   ------------------------------------------ */
+
+// 添加曲目
+window.addLessonPiece = function(category) {
+  const body = document.querySelector('.practice-category-body[data-cat-body="lesson-' + category + '"]');
+  if (!body) return;
+
+  // Count existing cards in this category body
+  const existingCards = body.querySelectorAll('.card');
+  const idx = existingCards.length;
+
+  const repOptions = category === 'suzuki'
+    ? RepertoireManager.getByBook(1).concat(RepertoireManager.getByBook(2))
+    : [];
+  const focusOptions = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
+
+  // Ensure body is visible
+  body.style.display = 'block';
+  const catEl = document.querySelector('.practice-category[data-cat="lesson-' + category + '"]');
+  if (catEl) catEl.classList.add('open');
+
+  // Remove "暂无曲目" placeholder
+  const placeholder = body.querySelector('p');
+  if (placeholder) placeholder.remove();
+
+  const card = document.createElement('div');
+  card.className = 'card mb-8';
+  card.style.cssText = 'background:rgba(255,255,255,0.03);border-left:3px solid var(--accent-primary);padding:12px';
+
+  card.innerHTML = `
+    <div class="flex-between mb-8">
+      <span class="font-bold text-sm">#${idx + 1}</span>
+      <button class="btn btn-sm btn-danger" onclick="removeLessonPiece(this)" style="font-size:0.65rem;padding:3px 8px">✕</button>
+    </div>
+    ${category === 'suzuki' ? `
+      <div class="form-group" style="margin-bottom:10px">
+        ${SuzukiSelectHelper.buildBookSelect(null, category, idx)}
+        ${SuzukiSelectHelper.buildPieceSelect(null, category, idx, '', '')}
+      </div>
+    ` : `
+      <div class="form-group" style="margin-bottom:10px">
+        <input class="form-input piece-name-input" placeholder="曲目名称" style="padding:10px 12px;font-size:0.85rem">
+      </div>
+    `}
+    <div class="form-group" style="margin-bottom:10px">
+      <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">🏷 本曲练习重点</label>
+      <div class="tag-row piece-focus-tags" data-piece-idx="${idx}" data-cat="${category}">
+        ${focusOptions.map(tag => '<span class="tag" onclick="this.classList.toggle(\'selected\')">' + tag + '</span>').join('')}
+      </div>
+      <input type="text" class="form-input mt-4 piece-focus-custom" placeholder="自定义重点..." style="font-size:0.8rem;padding:8px 10px">
+    </div>
+    <div class="form-group" style="margin-bottom:10px">
+      <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">📝 老师要求</label>
+      <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:90px;font-size:0.85rem"></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:4px">
+      <label class="form-label" style="font-size:0.75rem;margin-bottom:5px">⭐ 回课评分</label>
+      <div class="star-rating" data-piece-idx="${idx}" data-cat="${category}">
+        ${[1,2,3,4,5].map(s => '<button type="button" class="star-btn" data-star="' + s + '" onclick="setLessonPieceStar(\'' + category + '\', ' + idx + ', ' + s + ')">⭐</button>').join('')}
+      </div>
+    </div>
+    <input type="hidden" class="piece-category" value="${category}">
+    <input type="hidden" class="piece-repid" value="">
+    <input type="hidden" class="piece-score" value="">
+  `;
+
+  body.appendChild(card);
+
+  // Update count in header
+  const headerCount = catEl.querySelector('.text-xs.text-2');
+  if (headerCount) headerCount.textContent = (idx + 1) + '首';
+};
+
+// 删除曲目
+window.removeLessonPiece = function(btn) {
+  if (!confirm('确定删除这首曲目吗？')) return;
+  const card = btn.closest('.card');
+  if (card) card.remove();
+};
+
+// 设置曲目星星评分
+window.setLessonPieceStar = function(category, pieceIdx, star) {
+  const container = document.querySelector(`.star-rating[data-cat="${category}"][data-piece-idx="${pieceIdx}"]`);
+  if (!container) return;
+  
+  const card = container.closest('.card');
+  const scoreInput = card.querySelector('.piece-score');
+  const buttons = container.querySelectorAll('.star-btn');
+  
+  // 当前分数
+  const currentScore = scoreInput.value.length;
+  
+  // 如果点击的是已选中的，则取消
+  const newScore = (currentScore === star) ? star - 1 : star;
+  
+  // 更新隐藏字段
+  scoreInput.value = '⭐'.repeat(newScore);
+  
+  // 更新按钮状态
+  buttons.forEach(btn => {
+    const s = parseInt(btn.dataset.star);
+    if (s <= newScore) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+};
+
+// 保存课程
+window.saveLesson = function(lessonId) {
+  const date = document.getElementById('lessonDate').value;
+  const notes = document.getElementById('lessonNotes').value.trim();
+  
+  if (!date) {
+    Utils.showToast('⚠️ 请选择上课日期', 'warning');
+    return;
+  }
+  
+  const focusOptions = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
+  
+  // 收集曲目
+  const pieces = [];
+  document.querySelectorAll('#lessonPiecesContainer .card').forEach(card => {
+    const nameSelect = card.querySelector('.piece-name-select');
+    const nameInput = card.querySelector('.piece-name-input');
+    const details = card.querySelector('.piece-details').value.trim();
+    const category = card.querySelector('.piece-category').value;
+    const repIdInput = card.querySelector('.piece-repid');
+    const scoreInput = card.querySelector('.piece-score');
+    
+    let name = '';
+    let repId = '';
+    
+    if (nameSelect) {
+      name = nameSelect.value.trim();
+      // 两级选择器（suzuki 系列用 piece-select class）
+      if (nameSelect.classList.contains('suzuki-piece-select')) {
+        const selectedOption = nameSelect.options[nameSelect.selectedIndex];
+        repId = selectedOption ? selectedOption.dataset.repid : '';
+      } else {
+        const selectedOption = nameSelect.options[nameSelect.selectedIndex];
+        repId = selectedOption ? selectedOption.dataset.repid : '';
+      }
+    } else if (nameInput) {
+      name = nameInput.value.trim();
+      const repPiece = RepertoireManager.findByName(name);
+      if (repPiece) repId = repPiece.id;
+    }
+    
+    if (name) {
+      // Collect per-piece focus areas
+      const focusAreas = [];
+      const focusTagsEl = card.querySelector('.piece-focus-tags');
+      if (focusTagsEl) {
+        focusTagsEl.querySelectorAll('.tag.selected').forEach(tag => {
+          focusAreas.push(tag.textContent);
+        });
+      }
+      const customFocus = card.querySelector('.piece-focus-custom');
+      if (customFocus && customFocus.value.trim()) {
+        customFocus.value.trim().split(/[、,，]/).forEach(t => {
+          const tt = t.trim();
+          if (tt) focusAreas.push(tt);
+        });
+      }
+      
+      pieces.push({
+        name,
+        details,
+        category,
+        repId: repId || repIdInput.value,
+        score: scoreInput.value,
+        focusAreas: focusAreas
+      });
+    }
+  });
+  
+  if (!pieces.length) {
+    Utils.showToast('⚠️ 请至少添加一首曲目', 'warning');
+    return;
+  }
+  
+  // 构建课程对象
+  const lesson = {
+    id: lessonId || Utils.uid(),
+    date,
+    pieces,
+    focusAreas: [],  // 保留向后兼容
+    notes
+  };
+  
+  // 保存
+  let lessons = DB.lessons();
+  if (lessonId) {
+    lessons = lessons.map(l => l.id === lessonId ? lesson : l);
+  } else {
+    lessons.push(lesson);
+  }
+  DB.saveLessons(lessons);
+  
+  closeModal();
+  renderAll();
+  
+  Utils.showToast('✅ 课程已保存', 'success');
+  // sync now manual via sync code
+};
+
+// 删除课程
+window.deleteLesson = function(lessonId) {
+  if (!confirm('确定要删除这条课程记录吗？\n\n此操作不可恢复！')) return;
+  
+  const lessons = DB.lessons().filter(l => l.id !== lessonId);
+  DB.saveLessons(lessons);
+  
+  closeModal();
+  renderAll();
+  
+  Utils.showToast('✅ 课程已删除', 'success');
+  // sync now manual via sync code
+};
+
+/* ==========================================
+   📅 日历页面
+   ========================================== */
+
+let calendarState = {
+  year: new Date().getFullYear(),
+  month: new Date().getMonth(), // 0-indexed
+  view: 'month',
+  weekOffset: 0
+};
+
+/* ------------------------------------------
+   页面渲染
+   ------------------------------------------ */
+function renderCalendar() {
+  const page = document.getElementById('page-calendar');
+  if (!page) return;
+
+  const viewToggle = `
+    <div class="calendar-view-toggle">
+      <button class="calendar-view-toggle-btn ${calendarState.view === 'week' ? 'active' : ''}" id="viewWeek">📅 周</button>
+      <button class="calendar-view-toggle-btn ${calendarState.view === 'month' ? 'active' : ''}" id="viewMonth">📅 月</button>
+    </div>
+  `;
+
+  const contentHTML = calendarState.view === 'week'
+    ? buildWeekViewHTML()
+    : buildCalendarHTML(calendarState.year, calendarState.month);
+
+  page.innerHTML = viewToggle + contentHTML;
+  bindCalendarEvents();
+  bindViewToggleEvents();
+}
+
+/* ------------------------------------------
+   构建日历 HTML
+   ------------------------------------------ */
+function buildCalendarHTML(year, month) {
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sunday
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  
+  const todayStr = Utils.today();
+  const logsMap = {};
+  DB.logs().forEach(log => {
+    logsMap[log.date] = log;
+  });
+  
+  // 月份名称
+  const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+  const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+  
+  // 计算统计
+  const monthDays = StreakManager.getMonthDays(year, month);
+  const monthMinutes = StreakManager.getMonthMinutes(year, month);
+  const streak = StreakManager.calculate();
+  
+  let cells = '';
+  
+  // 上个月的日期（补齐）
+  const prevYear = month === 0 ? year - 1 : year;
+  const prevMonth = month === 0 ? 11 : month - 1;
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const d = daysInPrevMonth - i;
+    const dateStr = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    cells += `<div class="calendar-day other-month" data-date="${dateStr}">${d}</div>`;
+  }
+  
+  // 本月日期
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isToday = dateStr === todayStr;
+    const log = logsMap[dateStr];
+
+    const classes = ['calendar-day'];
+    if (isToday) classes.push('today');
+    if (log) classes.push('has-practice');
+    else if (dateStr < todayStr) classes.push('missed');
+
+    const starCount = log ? log.entries.reduce((s, e) => s + (e.rating || 0), 0) : 0;
+    const starHtml = starCount > 0 ? `<span class="day-star">${starCount}⭐</span>` : '';
+
+    cells += `<div class="${classes.join(' ')}" data-date="${dateStr}">${d}${starHtml}</div>`;
+  }
+  
+  // 下个月的日期（补齐）
+  const totalCells = firstDay + daysInMonth;
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  const nextYear = month === 11 ? year + 1 : year;
+  const nextMonth = month === 11 ? 0 : month + 1;
+  for (let d = 1; d <= remaining; d++) {
+    const dateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    cells += `<div class="calendar-day other-month" data-date="${dateStr}">${d}</div>`;
+  }
+  
+  return `
+    <div class="calendar-nav">
+      <button class="calendar-nav-btn" id="prevMonth">◀</button>
+      <span class="calendar-month">📅 ${year}年 ${monthNames[month]}</span>
+      <button class="calendar-nav-btn" id="nextMonth">▶</button>
+    </div>
+    
+    <div class="calendar-grid">
+      ${dayHeaders.map(h => `<div class="calendar-weekday">${h}</div>`).join('')}
+      ${cells}
+    </div>
+    
+    <div class="calendar-stats">
+      <div class="stat-card">
+        <div class="stat-number">${monthDays}</div>
+        <div class="stat-label">本月练习</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">${Math.round(monthMinutes / 60 * 10) / 10}</div>
+        <div class="stat-label">本月时长(h)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">${streak}</div>
+        <div class="stat-label">连续打卡</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ------------------------------------------
+   绑定日历事件
+   ------------------------------------------ */
+function bindCalendarEvents() {
+  // 上一个月
+  const prevBtn = document.getElementById('prevMonth');
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      calendarState.month--;
+      if (calendarState.month < 0) {
+        calendarState.month = 11;
+        calendarState.year--;
+      }
+      renderCalendar();
+    });
+  }
+  
+  // 下一个月
+  const nextBtn = document.getElementById('nextMonth');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      calendarState.month++;
+      if (calendarState.month > 11) {
+        calendarState.month = 0;
+        calendarState.year++;
+      }
+      renderCalendar();
+    });
+  }
+  
+  // 点击日期
+  document.querySelectorAll('.calendar-day:not(.other-month)').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const date = cell.dataset.date;
+      showDayDetail(date);
+    });
+  });
+}
+
+function buildWeekViewHTML() {
+  const todayStr = Utils.today();
+  const today = new Date(todayStr + 'T00:00:00');
+  const dayOfWeek = today.getDay();
+
+  // Start from Sunday of week (offset by weekOffset)
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - dayOfWeek + (calendarState.weekOffset * 7));
+
+  const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+  const logsMap = {};
+  DB.logs().forEach(log => { logsMap[log.date] = log; });
+
+  let cells = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const isToday = dateStr === todayStr;
+    const log = logsMap[dateStr];
+
+    const duration = log ? (log.totalDurationMin || 0) : 0;
+    const stars = log ? log.entries.reduce((s, e) => s + (e.rating || 0), 0) : 0;
+
+    cells += `
+      <div class="calendar-week-cell ${isToday ? 'today' : ''} ${!log ? 'no-practice' : ''}"
+           data-date="${dateStr}" onclick="showDayDetail('${dateStr}')">
+        <div class="week-day-name">${dayHeaders[d.getDay()]}</div>
+        <div class="week-date">${d.getDate()}</div>
+        ${duration > 0 ? '<div class="week-duration">⏱ ' + duration + '分</div>' : ''}
+        ${stars > 0 ? '<div class="week-stars">' + stars + '⭐</div>' : ''}
+      </div>
+    `;
+  }
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const totalDays = Object.keys(logsMap).filter(d => {
+    const t = new Date(d + 'T00:00:00');
+    return t >= weekStart && t <= weekEnd;
+  }).length;
+  const totalMin = Object.entries(logsMap).reduce((s, [d, l]) => {
+    const t = new Date(d + 'T00:00:00');
+    return s + (t >= weekStart && t <= weekEnd ? (l.totalDurationMin || 0) : 0);
+  }, 0);
+
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  return `
+    <div class="calendar-nav" style="margin-bottom:10px">
+      <span class="calendar-nav-btn" id="prevWeek" style="cursor:pointer;padding:4px 10px;color:var(--text-2);font-size:0.85rem">◀</span>
+      <span class="calendar-month" style="font-size:0.95rem">${monthNames[weekStart.getMonth()]}${weekStart.getDate()}日 — ${monthNames[weekEnd.getMonth()]}${weekEnd.getDate()}日</span>
+      <span class="calendar-nav-btn" id="nextWeek" style="cursor:pointer;padding:4px 10px;color:var(--text-2);font-size:0.85rem">▶</span>
+    </div>
+
+    <div class="calendar-week-grid">
+      ${cells}
+    </div>
+
+    <div class="calendar-stats">
+      <div class="stat-card">
+        <div class="stat-number">${totalDays}</div>
+        <div class="stat-label">本周练习天数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">${totalMin}</div>
+        <div class="stat-label">本周练习分钟</div>
+      </div>
+    </div>
+
+    <div class="text-xs text-3 text-center mt-16">
+      点击日期查看详情
+    </div>
+  `;
+}
+
+function bindViewToggleEvents() {
+  const weekBtn = document.getElementById('viewWeek');
+  const monthBtn = document.getElementById('viewMonth');
+  if (weekBtn) weekBtn.addEventListener('click', () => {
+    calendarState.view = 'week';
+    calendarState.weekOffset = 0;
+    renderCalendar();
+  });
+  if (monthBtn) monthBtn.addEventListener('click', () => {
+    calendarState.view = 'month';
+    renderCalendar();
+  });
+
+  // Week navigation
+  const prevWeek = document.getElementById('prevWeek');
+  const nextWeek = document.getElementById('nextWeek');
+  if (prevWeek) prevWeek.addEventListener('click', () => {
+    calendarState.weekOffset--;
+    renderCalendar();
+  });
+  if (nextWeek) nextWeek.addEventListener('click', () => {
+    calendarState.weekOffset++;
+    renderCalendar();
+  });
+}
+
+/* ------------------------------------------
+   显示某一天的详情
+   ------------------------------------------ */
+function showDayDetail(date) {
+  const log = DB.logs().find(l => l.date === date);
+  
+  const modal = document.getElementById('modalContainer');
+  
+  if (!log) {
+    modal.innerHTML = `
+      <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+          <div class="modal-header">
+            <h2 class="modal-title">📅 ${Utils.formatDateFull(date)}</h2>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="empty-state">
+              <div class="empty-icon">😴</div>
+              <div class="empty-title">这天没有练琴</div>
+              <div class="empty-description">继续保持每日练习的好习惯吧！</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+  
+  // 统计
+  const totalStars = log.entries.reduce((s, e) => s + (e.rating || 0), 0);
+  const totalMin = log.totalDurationMin || 0;
+  
+  // 按分类分组
+  const grouped = {};
+  const categoryLabels = {
+    suzuki: '🎻 铃木',
+    beyer: '🎼 拜厄',
+    pieces: '🎵 小曲集',
+    free: '🎹 自由练习',
+    review: '🎲 复习'
+  };
+
+  log.entries.forEach(entry => {
+    const cat = entry.category || 'pieces';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(entry);
+  });
+  
+  const categoryBlocks = Object.entries(grouped).map(([cat, entries]) => {
+    const catMin = entries.reduce((s, e) => s + (e.durationMin || 0), 0);
+    const catStars = entries.reduce((s, e) => s + (e.rating || 0), 0);
+    
+    const piecesList = entries.map(entry => `
+      <div class="p-12 mb-8" style="background:rgba(255,255,255,0.04);border-radius:12px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <span class="font-bold">${Utils.escape(entry.pieceName)}</span>
+          ${entry.rating ? '<span style="white-space:nowrap;flex-shrink:0">' + '⭐'.repeat(entry.rating) + '</span>' : ''}
+        </div>
+        ${entry.durationMin ? '<div class="text-xs text-3 mt-4">⏱ ' + entry.durationMin + '分钟</div>' : ''}
+      </div>
+    `).join('');
+    
+    return `
+      <div class="mb-16">
+        <div class="flex-between mb-8">
+          <span class="font-bold text-sm">${categoryLabels[cat]}</span>
+          <span class="text-xs text-2">${catMin}分钟 · ${catStars}⭐</span>
+        </div>
+        ${piecesList}
+      </div>
+    `;
+  }).join('');
+  
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">📅 ${Utils.formatDateFull(date)}</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="calendar-stats mb-16">
+            <div class="stat-card">
+              <div class="stat-number">${totalStars}</div>
+              <div class="stat-label">获得星星</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">${totalMin}</div>
+              <div class="stat-label">练琴分钟</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">${log.entries.length}</div>
+              <div class="stat-label">练习曲目</div>
+            </div>
+          </div>
+          
+          ${categoryBlocks}
+          
+          ${log.parentNotes ? `
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">
+                  <span class="card-title-icon">📝</span>
+                  家长笔记
+                </h3>
+              </div>
+              <p style="font-size:0.9rem;line-height:1.6;color:var(--text-2)">
+                ${Utils.escape(log.parentNotes)}
+              </p>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ==========================================
+   🎵 曲库页面
+   ========================================== */
+
+let repertoireState = {
+  expandedBooks: { 1: false, 2: false },
+  expandedPieces: {}
+};
+
+/* ------------------------------------------
+   页面渲染
+   ------------------------------------------ */
+function renderRepertoire() {
+  const page = document.getElementById('page-repertoire');
+  if (!page) return;
+  
+  const repertoire = DB.repertoire();
+  if (!repertoire.length) {
+    page.innerHTML = '<div class="empty-state"><div class="empty-icon">🎵</div><p>曲库加载中...</p></div>';
+    return;
+  }
+  
+  // 动态获取所有分册
+  const bookNums = RepertoireManager.getBookList();
+  const books = bookNums.map(bn => {
+    const pieces = repertoire.filter(p => p.book === bn);
+    const learned = pieces.filter(p => p.status === 'learned').length;
+    return {
+      num: bn,
+      title: '铃木钢琴第' + ['', '一', '二', '三', '四', '五', '六', '七', '八'][bn] + '册',
+      subtitle: 'Vol.' + bn + ' · ' + pieces.length + '曲 · 已学' + learned + '首',
+      pieces
+    };
+  });
+  
+  const booksHtml = books.map(book => {
+    const total = book.pieces.length;
+    const learned = book.pieces.filter(p => p.status === 'learned').length;
+    const learning = book.pieces.filter(p => p.status === 'learning').length;
+    const progress = Math.round((learned / total) * 100);
+    
+    const isExpanded = repertoireState.expandedBooks[book.num];
+    
+    const piecesHtml = book.pieces.map(piece => {
+      const isCardExpanded = repertoireState.expandedPieces[piece.id];
+      
+      let statusBtn = '';
+      if (piece.status === 'learned') {
+        statusBtn = '<button class="btn btn-sm btn-success" style="font-size:0.7rem;padding:5px 10px" onclick="cycleRepStatus(\'' + piece.id + '\')">✅ 已学会</button>';
+      } else if (piece.status === 'learning') {
+        statusBtn = '<button class="btn btn-sm" style="font-size:0.7rem;padding:5px 10px;background:var(--accent-yellow-soft);color:var(--accent-yellow);border:1px solid var(--accent-yellow)" onclick="cycleRepStatus(\'' + piece.id + '\')">🌱 学习中</button>';
+      } else {
+        statusBtn = '<button class="btn btn-sm btn-secondary" style="font-size:0.7rem;padding:5px 10px" onclick="cycleRepStatus(\'' + piece.id + '\')">💤 未学</button>';
+      }
+      
+      const memBtn = piece.status === 'learned' 
+        ? `<button class="btn btn-sm ${piece.memorized ? 'btn-primary' : 'btn-secondary'}" style="font-size:0.7rem;padding:5px 10px" onclick="toggleRepMemorized('${piece.id}')">${piece.memorized ? '🧠 可背谱' : '📖 不能背谱'}</button>`
+        : '';
+      
+      return `
+        <div class="card mb-8 ${isCardExpanded ? 'expanded' : ''}" id="repCard${piece.id}" style="cursor:pointer">
+          <div class="flex-between" onclick="toggleRepCard('${piece.id}')">
+            <span style="flex:1;min-width:0">
+              <div class="font-bold">${piece.num}. ${Utils.escape(piece.en)}</div>
+              <div class="text-xs text-3">${Utils.escape(piece.name)} · ${Utils.escape(piece.composer)}</div>
+            </span>
+            <span class="flex-row gap-4" onclick="event.stopPropagation()">
+              ${statusBtn}
+              ${memBtn}
+            </span>
+          </div>
+          
+          ${isCardExpanded && (piece.status === 'learned' || piece.status === 'learning') ? `
+            <div class="text-xs text-2 mt-8" style="padding-top:8px;border-top:1px solid var(--border-2)">
+              ${piece.startedDate ? `📅 开始：${Utils.formatDate(piece.startedDate)}` : ''}
+              ${piece.completedDate ? ` · ✅ 完成：${Utils.formatDate(piece.completedDate)}` : ''}
+              ${piece.totalMinutes ? ` · ⏱ ${piece.totalMinutes}分钟` : ''}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+    
+    return `
+      <div class="card mb-16">
+        <div class="flex-between" onclick="toggleRepertoireBook(${book.num})" style="cursor:pointer">
+          <span style="flex:1">
+            <div class="font-bold text-lg">📖 ${book.title}</div>
+            <div class="text-xs text-3 mt-4">${book.subtitle}</div>
+          </span>
+          <span style="display:flex;align-items:center;gap:12px">
+            <span class="text-sm text-2">${progress}% · ${learned}/${total}</span>
+            <span style="font-size:1.2rem;color:var(--text-3);transition:transform 0.3s;transform:rotate(${isExpanded ? '90deg' : '0'})">▶</span>
+          </span>
+        </div>
+        
+        <div id="bookList${book.num}" style="display:${isExpanded ? 'block' : 'none'};margin-top:12px">
+          ${piecesHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  page.innerHTML = `
+    <div class="flex-between mb-16">
+      <span class="text-lg font-bold">🎵 铃木曲库</span>
+      <button class="btn btn-primary btn-sm" onclick="showRepertoireEditor()">
+        🔧 编辑曲库
+      </button>
+    </div>
+    ${booksHtml}
+  `;
+}
+
+/* ------------------------------------------
+   交互函数
+   ------------------------------------------ */
+
+// 展开/收起书籍
+window.toggleRepertoireBook = function(bookNum) {
+  repertoireState.expandedBooks[bookNum] = !repertoireState.expandedBooks[bookNum];
+  renderRepertoire();
+};
+
+// 展开/收起曲目详情
+window.toggleRepCard = function(pieceId) {
+  repertoireState.expandedPieces[pieceId] = !repertoireState.expandedPieces[pieceId];
+  renderRepertoire();
+};
+
+// 循环切换曲目状态：未学 → 学习中 → 已学会 → 未学
+window.cycleRepStatus = function(pieceId) {
+  const piece = RepertoireManager.findById(pieceId);
+  if (!piece) return;
+  
+  if (piece.status === 'untouched') {
+    RepertoireManager.updateStatus(pieceId, 'learning');
+    Utils.showToast('📚 开始学习', 'info');
+  } else if (piece.status === 'learning') {
+    RepertoireManager.updateStatus(pieceId, 'learned');
+    Utils.showToast('🎉 恭喜学会！', 'success');
+  } else {
+    RepertoireManager.updateStatus(pieceId, 'untouched');
+    Utils.showToast('🔄 状态已重置', 'info');
+  }
+  
+  renderRepertoire();
+};
+
+// 切换背谱状态
+window.toggleRepMemorized = function(pieceId) {
+  const newState = RepertoireManager.toggleMemorized(pieceId);
+  Utils.showToast(newState ? '🧠 可以背谱了！' : '📖 还需要看谱', 'success');
+  renderRepertoire();
+};
+
+// 曲库编辑器
+window.showRepertoireEditor = function() {
+  const repertoire = DB.repertoire();
+  const books = RepertoireManager.getBookList();
+  const modal = document.getElementById('modalContainer');
+
+  // 按册生成曲目列表
+  const bookTables = books.map(bn => {
+    const pieces = repertoire.filter(p => p.book === bn).sort((a, b) => a.num - b.num);
+    const rows = pieces.map(p => `
+      <tr>
+        <td style="width:40px;text-align:center">${p.num}</td>
+        <td>${Utils.escape(p.name)}</td>
+        <td style="color:var(--text-2);font-size:0.8rem">${Utils.escape(p.en)}</td>
+        <td style="color:var(--text-3);font-size:0.75rem">${Utils.escape(p.composer)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-sm btn-secondary" onclick="editRepPiece('${p.id}')" style="font-size:0.65rem;padding:3px 8px">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteRepPiece('${p.id}')" style="font-size:0.65rem;padding:3px 8px">✕</button>
+        </td>
+      </tr>
+    `).join('');
+
+    return `
+      <div class="mb-16">
+        <div class="flex-between mb-8" style="padding:0 4px">
+          <span class="font-bold text-sm">📖 Book ${bn}（${pieces.length}首）</span>
+          <button class="btn btn-sm btn-primary" onclick="addRepPiece(${bn})" style="font-size:0.7rem;padding:4px 10px">＋ 添加曲目</button>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="color:var(--text-3);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em">
+              <th style="width:40px;padding:6px 4px;text-align:center">#</th>
+              <th style="padding:6px 4px;text-align:left">中文名</th>
+              <th style="padding:6px 4px;text-align:left">English</th>
+              <th style="padding:6px 4px;text-align:left">作曲家</th>
+              <th style="width:60px;padding:6px 4px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:800px">
+        <div class="modal-header">
+          <h2 class="modal-title">🔧 编辑曲库</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom:16px">
+            <button class="btn btn-primary btn-sm" onclick="addRepBook()">📚 新建分册</button>
+            <span class="text-xs text-3" style="margin-left:8px">添加空白分册后可向其中添加曲目</span>
+          </div>
+          ${bookTables}
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="closeModal();renderRepertoire();" style="width:100%">
+            ✅ 完成编辑
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// 编辑单首曲目
+window.editRepPiece = function(pieceId) {
+  const piece = RepertoireManager.findById(pieceId);
+  if (!piece) return;
+  const books = RepertoireManager.getBookList();
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+          <h2 class="modal-title">✏️ 编辑曲目</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">分册</label>
+            <select class="form-input" id="repEditBook">
+              ${books.map(b => '<option value="' + b + '"' + (b === piece.book ? ' selected' : '') + '>Book ' + b + '</option>').join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">编号</label>
+            <input type="number" class="form-input" id="repEditNum" value="${piece.num}" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">中文名</label>
+            <input type="text" class="form-input" id="repEditName" value="${Utils.escape(piece.name)}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">英文名</label>
+            <input type="text" class="form-input" id="repEditEn" value="${Utils.escape(piece.en || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">日文名</label>
+            <input type="text" class="form-input" id="repEditJp" value="${Utils.escape(piece.jp || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">作曲家</label>
+            <input type="text" class="form-input" id="repEditComposer" value="${Utils.escape(piece.composer || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">难度 (1-5)</label>
+            <input type="number" class="form-input" id="repEditDifficulty" value="${piece.difficulty || 1}" min="1" max="5">
+          </div>
+          <div class="flex-row gap-8">
+            <button class="btn btn-primary" onclick="saveRepEdit('${pieceId}')" style="flex:1">💾 保存</button>
+            <button class="btn btn-secondary" onclick="showRepertoireEditor()">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// 保存曲目编辑
+window.saveRepEdit = function(pieceId) {
+  const updates = {
+    book: parseInt(document.getElementById('repEditBook').value) || 1,
+    num: parseInt(document.getElementById('repEditNum').value) || 1,
+    name: document.getElementById('repEditName').value.trim(),
+    en: document.getElementById('repEditEn').value.trim(),
+    jp: document.getElementById('repEditJp').value.trim(),
+    composer: document.getElementById('repEditComposer').value.trim(),
+    difficulty: parseInt(document.getElementById('repEditDifficulty').value) || 1
+  };
+  if (!updates.name) { Utils.showToast('⚠️ 曲目名称不能为空', 'warning'); return; }
+  RepertoireManager.updatePiece(pieceId, updates);
+  Utils.showToast('✅ 曲目已更新', 'success');
+  showRepertoireEditor();
+};
+
+// 删除曲目
+window.deleteRepPiece = function(pieceId) {
+  const piece = RepertoireManager.findById(pieceId);
+  if (!piece) return;
+  if (!confirm('确定删除「' + piece.name + '」吗？\n\n此操作不可恢复！')) return;
+  RepertoireManager.removePiece(pieceId);
+  RepertoireManager.renumberBook(piece.book);
+  Utils.showToast('✅ 已删除', 'success');
+  showRepertoireEditor();
+};
+
+// 添加曲目
+window.addRepPiece = function(bookNum) {
+  const nextNum = RepertoireManager.getNextNum(bookNum);
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+          <h2 class="modal-title">➕ 添加曲目（Book ${bookNum} #${nextNum}）</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">中文名 *</label>
+            <input type="text" class="form-input" id="repAddName" placeholder="例如：G大调小步舞曲">
+          </div>
+          <div class="form-group">
+            <label class="form-label">英文名</label>
+            <input type="text" class="form-input" id="repAddEn" placeholder="例如：Minuet in G">
+          </div>
+          <div class="form-group">
+            <label class="form-label">日文名</label>
+            <input type="text" class="form-input" id="repAddJp" placeholder="例如：メヌエット">
+          </div>
+          <div class="form-group">
+            <label class="form-label">作曲家</label>
+            <input type="text" class="form-input" id="repAddComposer" placeholder="例如：J.S. Bach">
+          </div>
+          <div class="form-group">
+            <label class="form-label">难度 (1-5)</label>
+            <input type="number" class="form-input" id="repAddDifficulty" value="3" min="1" max="5">
+          </div>
+          <button class="btn btn-primary" onclick="saveNewRepPiece(${bookNum})" style="width:100%">💾 添加</button>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// 保存新曲目
+window.saveNewRepPiece = function(bookNum) {
+  const name = document.getElementById('repAddName').value.trim();
+  if (!name) { Utils.showToast('⚠️ 请输入曲目名称', 'warning'); return; }
+  const pieceData = {
+    book: bookNum,
+    num: RepertoireManager.getNextNum(bookNum),
+    name: name,
+    en: document.getElementById('repAddEn').value.trim(),
+    jp: document.getElementById('repAddJp').value.trim(),
+    composer: document.getElementById('repAddComposer').value.trim(),
+    difficulty: parseInt(document.getElementById('repAddDifficulty').value) || 1,
+    duration: 1
+  };
+  RepertoireManager.addPiece(pieceData);
+  Utils.showToast('✅ 曲目已添加', 'success');
+  showRepertoireEditor();
+};
+
+// 新建分册
+window.addRepBook = function() {
+  const books = RepertoireManager.getBookList();
+  const newBook = (books[books.length - 1] || 0) + 1;
+  if (!confirm('确定新建 Book ' + newBook + ' 吗？\n\n将会创建一个空白分册，之后可以向其中添加曲目。')) return;
+  // 添加一首占位曲目，然后删除（让 book 编号生效）
+  RepertoireManager.addPiece({
+    book: newBook,
+    num: 1,
+    name: '待编辑曲目',
+    en: '',
+    jp: '',
+    composer: '',
+    difficulty: 1,
+    duration: 1
+  });
+  Utils.showToast('✅ Book ' + newBook + ' 已创建', 'success');
+  showRepertoireEditor();
+};
+
+console.log('✅ Lessons, Calendar, Repertoire modules loaded');
+
+/* ------------------------------------------
+   同步面板
+   ------------------------------------------ */
+window.showSyncPanel = function() {
+  const storageInfo = DB.getStorageInfo();
+
+  // Generate sync code
+  const syncCode = SyncCode.generateCode();
+  const codeDisplay = syncCode.slice(0, 40) + '…';
+
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">🔄 数据同步</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <h3 class="font-bold mb-8">📤 生成同步码</h3>
+          <p class="text-xs text-2 mb-8">复制下方同步码，发送到另一台设备粘贴即可同步</p>
+          <textarea class="form-input" id="syncCodeOutput" readonly
+                    style="min-height:100px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"
+                    onclick="this.select()">${syncCode}</textarea>
+          <div class="flex-row gap-8 mb-16">
+            <button class="btn btn-primary btn-sm" onclick="copySyncCode()" style="flex:1">📋 复制同步码</button>
+          </div>
+          <p class="text-xs text-3">包含：${DB.lessons().length} 条课程 · ${DB.logs().length} 条练习 · ${DB.repertoire().length} 首曲目</p>
+
+          <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
+
+          <h3 class="font-bold mb-8">📥 粘贴同步码</h3>
+          <p class="text-xs text-2 mb-8">从另一台设备复制同步码，粘贴到下方并导入</p>
+          <textarea class="form-input" id="syncCodeInput"
+                    placeholder="在此粘贴同步码…"
+                    style="min-height:80px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"></textarea>
+          <div class="flex-row gap-8 mb-16">
+            <button class="btn btn-success btn-sm" id="btnImportSync" style="flex:1">📥 导入同步码</button>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
+
+          <!-- 数据管理 -->
+          <h3 class="font-bold mb-8">📦 数据管理</h3>
+
+          <div class="p-12 mb-8" style="background:rgba(255,255,255,0.04);border-radius:var(--r-md);border:1px solid var(--border-1)">
+            <div class="flex-between mb-4">
+              <span class="text-sm">本地存储使用</span>
+              <span class="font-bold text-sm">${storageInfo.usedKB} KB</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-sm">课程记录</span>
+              <span class="text-sm text-2">${DB.lessons().length} 条</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-sm">练习日志</span>
+              <span class="text-sm text-2">${DB.logs().length} 条</span>
+            </div>
+          </div>
+
+          <button class="btn btn-secondary btn-sm" onclick="exportDataAsJSON()" style="width:100%;margin-bottom:8px">
+            📥 导出数据（JSON）
+          </button>
+
+          <button class="btn btn-secondary btn-sm" onclick="showImportPanel()" style="width:100%;margin-bottom:8px">
+            📤 导入数据（JSON）
+          </button>
+
+          <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
+
+          <div>
+            <h3 class="font-bold mb-8" style="color:var(--accent-red)">⚠️ 危险操作</h3>
+            <button class="btn btn-danger btn-sm" onclick="clearAllData()" style="width:100%">
+              🗑 清空所有数据
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // 导入同步码
+  document.getElementById('btnImportSync').addEventListener('click', () => {
+    const code = document.getElementById('syncCodeInput').value.trim();
+    if (!code) { Utils.showToast('⚠️ 请粘贴同步码', 'warning'); return; }
+    const result = SyncCode.importCode(code);
+    if (result.success) {
+      closeModal();
+      renderAll();
+      Utils.showToast('✅ 同步完成！' + result.stats.lessons + '课程 ' + result.stats.logs + '练习', 'success', 2500);
+    } else {
+      Utils.showToast('❌ ' + result.error, 'error');
+    }
+  });
+};
+
+// 复制同步码
+window.copySyncCode = function() {
+  const ta = document.getElementById('syncCodeOutput');
+  if (!ta) return;
+  ta.select();
+  Utils.copyToClipboard(ta.value).then(ok => {
+    Utils.showToast(ok ? '✅ 已复制到剪贴板' : '⚠️ 复制失败，请手动选择', ok ? 'success' : 'warning');
+  });
+};
+
+/* ------------------------------------------
+   同步按钮状态
+   ------------------------------------------ */
+function updateSyncButtonState() {
+  const btn = document.getElementById('syncBtn');
+  if (!btn) return;
+  const icon = btn.querySelector('.sync-icon');
+  const label = btn.querySelector('span:last-child');
+  btn.classList.add('synced');
+  if (icon) icon.textContent = '🔄';
+  if (label) label.textContent = '同步';
+}
+
+/* ==========================================
+   📥📤 数据导入导出
+   ========================================== */
+
+/* ------------------------------------------
+   导出数据为 JSON
+   ------------------------------------------ */
+window.exportDataAsJSON = function() {
+  const data = {
+    lessons: DB.lessons(),
+    logs: DB.logs(),
+    repertoire: DB.repertoire(),
+    config: DB.config(),
+    exportDate: new Date().toISOString(),
+    version: '2.1'
+  };
+  
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `piano-data-${Utils.today()}.json`;
+  a.click();
+  
+  URL.revokeObjectURL(url);
+  
+  Utils.showToast('✅ 数据已导出', 'success');
+};
+
+/* ------------------------------------------
+   显示导入面板
+   ------------------------------------------ */
+window.showImportPanel = function() {
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">📤 导入数据</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">选择 JSON 文件</label>
+            <input type="file" class="form-input" id="importFile" accept=".json" 
+                   style="padding:10px;cursor:pointer">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">或粘贴 JSON 数据</label>
+            <textarea class="form-input" id="importJSON" 
+                      placeholder='粘贴完整的 JSON 数据...' 
+                      style="min-height:120px;font-family:monospace;font-size:0.75rem"></textarea>
+          </div>
+          
+          <div class="p-12" style="background:rgba(255,107,107,0.1);border-radius:var(--r-md);border:1px solid var(--accent-red);margin-bottom:16px">
+            <p class="text-xs" style="color:var(--accent-red);line-height:1.5">
+              ⚠️ <strong>警告：</strong>导入会覆盖现有数据！<br>
+              建议先导出备份再进行导入操作。
+            </p>
+          </div>
+          
+          <button class="btn btn-primary" id="btnImport" style="width:100%">
+            📥 确认导入
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('btnImport').addEventListener('click', handleImport);
+};
+
+/* ------------------------------------------
+   处理数据导入
+   ------------------------------------------ */
+async function handleImport() {
+  const fileInput = document.getElementById('importFile');
+  const jsonTextarea = document.getElementById('importJSON');
+  
+  let jsonData = '';
+  
+  // 优先使用文件
+  if (fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    jsonData = await file.text();
+  } else if (jsonTextarea.value.trim()) {
+    jsonData = jsonTextarea.value.trim();
+  } else {
+    Utils.showToast('⚠️ 请选择文件或粘贴数据', 'warning');
+    return;
+  }
+  
+  try {
+    const data = JSON.parse(jsonData);
+    
+    // 验证数据格式
+    if (!data.lessons && !data.logs && !data.repertoire) {
+      Utils.showToast('❌ 数据格式不正确', 'error');
+      return;
+    }
+    
+    // 确认导入
+    if (!confirm('确定要导入数据吗？\n\n这将覆盖现有数据！')) {
+      return;
+    }
+    
+    // 导入数据
+    if (data.lessons) DB.saveLessons(data.lessons);
+    if (data.logs) DB.saveLogs(data.logs);
+    if (data.repertoire) DB.saveRepertoire(data.repertoire);
+    if (data.config) DB.saveConfig(data.config);
+    
+    closeModal();
+    renderAll();
+    
+    Utils.showToast(`✅ 导入成功！课程 ${data.lessons?.length || 0} 条，练习 ${data.logs?.length || 0} 条`, 'success', 3000);
+  } catch (error) {
+    console.error('Import error:', error);
+    Utils.showToast('❌ 数据解析失败：' + error.message, 'error');
+  }
+}
+
+/* ------------------------------------------
+   清空所有数据
+   ------------------------------------------ */
+window.clearAllData = function() {
+  const confirmed = confirm(
+    '⚠️ 危险操作！\n\n' +
+    '确定要清空所有数据吗？\n\n' +
+    '这将删除：\n' +
+    `- ${DB.lessons().length} 条课程记录\n` +
+    `- ${DB.logs().length} 条练习日志\n` +
+    '- 所有曲库学习进度\n' +
+    '- 同步配置\n\n' +
+    '此操作不可恢复！'
+  );
+  
+  if (!confirmed) return;
+  
+  const doubleConfirm = prompt('请输入 "DELETE" 确认删除：');
+  if (doubleConfirm !== 'DELETE') {
+    Utils.showToast('❌ 取消删除', 'info');
+    return;
+  }
+  
+  // 清空所有数据
+  DB.saveLessons([]);
+  DB.saveLogs([]);
+  DB.saveConfig({});
+  localStorage.removeItem('piano_logo');
+  localStorage.removeItem('piano_rep_version');
+  
+  // 重新初始化曲库
+  RepertoireManager.init();
+  
+  closeModal();
+  renderAll();
+  
+  Utils.showToast('✅ 所有数据已清空', 'success');
+};
+
+/* ==========================================
+   🔄 标签页切换
+   ========================================== */
+
+window.switchToTab = function(tabName) {
+  // 更新标签按钮状态
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    if (btn.dataset.tab === tabName) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  // 更新页面显示
+  document.querySelectorAll('.page').forEach(page => {
+    if (page.id === 'page-' + tabName) {
+      page.classList.add('active');
+    } else {
+      page.classList.remove('active');
+    }
+  });
+  
+  // 重新渲染对应页面
+  switch (tabName) {
+    case 'today':
+      renderToday();
+      break;
+    case 'lessons':
+      renderLessons();
+      break;
+    case 'calendar':
+      renderCalendar();
+      break;
+    case 'repertoire':
+      renderRepertoire();
+      break;
+  }
+};
+
+/* ==========================================
+   🎨 模态框关闭
+   ========================================== */
+
+window.closeModal = function() {
+  const container = document.getElementById('modalContainer');
+  if (container) {
+    container.innerHTML = '';
+  }
+};
+
+/* ==========================================
+   📜 滚动优化 - 头部阴影
+   ========================================== */
+
+function initScrollEffects() {
+  const mainContent = document.getElementById('mainContent');
+  const header = document.getElementById('header');
+  
+  if (!mainContent || !header) return;
+  
+  mainContent.addEventListener('scroll', Utils.throttle((e) => {
+    const scrollTop = e.target.scrollTop;
+    
+    if (scrollTop > 50) {
+      header.classList.add('scrolled');
+    } else {
+      header.classList.remove('scrolled');
+    }
+  }, 100));
+}
+
+/* ==========================================
+   🎯 全局渲染函数
+   ========================================== */
+
+function renderAll() {
+  // 更新连续打卡
+  const streak = StreakManager.calculate();
+  const streakEl = document.getElementById('streakCount');
+  if (streakEl) {
+    streakEl.textContent = streak;
+  }
+  
+  // 更新同步按钮
+  updateSyncButtonState();
+
+  // 渲染各个页面  // 渲染各个页面
+  renderToday();
+  renderLessons();
+  renderCalendar();
+  renderRepertoire();
+}
+
+/* ==========================================
+   🚀 应用初始化
+   ========================================== */
+
+/* ==========================================
+   🎉 应用加载完成
+   ========================================== */
+
+console.log(`
+╔════════════════════════════════════════╗
+║   🎹 哆哩的钢琴助手 v2.1               ║
+║   Apple Design · PWA · Cloud Sync      ║
+║   ✅ All modules loaded successfully   ║
+╚════════════════════════════════════════╝
+`);
+
+// 结束脚本标签
+
+(async function initApp() {
+  console.log('🎹 Piano Helper v3.0 initializing...');
+
+  try {
+    RepertoireManager.init();
+
+    // 首次打开自动载入演示数据（5/30 上课记录）
+    if (!DB.lessons().length) {
+      var DEMO = {"lessons":[{"id":"lesson_demo","date":"2026-05-30","pieces":[{"name":"埃科塞兹舞曲","en":"Écossaise","details":"A段左手，手腕不要抖，要上下；B段","category":"suzuki","repId":"s2-01","score":""},{"name":"小故事","en":"A Short Story","details":"lafare，等拍子的时候手在晃","category":"suzuki","repId":"s2-02","score":""},{"name":"快乐的农夫","en":"The Happy Farmer","details":"转弯的地方不要划回来","category":"suzuki","repId":"s2-03","score":""},{"name":"G小调小步舞曲 第一首","en":"Minuet 1, Klavier Suite in g minor","details":"左手等拍子的时候不要晃；A段合手；B段最后一行不熟","category":"suzuki","repId":"s2-04","score":""},{"name":"狮子大游行","details":"分手练，再合手","category":"pieces","score":""},{"name":"往事难忘","details":"要试一试d","category":"pieces","score":""},{"name":"五指练习","details":"合手","category":"beyer","score":""}],"focusAreas":["手腕稳定","分手练","合手","节奏"],"notes":""}],"logs":[],"repertoire":[]};
+      DB.saveLessons(DEMO.lessons);
+    }
+
+    LogoManager.load();
+    renderAll();
+
+    const tabBar = document.querySelector('.tab-bar');
+    if (tabBar) {
+      tabBar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tab-btn');
+        if (btn) switchToTab(btn.dataset.tab);
+      });
+    }
+
+    initScrollEffects();
+
+    console.log("✅ Startup ready");
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('✅ Service Worker registered');
+      }).catch(err => {
+        console.warn('Service Worker registration failed:', err);
+      });
+    }
+
+    console.log('✅ Piano Helper initialized successfully');
+
+  } catch (error) {
+    console.error('❌ App initialization error:', error);
+    const page = document.getElementById('page-today');
+    if (page) {
+      page.innerHTML = '<div class="card" style="border-left:4px solid var(--accent-red)"><h3 style="color:var(--accent-red)">⚠️ 启动错误</h3><p class="text-sm text-2 mt-8" style="line-height:1.6">' + Utils.escape(error.message) + '</p><p class="text-xs text-3 mt-8">请尝试刷新页面</p><button class="btn btn-primary mt-12" onclick="location.reload()">🔄 重新加载</button></div>';
+    }
+  }
+})();
+</script>
+</body>
+</html>
