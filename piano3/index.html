@@ -1369,6 +1369,37 @@ body::after {
 }
 
 /* ========================================
+   🔄 版本更新提示
+   ======================================== */
+.update-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  animation: update-toast-in 0.4s var(--ease-spring);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.update-toast:active {
+  transform: translateX(-50%) scale(0.96);
+}
+@keyframes update-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ========================================
    💫 空状态
    ======================================== */
 .empty-state {
@@ -6278,11 +6309,48 @@ console.log(`
     console.log("✅ Startup ready");
 
     if ('serviceWorker' in navigator) {
+      let newWorker = null;
       navigator.serviceWorker.register('sw.js').then(reg => {
         console.log('✅ Service Worker registered');
+
+        // Check if a new version is already waiting
+        if (reg.waiting) {
+          newWorker = reg.waiting;
+          showUpdateToast();
+        }
+
+        // Detect when a new version finishes installing
+        reg.addEventListener('updatefound', () => {
+          const installing = reg.installing;
+          installing.addEventListener('statechange', () => {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker = installing;
+              showUpdateToast();
+            }
+          });
+        });
       }).catch(err => {
         console.warn('Service Worker registration failed:', err);
       });
+
+      // If the controller changes (user activated new SW), reload
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+
+      function showUpdateToast() {
+        // Prevent duplicate toasts
+        if (document.querySelector('.update-toast')) return;
+        const toast = document.createElement('div');
+        toast.className = 'update-toast';
+        toast.textContent = '🆕 发现新版本 点击更新';
+        toast.addEventListener('click', () => {
+          toast.textContent = '更新中...';
+          toast.style.pointerEvents = 'none';
+          newWorker.postMessage('skipWaiting');
+        });
+        document.body.appendChild(toast);
+      }
     }
 
     console.log('✅ Piano Helper initialized successfully');
