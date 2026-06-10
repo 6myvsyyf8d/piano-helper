@@ -691,6 +691,15 @@ body::after {
   animation: star-pop 0.3s var(--ease-spring);
 }
 
+.star-btn.half {
+  filter: grayscale(0.4) opacity(0.65);
+  transform: scale(1.04);
+}
+
+.star-btn.half:hover {
+  filter: grayscale(0.2) opacity(0.75);
+}
+
 .star-btn:active {
   transform: scale(1.3);
 }
