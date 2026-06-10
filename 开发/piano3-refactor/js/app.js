@@ -109,7 +109,7 @@ function renderAll() {
 
 console.log(`
 ╔════════════════════════════════════════╗
-║   🎹 哆哩的钢琴助手 v3.1               ║
+║   🎹 哆哩的钢琴助手 v3.2               ║
 ║   ✅ All modules loaded successfully   ║
 ╚════════════════════════════════════════╝
 `);
@@ -117,7 +117,7 @@ console.log(`
 // 结束脚本标签
 
 (async function initApp() {
-  console.log('🎹 Piano Helper v3.1 initializing...');
+  console.log('🎹 Piano Helper v3.2 initializing...');
 
   try {
     RepertoireManager.init();
