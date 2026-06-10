@@ -195,7 +195,7 @@ function renderTodayCompleted(log) {
       <div class="p-12 mb-8" style="background:rgba(255,255,255,0.04);border-radius:12px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
           <strong>${i + 1}. ${Utils.escape(entry.pieceName)}</strong>
-          ${entry.rating ? '<span style="white-space:nowrap;flex-shrink:0">' + '⭐'.repeat(entry.rating) + '</span>' : ''}
+          ${entry.rating ? '<span style="white-space:nowrap;flex-shrink:0">' + (entry.rating % 1 === 0 ? '⭐'.repeat(entry.rating) : entry.rating + '⭐') + '</span>' : ''}
         </div>
         ${entry.durationMin ? '<div class="text-xs text-3 mt-4">⏱ ' + entry.durationMin + '分钟</div>' : ''}
       </div>
@@ -219,9 +219,10 @@ function renderTodayCompleted(log) {
   
   // 星星分布统计
   const starDist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  log.entries.forEach(e => { if (e.rating && starDist[e.rating] !== undefined) starDist[e.rating]++; });
+  log.entries.forEach(e => { if (e.rating) { const bucket = Math.round(e.rating); if (starDist[bucket] !== undefined) starDist[bucket]++; } });
   const totalRated = [5,4,3,2,1].reduce((s, n) => s + starDist[n], 0);
-  const avgRating = totalRated > 0 ? (Object.entries(starDist).reduce((s, [k,v]) => s + parseInt(k)*v, 0) / totalRated).toFixed(1) : '-';
+  const allRatings = log.entries.filter(e => e.rating > 0).map(e => e.rating);
+  const avgRating = allRatings.length > 0 ? (allRatings.reduce((s, r) => s + r, 0) / allRatings.length).toFixed(1) : '-';
 
   return `
     <!-- 完成卡片 — 扁平化 stats 面板 -->
@@ -506,14 +507,8 @@ function prefillEditUI() {
   for (const [idx, piece] of Object.entries(TodayState.pieces)) {
     // 星星
     if (piece.rating > 0) {
-      const container = document.querySelector(`.star-rating[data-index="${idx}"]`);
-      if (container) {
-        container.querySelectorAll('.star-btn').forEach(btn => {
-          if (parseInt(btn.dataset.star) <= piece.rating) btn.classList.add('active');
-        });
-      }
+      updateStarDisplay(idx, piece.rating);
     }
-    // 计时器显示与 badge
     if ((piece._timerSeconds || 0) > 0 || piece.durationMin > 0) {
       updatePieceTimerDisplay(idx);
       const badge = document.getElementById('timerBadge' + idx);
@@ -556,15 +551,9 @@ function prefillFreeUI() {
   for (const [idx, piece] of Object.entries(TodayState.pieces)) {
     if (!idx.startsWith('f')) continue;
     if (piece.rating > 0) {
-      const container = document.querySelector(`.star-rating[data-index="${idx}"]`);
-      if (container) {
-        container.querySelectorAll('.star-btn').forEach(btn => {
-          if (parseInt(btn.dataset.star) <= piece.rating) btn.classList.add('active');
-        });
-      }
+      updateStarDisplay(idx, piece.rating);
     }
     if (piece._timerSeconds > 0 || piece.durationMin > 0) {
-      if (!piece._timerSeconds) piece._timerSeconds = piece.durationMin * 60;
       updatePieceTimerDisplay(idx);
       const badge = document.getElementById('timerBadge' + idx);
       if (badge && piece.durationMin > 0) {
@@ -977,24 +966,34 @@ window.togglePieceExpand = function(index) {
 window.setStarRating = function(index, star) {
   TodayState.initPiece(index, '');
   const current = TodayState.pieces[index].rating;
-  
-  // 如果点击的是已选中的，则取消选择
-  TodayState.pieces[index].rating = (current === star) ? 0 : star;
-  
-  // 更新 UI
-  const container = document.querySelector(`.star-rating[data-index="${index}"]`);
-  if (container) {
-    const buttons = container.querySelectorAll('.star-btn');
-    buttons.forEach(btn => {
-      const s = parseInt(btn.dataset.star);
-      if (s <= TodayState.pieces[index].rating) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
+
+  if (current === star) {
+    // 满星 → 半星
+    TodayState.pieces[index].rating = star - 0.5;
+  } else if (current === star - 0.5) {
+    // 半星 → 取消
+    TodayState.pieces[index].rating = 0;
+  } else {
+    // 新选择 → 满星
+    TodayState.pieces[index].rating = star;
   }
+
+  updateStarDisplay(index, TodayState.pieces[index].rating);
 };
+
+function updateStarDisplay(index, rating) {
+  const container = document.querySelector(`.star-rating[data-index="${index}"]`);
+  if (!container) return;
+  container.querySelectorAll('.star-btn').forEach(btn => {
+    const s = parseInt(btn.dataset.star);
+    btn.classList.remove('active', 'half');
+    if (s <= Math.floor(rating)) {
+      btn.classList.add('active');
+    } else if (s === Math.ceil(rating) && rating % 1 !== 0) {
+      btn.classList.add('half');
+    }
+  });
+}
 
 // 曲目时长由单曲计时器自动计算
 

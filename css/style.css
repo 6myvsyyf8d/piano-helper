@@ -692,12 +692,27 @@ body::after {
 }
 
 .star-btn.half {
-  filter: grayscale(0.4) opacity(0.65);
-  transform: scale(1.04);
+  filter: none;
+  position: relative;
+}
+
+.star-btn.half::after {
+  content: '⭐';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: inset(0 0 0 50%);
+  filter: grayscale(1) opacity(0.3);
 }
 
 .star-btn.half:hover {
-  filter: grayscale(0.2) opacity(0.75);
+  filter: none;
+}
+
+.star-btn.half:hover::after {
+  filter: grayscale(0.6) opacity(0.6);
 }
 
 .star-btn:active {
