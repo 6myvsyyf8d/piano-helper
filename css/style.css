@@ -699,24 +699,11 @@ body::after {
 }
 
 .star-btn:hover {
-  transform: scale(1.15);
   filter: grayscale(0.6) opacity(0.6);
 }
 
 .star-btn.active {
   filter: none;
-  transform: scale(1.08);
-  animation: star-pop 0.3s var(--ease-spring);
-}
-
-.star-btn:active {
-  transform: scale(1.3);
-}
-
-@keyframes star-pop {
-  0% { transform: scale(0.7); }
-  50% { transform: scale(1.25); }
-  100% { transform: scale(1.08); }
 }
 
 /* ========================================
@@ -1800,8 +1787,7 @@ body::after {
 
 /* 悬停效果 */
 .star-unit:hover::before {
-  transform: scale(1.15);
-  transition: transform 0.1s ease;
+  opacity: 0.8;
 }
 
 /* 已完成记录中的半星显示（小尺寸） */

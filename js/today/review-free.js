@@ -611,7 +611,7 @@ function restoreReviewPieces(existingLog) {
     TodayState.pieces[index].durationMin = entry.durationMin || 0;
 
     return '<div class="piece-card" data-index="' + index + '" id="piece' + index + '">' +
-      '<div class="piece-card-top">' +
+      '<div class="piece-card-top" onclick="togglePieceExpand(\'' + index + '\', event)">' +
         '<span class="piece-number">' + (i + 1) + '</span>' +
         '<div class="piece-info" style="flex:1">' +
           '<div class="piece-title">' +
@@ -619,13 +619,11 @@ function restoreReviewPieces(existingLog) {
             (pieceName ? '<span style="font-weight:400;color:var(--text-2);font-size:0.8rem"> ' + Utils.escape(pieceName) + '</span>' : '') +
           '</div>' +
         '</div>' +
-        '<button class="btn btn-sm ' + (memorized ? 'btn-primary' : 'btn-secondary') + '"' +
-                ' style="font-size:0.7rem;padding:5px 10px"' +
-                ' onclick="toggleReviewMemorized(\'' + index + '\', \'' + repId + '\')">' +
-          (memorized ? '🧠 背谱' : '📖 看谱') +
-        '</button>' +
+        '<span class="piece-expand-icon">▼</span>' +
       '</div>' +
-      starRatingHTML(index) +
+      '<div class="piece-card-body">' +
+        starRatingHTML(index) +
+      '</div>' +
     '</div>';
   }).join('');
 }
@@ -637,21 +635,24 @@ function restoreReviewPieces(existingLog) {
 function freePieceCardHTML(index, pieceName) {
   pieceName = pieceName || '';
   return '<div class="piece-card" data-index="f' + index + '" id="piecef' + index + '">' +
-    '<div class="piece-card-top" style="align-items:center">' +
+    '<div class="piece-card-top" onclick="togglePieceExpand(\'f' + index + '\', event)" style="align-items:center">' +
       '<span class="piece-number">' + (index + 1) + '</span>' +
       '<div class="piece-info" style="flex:1">' +
         '<input class="form-input free-piece-name" data-index="f' + index + '"' +
                ' placeholder="输入曲目名称..." value="' + Utils.escape(pieceName) + '"' +
                ' style="padding:6px 10px;font-size:0.85rem;border:none;background:transparent;font-weight:700;color:var(--text-1)">' +
       '</div>' +
-      '<button class="btn btn-sm" onclick="removeFreePiece(\'f' + index + '\')"' +
+      '<button class="btn btn-sm" onclick="event.stopPropagation(); removeFreePiece(\'f' + index + '\')"' +
               ' style="font-size:0.65rem;padding:3px 8px;color:var(--danger);background:transparent">✕</button>' +
+      '<span class="piece-expand-icon">▼</span>' +
     '</div>' +
-    starRatingHTML('f' + index) +
-    '<div class="form-group" style="margin-top:8px">' +
-      '<textarea class="form-input free-piece-notes" data-index="f' + index + '"' +
-                ' placeholder="练习备注..." rows="2"' +
-                ' style="min-height:40px;font-size:0.8rem;padding:8px 10px"></textarea>' +
+    '<div class="piece-card-body">' +
+      starRatingHTML('f' + index) +
+      '<div class="form-group" style="margin-top:8px">' +
+        '<textarea class="form-input free-piece-notes" data-index="f' + index + '"' +
+                  ' placeholder="练习备注..." rows="2"' +
+                  ' style="min-height:40px;font-size:0.8rem;padding:8px 10px"></textarea>' +
+      '</div>' +
     '</div>' +
   '</div>';
 }
