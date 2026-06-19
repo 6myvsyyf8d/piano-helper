@@ -273,10 +273,10 @@ const RepertoireManager = {
   getBookDisplayName(bookNum) {
     const meta = DB.bookMeta();
     if (meta[bookNum]) return meta[bookNum];
-    // 小曲集（bookNum 21-31，对应原册号1-11）
+    // 小曲集（bookNum 21-31，对应拜尔10-110号）
     if (bookNum >= 21 && bookNum <= 31) {
-      const originalBook = bookNum - 20;
-      return '小曲集第' + this._toChineseNum(originalBook) + '册';
+      const beyerLevel = (bookNum - 20) * 10;
+      return `小曲集-拜尔${beyerLevel}号`;
     }
     // 铃木
     if (bookNum === 1) return '铃木第一册';
