@@ -209,15 +209,7 @@ function buildWeekViewHTML(logsMap) {
       totalMin += duration;
     }
 
-    cells.push(`
-      <div class="calendar-week-cell ${isToday ? 'today' : ''} ${!log ? 'no-practice' : ''}"
-           data-date="${dateStr}" onclick="showDayDetail('${dateStr}')">
-        <div class="week-day-name">${dayHeaders[d.getDay()]}</div>
-        <div class="week-date">${d.getDate()}</div>
-        ${duration > 0 ? '<div class="week-duration">⏱ ' + duration + '分</div>' : ''}
-        ${stars > 0 ? '<div class="week-stars">' + stars + '⭐</div>' : ''}
-      </div>
-    `);
+    cells.push('<div class="calendar-week-cell ' + (isToday ? 'today ' : '') + (!log ? 'no-practice ' : '') + '" data-date="' + dateStr + '" onclick="showDayDetail(\'' + dateStr + '\')"><div class="week-day-name">' + dayHeaders[d.getDay()] + '</div><div class="week-date">' + d.getDate() + '</div>' + (duration > 0 ? '<div class="week-duration">⏱ ' + duration + '分</div>' : '') + (stars > 0 ? '<div class="week-stars">' + stars + '⭐</div>' : '') + '</div>');
   }
 
   const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];

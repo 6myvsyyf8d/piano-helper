@@ -1195,9 +1195,10 @@ body::after {
 /* 周视图 */
 .calendar-week-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 5px;
   margin-bottom: 12px;
+  width: 100%;
 }
 
 .calendar-week-cell {
