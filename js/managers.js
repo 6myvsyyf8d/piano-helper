@@ -751,4 +751,141 @@ const SyncCode = {
   }
 };
 
+/* ------------------------------------------
+   🏅 里程碑配置（悦跑圈风格）
+   ------------------------------------------ */
+const STAR_MILESTONES = [
+  { stars: 5, label: '初露锋芒', icon: '🌟', desc: '单日获得 5 颗星' },
+  { stars: 10, label: '稳步提升', icon: '⭐', desc: '单日获得 10 颗星' },
+  { stars: 15, label: '星星之火', icon: '✨', desc: '单日获得 15 颗星' },
+  { stars: 20, label: '光彩夺目', icon: '🌈', desc: '单日获得 20 颗星' },
+  { stars: 25, label: '熠熠生辉', icon: '💫', desc: '单日获得 25 颗星' },
+  { stars: 30, label: '星光璀璨', icon: '🏆', desc: '单日获得 30 颗星' }
+];
+
+const STREAK_MILESTONES = [
+  { days: 3, label: '初尝甜头', icon: '🔥', desc: '连续练习 3 天' },
+  { days: 7, label: '习惯养成', icon: '💪', desc: '连续练习 7 天' },
+  { days: 14, label: '小有所成', icon: '🌱', desc: '连续练习 14 天' },
+  { days: 30, label: '持之以恒', icon: '🏅', desc: '连续练习 30 天' },
+  { days: 60, label: '锲而不舍', icon: '🎖️', desc: '连续练习 60 天' },
+  { days: 100, label: '百炼成钢', icon: '👑', desc: '连续练习 100 天' },
+  { days: 180, label: '半年荣耀', icon: '🎪', desc: '连续练习 180 天' },
+  { days: 365, label: '年度巅峰', icon: '🎯', desc: '连续练习 365 天' }
+];
+
+const DURATION_MILESTONES = [
+  { minutes: 30, label: '30分钟达人', icon: '⏰', desc: '单日练习 30 分钟' },
+  { minutes: 60, label: '1小时战士', icon: '⌛', desc: '单日练习 60 分钟' },
+  { minutes: 90, label: '90分钟精英', icon: '⏳', desc: '单日练习 90 分钟' },
+  { minutes: 120, label: '2小时大师', icon: '🕐', desc: '单日练习 120 分钟' },
+  { minutes: 180, label: '3小时传奇', icon: '⏱️', desc: '单日练习 180 分钟' }
+];
+
+/**
+ * 构建里程碑 HTML（用于今日成绩、日历统计、统计页）
+ * @param {number} maxStarsDay 历史最高单日星星数
+ * @param {number} maxDurationDay 历史最高单日练习时长(分钟)
+ * @param {number} currentStreak 当前连续练习天数
+ * @returns {string} HTML
+ */
+function buildMilestonesHTML(maxStarsDay, maxDurationDay, currentStreak) {
+  function renderBadge(achieved, icon, label, desc) {
+    const borderColor = achieved ? 'var(--accent-primary)' : 'var(--border-2)';
+    const bgColor = achieved ? 'rgba(245,160,152,0.1)' : 'rgba(255,255,255,0.02)';
+    const opacity = achieved ? '1' : '0.4';
+    const badgeStyle = achieved ? 'box-shadow:0 0 12px rgba(245,160,152,0.3)' : '';
+    return `
+      <div style="display:inline-flex;flex-direction:column;align-items:center;padding:10px 6px;border-radius:12px;background:${bgColor};border:1px solid ${borderColor};min-width:64px;opacity:${opacity};${badgeStyle}">
+        <span style="font-size:1.3rem">${icon}</span>
+        <span style="font-size:0.65rem;font-weight:600;color:var(--text-1);margin-top:4px;text-align:center">${label}</span>
+        <span style="font-size:0.55rem;color:var(--text-3);margin-top:2px;text-align:center">${desc}</span>
+        ${achieved ? '<span style="font-size:0.5rem;color:var(--accent-primary);margin-top:4px">✓ 已达成</span>' : ''}
+      </div>
+    `;
+  }
+
+  const achievedStar = STAR_MILESTONES.filter(m => maxStarsDay >= m.stars);
+  const achievedStreak = STREAK_MILESTONES.filter(m => currentStreak >= m.days);
+  const achievedDuration = DURATION_MILESTONES.filter(m => maxDurationDay >= m.minutes);
+
+  const hasAnyAchievement = maxStarsDay > 0 || currentStreak > 0 || maxDurationDay > 0;
+
+  let html = `
+    <div class="card" style="margin-top:12px">
+      <div class="card-header">
+        <h3 class="card-title">🏅 成就里程碑</h3>
+      </div>
+      ${!hasAnyAchievement ? '<div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.8rem">开始练习后解锁成就</div>' : `
+      <div style="margin-bottom:14px">
+        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">🌟 星星成就</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${STAR_MILESTONES.map(m => renderBadge(maxStarsDay >= m.stars, m.icon, m.label, m.desc)).join('')}
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">🔥 连续成就</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${STREAK_MILESTONES.map(m => renderBadge(currentStreak >= m.days, m.icon, m.label, m.desc)).join('')}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">⏱️ 时长成就</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${DURATION_MILESTONES.map(m => renderBadge(maxDurationDay >= m.minutes, m.icon, m.label, m.desc)).join('')}
+        </div>
+      </div>
+      `}
+    </div>
+  `;
+
+  return html;
+}
+
+/**
+ * 从日志计算里程碑统计数据
+ * @returns {{maxStarsDay: number, maxDurationDay: number, currentStreak: number}}
+ */
+function computeMilestoneStats() {
+  const logs = DB.logs();
+  if (!logs.length) return { maxStarsDay: 0, maxDurationDay: 0, currentStreak: 0 };
+
+  let maxStarsDay = 0;
+  let maxDurationDay = 0;
+
+  const datesSet = new Set();
+  for (const l of logs) {
+    datesSet.add(l.date);
+    const dayStars = (l.entries || []).reduce((s, e) => s + (e.rating || 0), 0);
+    if (dayStars > maxStarsDay) maxStarsDay = dayStars;
+    const min = l.totalDurationMin || 0;
+    if (min > maxDurationDay) maxDurationDay = min;
+  }
+
+  // 计算当前连续打卡天数
+  const today = Utils.today();
+  const todayDate = new Date(today + 'T00:00:00');
+  let currentStreak = 0;
+  function dateToYMD(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  const checkDate = new Date(todayDate);
+  while (datesSet.has(dateToYMD(checkDate))) {
+    currentStreak++;
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+  // 如果今天没打卡，从昨天开始算
+  if (currentStreak === 0) {
+    const yesterdayDate = new Date(todayDate);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const ydCheck = new Date(yesterdayDate);
+    while (datesSet.has(dateToYMD(ydCheck))) {
+      currentStreak++;
+      ydCheck.setDate(ydCheck.getDate() - 1);
+    }
+  }
+
+  return { maxStarsDay, maxDurationDay, currentStreak };
+}
+
 console.log('✅ Core modules loaded');

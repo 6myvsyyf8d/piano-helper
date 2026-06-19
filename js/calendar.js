@@ -36,7 +36,10 @@ function renderCalendar() {
     ? buildWeekViewHTML(logsMap)
     : buildCalendarHTML(calendarState.year, calendarState.month, logsMap);
 
-  page.innerHTML = viewToggle + contentHTML;
+  const msStats = computeMilestoneStats();
+  const milestonesHTML = buildMilestonesHTML(msStats.maxStarsDay, msStats.maxDurationDay, msStats.currentStreak);
+
+  page.innerHTML = viewToggle + contentHTML + milestonesHTML;
   bindCalendarEvents();
   bindViewToggleEvents();
 }

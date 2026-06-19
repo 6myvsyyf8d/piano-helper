@@ -351,8 +351,11 @@ function renderTodayPage() {
 
   // 已有今日日志 → 显示已完成记录
     if (log) {
+    const msStats = computeMilestoneStats();
+    const milestonesHTML = buildMilestonesHTML(msStats.maxStarsDay, msStats.maxDurationDay, msStats.currentStreak);
     page.innerHTML = '<div id="sectionCompleted">' +
       renderTodayCompletedHTML(log) +
+      milestonesHTML +
     '</div>';
     // 绑定修改按钮
     const btnEdit = document.getElementById('btnEditToday');

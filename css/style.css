@@ -580,6 +580,18 @@ body::after {
 .piece-card-body {
   position: relative;
   z-index: 1;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.piece-card.expanded .piece-card-body {
+  max-height: 500px;
+  opacity: 1;
+  margin-top: 10px;
+  padding-top: 6px;
 }
 
 .piece-number {
@@ -638,7 +650,6 @@ body::after {
   max-height: 0;
   overflow: hidden;
   opacity: 0;
-  transition: all 0.4s var(--ease-out);
 }
 
 .piece-card.expanded .teacher-notes {
