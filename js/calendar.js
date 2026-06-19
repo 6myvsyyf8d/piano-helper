@@ -114,7 +114,7 @@ function buildCalendarHTML(year, month, logsMap) {
     
     <div class="calendar-grid">
       ${dayHeaders.map(h => `<div class="calendar-weekday">${h}</div>`).join('')}
-      ${cells}
+      ${cells.join('')}
     </div>
     
     <div class="calendar-stats">
@@ -222,7 +222,7 @@ function buildWeekViewHTML(logsMap) {
     </div>
 
     <div class="calendar-week-grid">
-      ${cells}
+      ${cells.join('')}
     </div>
 
     <div class="calendar-stats">
