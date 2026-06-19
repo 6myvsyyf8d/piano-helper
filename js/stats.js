@@ -4,37 +4,6 @@
 
 "use strict";
 
-/* ------------------------------------------
-   里程碑配置（悦跑圈风格）
-   ------------------------------------------ */
-const STAR_MILESTONES = [
-  { stars: 5, label: '初露锋芒', icon: '🌟', desc: '单日获得 5 颗星' },
-  { stars: 10, label: '稳步提升', icon: '⭐', desc: '单日获得 10 颗星' },
-  { stars: 15, label: '星星之火', icon: '✨', desc: '单日获得 15 颗星' },
-  { stars: 20, label: '光彩夺目', icon: '🌈', desc: '单日获得 20 颗星' },
-  { stars: 25, label: '熠熠生辉', icon: '💫', desc: '单日获得 25 颗星' },
-  { stars: 30, label: '星光璀璨', icon: '🏆', desc: '单日获得 30 颗星' }
-];
-
-const STREAK_MILESTONES = [
-  { days: 3, label: '初尝甜头', icon: '🔥', desc: '连续练习 3 天' },
-  { days: 7, label: '习惯养成', icon: '💪', desc: '连续练习 7 天' },
-  { days: 14, label: '小有所成', icon: '🌱', desc: '连续练习 14 天' },
-  { days: 30, label: '持之以恒', icon: '🏅', desc: '连续练习 30 天' },
-  { days: 60, label: '锲而不舍', icon: '🎖️', desc: '连续练习 60 天' },
-  { days: 100, label: '百炼成钢', icon: '👑', desc: '连续练习 100 天' },
-  { days: 180, label: '半年荣耀', icon: '🎪', desc: '连续练习 180 天' },
-  { days: 365, label: '年度巅峰', icon: '🎯', desc: '连续练习 365 天' }
-];
-
-const DURATION_MILESTONES = [
-  { minutes: 30, label: '30分钟达人', icon: '⏰', desc: '单日练习 30 分钟' },
-  { minutes: 60, label: '1小时战士', icon: '⌛', desc: '单日练习 60 分钟' },
-  { minutes: 90, label: '90分钟精英', icon: '⏳', desc: '单日练习 90 分钟' },
-  { minutes: 120, label: '2小时大师', icon: '🕐', desc: '单日练习 120 分钟' },
-  { minutes: 180, label: '3小时传奇', icon: '⏱️', desc: '单日练习 180 分钟' }
-];
-
 function renderStats() {
   const page = document.getElementById('page-stats');
   if (!page) return;
