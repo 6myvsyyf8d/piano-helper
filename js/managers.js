@@ -6,7 +6,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 3,
+  VERSION: '3.4-20260619',
 
   // 初始化曲库
   init() {
@@ -17,18 +17,27 @@ const RepertoireManager = {
     if (!currentRep.length || storedVersion != this.VERSION) {
       console.log('Initializing repertoire, version:', this.VERSION);
 
-      const repertoire = SUZUKI_DATA.map(piece => ({
+      // 合并铃木和小曲集数据
+      const allData = [...SUZUKI_DATA, ...OGATA_DATA];
+
+      const repertoire = allData.map(piece => ({
         ...piece,
-        // 默认状态：Book 1 全部已学会，Book 2 前 4 首已学会
-        status: piece.book === 1 ? 'learned' :
-                (piece.book === 2 && piece.num <= 4 ? 'learned' : 'untouched'),
-        // 默认背谱：Book 1 全部可背谱，Book 2 前 4 首可背谱
-        memorized: piece.book === 1 ? true :
-                   (piece.book === 2 && piece.num <= 4 ? true : false),
+        // 默认状态：铃木 Book 1 全部已学会，Book 2 前 4 首已学会；小曲集默认未学
+        status: piece.id.startsWith('s') ? (
+          piece.book === 1 ? 'learned' :
+          (piece.book === 2 && piece.num <= 4 ? 'learned' : 'untouched')
+        ) : 'untouched',
+        // 默认背谱：铃木 Book 1 全部可背谱，Book 2 前 4 首可背谱；小曲集默认不可背谱
+        memorized: piece.id.startsWith('s') ? (
+          piece.book === 1 ? true :
+          (piece.book === 2 && piece.num <= 4 ? true : false)
+        ) : false,
         // 学习日期
         startedDate: null,
-        completedDate: piece.book === 1 ? '2026-01-01' :
-                       (piece.book === 2 && piece.num <= 4 ? '2026-03-01' : null),
+        completedDate: piece.id.startsWith('s') ? (
+          piece.book === 1 ? '2026-01-01' :
+          (piece.book === 2 && piece.num <= 4 ? '2026-03-01' : null)
+        ) : null,
         // 总练习时长（分钟）
         totalMinutes: 0,
         // 练习次数
@@ -259,14 +268,26 @@ const RepertoireManager = {
   /**
    * 获取一本册的显示名称（优先用 bookMeta，否则用默认命名）
    * @param {number} bookNum - 册号
-   * @returns {string} 显示名称（如 "铃木第一册"、"拜厄"、"Book 3"）
+   * @returns {string} 显示名称（如 "铃木第一册"、"小曲集第一册"、"Book 3"）
    */
   getBookDisplayName(bookNum) {
     const meta = DB.bookMeta();
     if (meta[bookNum]) return meta[bookNum];
+    // 小曲集（bookNum 21-31，对应原册号1-11）
+    if (bookNum >= 21 && bookNum <= 31) {
+      const originalBook = bookNum - 20;
+      return '小曲集第' + this._toChineseNum(originalBook) + '册';
+    }
+    // 铃木
     if (bookNum === 1) return '铃木第一册';
     if (bookNum === 2) return '铃木第二册';
     return 'Book ' + bookNum;
+  },
+
+  // 数字转中文
+  _toChineseNum(n) {
+    const cn = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一'];
+    return cn[n - 1] || n;
   }
 };
 /* ==========================================
