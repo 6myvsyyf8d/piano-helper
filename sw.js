@@ -2,11 +2,11 @@
 // Network-first strategy + update notification
 const CACHE_NAME = 'piano3-v3';
 const ASSETS = [
-  '/piano-helper/piano3/',
-  '/piano-helper/piano3/index.html',
-  '/piano-helper/piano3/manifest.json',
-  '/piano-helper/piano3/icon-192.png',
-  '/piano-helper/piano3/icon-512.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 // Install — cache assets, but DON'T skipWaiting (let user decide)
@@ -49,7 +49,7 @@ self.addEventListener('fetch', (event) => {
       .catch(() => {
         // Network failed — serve from cache
         return caches.match(event.request).then((cached) => {
-          return cached || caches.match('/piano-helper/piano3/index.html');
+          return cached || caches.match('./index.html');
         });
       })
   );
