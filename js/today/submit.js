@@ -34,7 +34,7 @@ window.toggleCategory = function(cat) {
 window.togglePieceExpand = function(index, event) {
   if (event) {
     var target = event.target;
-    if (target.closest('.star-rating, .form-input, .form-textarea, button, .duration-display, input, textarea, select, .piece-expand-icon')) {
+    if (target.closest('.star-rating, .form-input, .form-textarea, button, .duration-display, input, textarea, select')) {
       return;
     }
   }
