@@ -174,7 +174,9 @@ function groupLessonPiecesByBook(pieces) {
 function renderBookCard(bookNum, bookPieces) {
   // 检查册是否还存在于曲库（影响：是否灰色显示）
   const allBooks = RepertoireManager.getBookList();
-  const isDeleted = !allBooks.includes(bookNum);
+  const isCustom = RepertoireManager.isCustomBook(bookNum);
+  // 自定义册不算 deleted（因为曲库里本来就没有）
+  const isDeleted = !isCustom && !allBooks.includes(bookNum);
   const displayName = RepertoireManager.getBookDisplayName(bookNum);
 
   // 灰色样式（已删除册）
@@ -192,15 +194,20 @@ function renderBookCard(bookNum, bookPieces) {
     ? '<span class="text-xs" style="color:var(--accent-red);margin-left:6px">⚠️ 此册已从曲库移除</span>'
     : '';
 
+  // 书名显示：自定义册用可编辑输入框，曲库册用纯文本
+  const titleHtml = isCustom
+    ? '<input type="text" class="form-input custom-book-title" data-book="' + bookNum + '" value="' + Utils.escape(displayName) + '" placeholder="例如：拜厄钢琴基本教程" style="padding:6px 10px;font-size:0.9rem;background:rgba(255,255,255,0.06);border:1px solid var(--border-1)">'
+    : '<span class="font-bold text-sm">📖 ' + Utils.escape(displayName) + deletedBadge + '</span>';
+
   // 添加曲目按钮（已删除册不允许加新曲目）
   const addPieceBtn = isDeleted
     ? ''
-    : `<button type="button" class="btn btn-sm btn-secondary" onclick="addLessonPiece(${bookNum})" style="font-size:0.7rem;padding:4px 10px;width:100%;margin-top:6px">＋ 添加这册的曲目</button>`;
+    : '<button type="button" class="btn btn-sm btn-secondary" onclick="addLessonPiece(' + bookNum + ')" style="font-size:0.7rem;padding:4px 10px;width:100%;margin-top:6px">＋ 添加这册的曲目</button>';
 
   return `
     <div class="lesson-book-card mb-12" data-book-num="${bookNum}" style="${cardStyle};padding:12px;border-radius:8px">
       <div class="flex-between mb-8">
-        <span class="font-bold text-sm">📖 ${Utils.escape(displayName)}${deletedBadge}</span>
+        <span style="flex:1;min-width:0">${titleHtml}</span>
         <button type="button" class="btn btn-sm btn-danger" onclick="removeLessonBookCard(${bookNum})" style="font-size:0.65rem;padding:3px 8px" title="移除整张卡片">✕</button>
       </div>
       <div class="lesson-book-pieces" data-book-pieces="${bookNum}">
@@ -223,12 +230,20 @@ function lessonPieceCardHTML(piece, idx, bookNum, isDeleted) {
   const focusOptions = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
   const scoreStars = (piece.score || '').length;
   const pieceFocusAreas = piece.focusAreas || [];
+  const isCustom = RepertoireManager.isCustomBook(bookNum);
 
-  // 曲目选择器：用 SuzukiSelectHelper 的 piece-select（基于 bookNum）
-  // 已删除册不让选，显示纯文本
-  const nameField = isDeleted
-    ? `<input class="form-input piece-name-input" value="${Utils.escape(piece.name || '')}" disabled style="padding:8px 10px;font-size:0.85rem;opacity:0.7">`
-    : SuzukiSelectHelper.buildPieceSelect(bookNum, 'book' + bookNum, idx, piece.repId, piece.name);
+  // 曲目选择器：
+  // - 自定义册 (bookNum >= 1000)：自由输入框
+  // - 已删除册：纯文本输入框
+  // - 曲库册：下拉选择器
+  let nameField;
+  if (isCustom) {
+    nameField = '<input type="text" class="form-input piece-name-input" value="' + Utils.escape(piece.name || '') + '" placeholder="例如：拜厄第12首" style="padding:8px 10px;font-size:0.85rem">';
+  } else if (isDeleted) {
+    nameField = '<input class="form-input piece-name-input" value="' + Utils.escape(piece.name || '') + '" disabled style="padding:8px 10px;font-size:0.85rem;opacity:0.7">';
+  } else {
+    nameField = SuzukiSelectHelper.buildPieceSelect(bookNum, 'book' + bookNum, idx, piece.repId, piece.name);
+  }
 
   return `
     <div class="card mb-8 lesson-piece-card" data-book="${bookNum}" data-piece-idx="${idx}" style="padding:10px">
@@ -284,29 +299,18 @@ function lessonPieceCardHTML(piece, idx, bookNum, isDeleted) {
 window.showLessonAddBookPicker = function() {
   const allBooks = RepertoireManager.getBookList();
 
-  if (!allBooks.length) {
-    Utils.showToast('⚠️ 请先在「曲库」页面添加分册', 'warning');
-    return;
-  }
-
   // 找出当前已添加的 book，避免重复
   const existingBooks = new Set();
   document.querySelectorAll('.lesson-book-card').forEach(card => {
     existingBooks.add(parseInt(card.dataset.bookNum));
   });
 
-  // 可选的册（去掉已添加的）
+  // 可选的册（去掉已添加的，曲库册 + 自定义册入口）
   const availableBooks = allBooks.filter(b => !existingBooks.has(b));
-
-  if (!availableBooks.length) {
-    Utils.showToast('ℹ️ 曲库的所有册都已添加', 'info');
-    return;
-  }
 
   const modal = document.getElementById('modalContainer');
 
-  // 保留当前模态框（不能 closeModal，否则丢失编辑中的数据）
-  // 改用临时 picker 浮层
+  // 保留当前模态框（不 closeModal），用临时 picker 浮层
   const pickerHtml = `
     <div class="modal-overlay" id="lessonBookPicker" onclick="if(event.target===this)closeLessonBookPicker()" style="z-index:1100">
       <div class="modal" style="max-width:400px">
@@ -315,15 +319,18 @@ window.showLessonAddBookPicker = function() {
           <button class="modal-close" onclick="closeLessonBookPicker()">✕</button>
         </div>
         <div class="modal-body">
-          <p class="text-xs text-2 mb-12">从曲库中选择本次课要练的册：</p>
-          ${availableBooks.map(bn => {
+          <p class="text-xs text-2 mb-12">从曲库中选择本次课要练的册，或自由添加教材：</p>
+          ${availableBooks.length ? availableBooks.map(bn => {
             const name = RepertoireManager.getBookDisplayName(bn);
             return `
               <button type="button" class="btn btn-secondary mb-8" onclick="addLessonBookCard(${bn})" style="width:100%;text-align:left;padding:12px">
                 📖 ${Utils.escape(name)}
               </button>
             `;
-          }).join('')}
+          }).join('') : '<p class="text-xs text-3 mb-8 text-center">曲库中所有册已添加</p>'}
+          <button type="button" class="btn btn-primary mb-8" onclick="addCustomLessonBookCard()" style="width:100%;padding:12px;background:var(--accent-primary);border:none;color:#fff">
+            ➕ 自定义教材（自由输入书名、曲名）
+          </button>
         </div>
       </div>
     </div>
@@ -360,13 +367,37 @@ window.addLessonBookCard = function(bookNum) {
   if (emptyHint) emptyHint.remove();
 
   // 该册卡片已存在则不重复添加
-  if (container.querySelector(`.lesson-book-card[data-book-num="${bookNum}"]`)) {
+  if (container.querySelector('.lesson-book-card[data-book-num="' + bookNum + '"]')) {
     Utils.showToast('ℹ️ 该册已添加', 'info');
     return;
   }
 
   // 渲染新卡片（无曲目）
   const cardHtml = renderBookCard(bookNum, []);
+  const div = document.createElement('div');
+  div.innerHTML = cardHtml;
+  container.appendChild(div.firstElementChild);
+};
+
+/**
+ * 添加一张自定义册卡片（bookNum >= 1000，自由输入书名和曲名）
+ * @returns {void}
+ */
+window.addCustomLessonBookCard = function() {
+  closeLessonBookPicker();
+
+  const container = document.getElementById('lessonBookCardsContainer');
+  if (!container) return;
+
+  // 移除空状态提示
+  const emptyHint = document.getElementById('lessonEmptyHint');
+  if (emptyHint) emptyHint.remove();
+
+  // 分配一个新的自定义册号
+  const newBookNum = RepertoireManager.getNextCustomBookNum();
+
+  // 渲染新卡片（空曲目列表）
+  const cardHtml = renderBookCard(newBookNum, []);
   const div = document.createElement('div');
   div.innerHTML = cardHtml;
   container.appendChild(div.firstElementChild);
@@ -503,14 +534,18 @@ window.saveLesson = function(lessonId) {
       let repId = '';
 
       if (nameSelect) {
+        // 曲库册：从下拉选择器读取
         name = nameSelect.value.trim();
         const selectedOption = nameSelect.options[nameSelect.selectedIndex];
         repId = selectedOption ? (selectedOption.dataset.repid || '') : '';
       } else if (nameInput) {
-        // 已删除册的纯文本输入框（disabled），保留原值
+        // 自定义册 或 已删除册：从 input 读取
         name = nameInput.value.trim();
-        const repPiece = RepertoireManager.findByName(name);
-        if (repPiece) repId = repPiece.id;
+        // 只有非自定义册才尝试从曲库找 repId
+        if (!RepertoireManager.isCustomBook(bookNum)) {
+          const repPiece = RepertoireManager.findByName(name);
+          if (repPiece) repId = repPiece.id;
+        }
       }
 
       if (!name) return; // 跳过空曲目
@@ -546,6 +581,27 @@ window.saveLesson = function(lessonId) {
   if (!pieces.length) {
     Utils.showToast('⚠️ 请至少添加一首曲目', 'warning');
     return;
+  }
+
+  // ── 保存自定义册的书名到 bookMeta ──
+  // 对所有 bookNum >= 1000 的册，从 .custom-book-title 读取书名并存入
+  let customBookTitles = {};
+  document.querySelectorAll('.custom-book-title').forEach(inputEl => {
+    const bn = parseInt(inputEl.dataset.book);
+    const title = inputEl.value.trim();
+    if (bn && title) customBookTitles[bn] = title;
+  });
+
+  if (Object.keys(customBookTitles).length) {
+    const meta = DB.bookMeta();
+    let changed = false;
+    for (const [bn, title] of Object.entries(customBookTitles)) {
+      if (meta[bn] !== title) {
+        meta[bn] = title;
+        changed = true;
+      }
+    }
+    if (changed) DB.saveBookMeta(meta);
   }
 
   // 构建课程对象

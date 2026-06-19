@@ -168,11 +168,24 @@ const RepertoireManager = {
     };
   },
 
-  // 获取所有分册列表
+  // 判断是否为自定义册（bookNum >= 1000）
+  isCustomBook(bookNum) {
+    return Number(bookNum) >= 1000;
+  },
+
+  // 获取所有分册列表（不含自定义册，自定义册不显示在曲库页面）
   getBookList() {
     const rep = DB.repertoire();
     const books = new Set(rep.map(p => p.book));
-    return [...books].sort((a, b) => a - b);
+    return [...books].filter(b => !this.isCustomBook(b)).sort((a, b) => a - b);
+  },
+
+  // 获取下一个可用的自定义册号
+  getNextCustomBookNum() {
+    const meta = DB.bookMeta();
+    const used = Object.keys(meta).map(n => Number(n)).filter(n => n >= 1000);
+    if (!used.length) return 1000;
+    return Math.max(...used) + 1;
   },
 
   // 获取下一个曲目编号
@@ -406,11 +419,11 @@ window.handleLogoUpload = async function(event) {
    🎻 铃木曲目两级选择器辅助
    ========================================== */
 const SuzukiSelectHelper = {
-  // 获取所有分册
+  // 获取所有分册（不含自定义册）
   getBooks() {
     const rep = DB.repertoire();
     const books = new Set(rep.map(p => p.book));
-    return [...books].sort((a, b) => a - b);
+    return [...books].filter(b => !RepertoireManager.isCustomBook(b)).sort((a, b) => a - b);
   },
 
   // 获取指定册的曲目
