@@ -141,11 +141,15 @@ const RepertoireManager = {
     return true;
   },
 
-  // 记录练习
+  // 记录练习（自动从 untouched 升级为 learning）
   recordPractice(id, minutes) {
     const rep = DB.repertoire();
     const piece = rep.find(p => p.id === id);
     if (!piece) return false;
+    if (piece.status === 'untouched') {
+      piece.status = 'learning';
+      if (!piece.startedDate) piece.startedDate = Utils.today();
+    }
     piece.totalMinutes = (piece.totalMinutes || 0) + minutes;
     piece.practiceCount = (piece.practiceCount || 0) + 1;
     piece.lastPracticeDate = Utils.today();

@@ -622,6 +622,16 @@ window.saveLesson = function(lessonId) {
   }
   DB.saveLessons(lessons);
 
+  // 同步更新曲库状态：本课程中出现的曲目，若为 untouched 自动升为 learning
+  pieces.forEach(p => {
+    if (p.repId) {
+      const repPiece = RepertoireManager.findById(p.repId);
+      if (repPiece && repPiece.status === 'untouched') {
+        RepertoireManager.updateStatus(p.repId, 'learning');
+      }
+    }
+  });
+
   closeModal();
   renderAll();
   Utils.showToast('✅ 课程已保存', 'success');
