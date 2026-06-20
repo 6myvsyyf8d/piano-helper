@@ -822,14 +822,18 @@ const DataCleaner = {
     '基本功左手': '基本功（左手）',
     '基本功-左手': '基本功（左手）',
     '基本功，左手': '基本功（左手）',
+    '基本功 左手': '基本功（左手）',
     '左手': '基本功（左手）',
+    '左手练习': '基本功（左手）',
     // 基本功右手
     '右手基本功': '基本功（右手）',
     '右手基本功练习': '基本功（右手）',
     '基本功右手': '基本功（右手）',
     '基本功-右手': '基本功（右手）',
     '基本功，右手': '基本功（右手）',
+    '基本功 右手': '基本功（右手）',
     '右手': '基本功（右手）',
+    '右手练习': '基本功（右手）',
     // 基本功双手
     '双手基本功': '基本功（双手）',
     '双手基本功练习': '基本功（双手）',
@@ -868,16 +872,20 @@ const DataCleaner = {
   },
 
   // ── 标准化曲目名称（优先用 repId 查找，再用别名映射） ──
+  // 注意：自由练习中用户可能输入「基本功-左手」作为曲名，这类也需要被标准化
   standardizePieceName(name, repId) {
     // 1. 如果有 repId，优先从曲库获取标准名
     if (repId) {
       const standardName = this.getStandardNameByRepId(repId);
       if (standardName) return standardName;
     }
-    // 2. 没有 repId 或曲库找不到，用别名映射
+    // 2. 没有 repId 或曲库找不到，用曲目别名映射
     if (!name || typeof name !== 'string') return name || '';
     const trimmed = name.trim();
-    return this.PIECE_ALIAS_MAP[trimmed] || trimmed;
+    if (this.PIECE_ALIAS_MAP[trimmed]) return this.PIECE_ALIAS_MAP[trimmed];
+    // 3. 曲目别名映射中找不到，再检查基本功别名映射（用户可能把基本功当曲名输入）
+    if (this.FOCUS_ALIAS_MAP[trimmed]) return this.FOCUS_ALIAS_MAP[trimmed];
+    return trimmed;
   },
 
   // ── 标准化基本功名称 ──

@@ -208,10 +208,21 @@ function renderStats() {
     const entries = log.entries;
     for (let j = 0; j < entries.length; j++) {
       const e = entries[j];
-      const key = e.pieceName;
+      const cleanName = DataCleaner.standardizePieceName(e.pieceName, e.repId);
+      let bookInfo = '';
+      if (e.book) {
+        const bookName = RepertoireManager.getBookDisplayName(e.book);
+        bookInfo = bookName;
+      } else if (e.repId) {
+        const piece = DB.repertoire().find(p => p.id === e.repId);
+        if (piece && piece.book) {
+          bookInfo = RepertoireManager.getBookDisplayName(piece.book);
+        }
+      }
+      const key = cleanName + '|' + (bookInfo || '');
       let stat = pieceStats[key];
       if (!stat) {
-        stat = { name: key, days: 0, count: 0, totalMin: 0, lastDate: '' };
+        stat = { name: cleanName, bookInfo: bookInfo || '', days: 0, count: 0, totalMin: 0, lastDate: '' };
         pieceStats[key] = stat;
       }
       stat.count++;
@@ -238,6 +249,7 @@ function renderStats() {
             <tr style="color:var(--text-3);font-size:0.68rem;text-align:left;border-bottom:1px solid var(--border-2)">
               <th style="padding:8px 4px;width:24px">#</th>
               <th style="padding:8px 4px">曲名</th>
+              <th style="padding:8px 4px">册名</th>
               <th style="padding:8px 4px;text-align:center">次数</th>
               <th style="padding:8px 4px;text-align:center">天数</th>
               <th style="padding:8px 4px;text-align:center">分钟</th>
@@ -249,6 +261,7 @@ function renderStats() {
               <tr style="border-bottom:1px solid var(--border-2)">
                 <td style="padding:8px 4px;color:var(--text-4)">${i + 1}</td>
                 <td style="padding:8px 4px;font-weight:600">${Utils.escape(p.name)}</td>
+                <td style="padding:8px 4px;color:var(--text-3);font-size:0.72rem">${Utils.escape(p.bookInfo) || '—'}</td>
                 <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${p.count}</td>
                 <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${p.days}</td>
                 <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${Math.round(p.totalMin * 10) / 10}</td>
@@ -277,7 +290,7 @@ function renderStats() {
       const focusAreas = pieces[j].focusAreas;
       if (!focusAreas || !focusAreas.length) continue;
       for (let k = 0; k < focusAreas.length; k++) {
-        const key = focusAreas[k].trim();
+        const key = DataCleaner.standardizeFocusArea(focusAreas[k].trim());
         let c = concernMap[key];
         if (!c) {
           concernMap[key] = c = { minDate: lessonDate, maxDate: lessonDate, count: 0 };
