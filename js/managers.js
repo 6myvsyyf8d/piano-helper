@@ -6,7 +6,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v3.4_20260620-1',
+  VERSION: 'v3.4_20260620-3',
 
   // 初始化曲库
   init() {
@@ -22,12 +22,14 @@ const RepertoireManager = {
 
       const repertoire = allData.map(piece => ({
         ...piece,
-        // 默认状态：铃木 Book 1 全部已学会，Book 2 前 4 首已学会；小曲集默认未学
+        // 默认状态：铃木 Book 1 全部已学会，Book 2 前 4 首已学会；小曲集 Book 21-25 已学会
         status: piece.id.startsWith('s') ? (
           piece.book === 1 ? 'learned' :
           (piece.book === 2 && piece.num <= 4 ? 'learned' : 'untouched')
-        ) : 'untouched',
-        // 默认背谱：铃木 Book 1 全部可背谱，Book 2 前 4 首可背谱；小曲集默认不可背谱
+        ) : (
+          (piece.book >= 21 && piece.book <= 25) ? 'learned' : 'untouched'
+        ),
+        // 默认背谱：铃木 Book 1 全部可背谱，Book 2 前 4 首可背谱；其他一律不可背谱
         memorized: piece.id.startsWith('s') ? (
           piece.book === 1 ? true :
           (piece.book === 2 && piece.num <= 4 ? true : false)
@@ -37,7 +39,9 @@ const RepertoireManager = {
         completedDate: piece.id.startsWith('s') ? (
           piece.book === 1 ? '2026-01-01' :
           (piece.book === 2 && piece.num <= 4 ? '2026-03-01' : null)
-        ) : null,
+        ) : (
+          (piece.book >= 21 && piece.book <= 25) ? '2026-03-01' : null
+        ),
         // 总练习时长（分钟）
         totalMinutes: 0,
         // 练习次数
@@ -803,7 +807,7 @@ const DataCleaner = {
     'Minuet 1, Klavier Suite in g minor': 'G小调小步舞曲 第一首',
     'Minuet 2, Notebook for AMB': '小步舞曲 第二首',
     'Minuet 3': '小步舞曲 第三首',
-    'Minuet, Klavier Suite in g minor': 'G小调小步舞曲',
+    'Minuet, Klavier Suite in g minor': 'G小调小步舞曲 第一首',
     'Cradle Song': '摇篮曲',
     'Minuet K.2': '小步舞曲 K.2',
     'Arietta': '小咏叹调',
@@ -816,6 +820,7 @@ const DataCleaner = {
     '小步舞曲1': 'G小调小步舞曲 第一首',
     'G小调小步舞曲第一首': 'G小调小步舞曲 第一首',
     'G小调小步舞曲 1': 'G小调小步舞曲 第一首',
+    'G小调小步舞曲': 'G小调小步舞曲 第一首',
   },
 
   // ── 基本功别名映射（各种写法 → 标准写法） ──
