@@ -6,7 +6,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: '3.4-20260620',
+  VERSION: 'v3.4_20260620-1',
 
   // 初始化曲库
   init() {

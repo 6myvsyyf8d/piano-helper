@@ -190,14 +190,18 @@ const DateWatcher = {
 
 console.log(`
 ╔════════════════════════════════════════╗
-║   🎹 哆哩的钢琴助手 v3.4_20260620      ║
+║   🎹 哆哩的钢琴助手 ${RepertoireManager.VERSION}  ║
 ║   ✅ All modules loaded successfully   ║
 ╚════════════════════════════════════════╝
 `);
 
+// 动态更新页头版本号（唯一真实来源：RepertoireManager.VERSION）
+var headerVer = document.getElementById('headerVersion');
+if (headerVer) headerVer.textContent = RepertoireManager.VERSION;
+
 // 结束脚本标签
 (async function initApp() {
-  console.log('🎹 Piano Helper v3.4_20260620 initializing...');
+  console.log('🎹 Piano Helper ' + RepertoireManager.VERSION + ' initializing...');
 
   try {
     RepertoireManager.init();
