@@ -39,16 +39,18 @@ const TodayState = {
    * @param {string} pieceName 曲目名称
    * @returns {TodayPieceState}
    */
-  initPiece(index, pieceName) {
+  initPiece(index, pieceName, focusAreas, details) {
     if (!this.pieces[index]) {
       this.pieces[index] = {
         pieceName: pieceName || '',
         rating: 0,
         durationMin: 0,
         notes: '',
+        focusAreas: focusAreas || [],
+        details: details || '',
         repId: null,
         category: 'pieces',
-        book: null,            // 任务 2 新增：所属册号（渲染按册分组时使用，由 bindTodayEvents 写入）
+        book: null,
         speed: 0,
         memorized: false,
         handsTogether: true

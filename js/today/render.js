@@ -120,24 +120,42 @@ function renderCategorySectionOpen(catKey, titleHtml, bodyHtml) {
  */
 function renderCompletedSection(catKey, titleHtml, entries) {
   const rows = entries.map(e => {
-   const stars = e.rating
-  ? starDisplayHTML(e.rating)
-  : '<span style="color:var(--text-4);font-size:0.75rem">未评分</span>';
+    const stars = e.rating
+      ? starDisplayHTML(e.rating)
+      : '<span style="color:var(--text-4);font-size:0.75rem">未评分</span>';
     const duration = e.durationMin
       ? ' <span style="color:var(--text-3);font-size:0.75rem">' + e.durationMin + '分钟</span>'
       : '';
     const mem = e.memorized
       ? '<span style="font-size:0.7rem;color:var(--accent-primary);margin-right:4px">🧠</span>'
       : '';
+    const focusHtml = (e.focusAreas && e.focusAreas.length)
+      ? '<div style="margin-top:6px">' +
+          e.focusAreas.map(tag =>
+            '<span class="badge badge-info" style="font-size:0.65rem;padding:1px 6px;margin-right:4px;display:inline-block">' +
+              Utils.escape(tag) +
+            '</span>'
+          ).join('') +
+        '</div>'
+      : '';
+    const detailsHtml = e.details
+      ? '<div style="margin-top:6px;font-size:0.75rem;color:var(--text-3);line-height:1.4">' +
+          '<span style="color:var(--accent-primary)">📝 </span>' +
+          Utils.escape(e.details) +
+        '</div>'
+      : '';
     return (
-      '<div style="display:flex;align-items:center;gap:8px;' +
-            'padding:8px 0;border-bottom:1px solid var(--border-2)">' +
-        '<div style="flex:1;font-size:0.85rem;font-weight:600;color:var(--text-1)">' +
-          Utils.escape(e.pieceName) +
+      '<div style="padding:8px 0;border-bottom:1px solid var(--border-2)">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<div style="flex:1;font-size:0.85rem;font-weight:600;color:var(--text-1)">' +
+            Utils.escape(e.pieceName) +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:4px">' +
+            mem + stars + duration +
+          '</div>' +
         '</div>' +
-        '<div style="display:flex;align-items:center;gap:4px">' +
-          mem + stars + duration +
-        '</div>' +
+        focusHtml +
+        detailsHtml +
       '</div>'
     );
   }).join('');
@@ -164,9 +182,29 @@ function renderCompletedSection(catKey, titleHtml, entries) {
  * @param {string} index      曲目索引（如 "0"、"1"）
  * @param {string} pieceName  曲目名称
  * @param {number} num        卡片内序号（显示用）
+ * @param {string[]} focusAreas 练习重点标签数组
+ * @param {string} details    老师要求/备注
  * @returns {string} HTML
  */
-function pieceCardHTML(index, pieceName, num) {
+function pieceCardHTML(index, pieceName, num, focusAreas, details) {
+  const focusHtml = (focusAreas && focusAreas.length)
+    ? '<div class="piece-focus-row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-2)">' +
+        '<span style="font-size:0.75rem;color:var(--text-3);margin-right:6px">🏷 练习重点：</span>' +
+        focusAreas.map(tag =>
+          '<span class="badge badge-info" style="font-size:0.7rem;padding:2px 8px;margin:2px;display:inline-block">' +
+            Utils.escape(tag) +
+          '</span>'
+        ).join('') +
+      '</div>'
+    : '';
+
+  const detailsHtml = details
+    ? '<div class="piece-details-row" style="margin-top:12px;padding:12px;background:rgba(var(--accent-primary-rgb),0.08);border-radius:8px;font-size:0.8rem;color:var(--text-2);line-height:1.5">' +
+        '<span style="font-weight:600;color:var(--text-1)">📝 </span>' +
+        Utils.escape(details) +
+      '</div>'
+    : '';
+
   return (
     '<div class="piece-card" data-index="' + index + '" id="piece' + index + '">' +
       '<div class="piece-card-top" onclick="togglePieceExpand(\'' + index + '\', event)">' +
@@ -177,6 +215,8 @@ function pieceCardHTML(index, pieceName, num) {
         '<span class="piece-expand-icon">▼</span>' +
       '</div>' +
       '<div class="piece-card-body">' +
+        focusHtml +
+        detailsHtml +
         starRatingHTML(index) +
         '<div class="piece-extra-row">' +
           '<div class="piece-extra-item">' +
@@ -240,7 +280,7 @@ function buildPracticeFormHTML(lesson) {
     const catKey = 'book_' + bookNum;
 
     const cardsHtml = piecesInBook.map(({ p, i }, seqInBook) =>
-      pieceCardHTML(String(i), p.name, seqInBook + 1)
+      pieceCardHTML(String(i), p.name, seqInBook + 1, p.focusAreas, p.details)
     ).join('');
 
     html += renderCategorySectionOpen(catKey, bookLabel, cardsHtml);

@@ -245,6 +245,8 @@ async function handleCompletePractice() {
     book: piece.book || null,
     durationMin: piece.rating > 0 ? perPieceDuration : 0,
     notes: piece.notes || '',
+    focusAreas: piece.focusAreas || [],
+    details: piece.details || '',
     rating: piece.rating || 0,
     repId: piece.repId || '',
     speed: piece.speed || 0,

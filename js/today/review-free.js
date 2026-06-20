@@ -391,7 +391,7 @@ function bindTodayEvents(lesson, existingLog) {
   if (lesson && lesson.pieces) {
     lesson.pieces.forEach(function(piece, i) {
       var repPiece = RepertoireManager.findByName(piece.name);
-      TodayState.initPiece(i, piece.name);
+      TodayState.initPiece(i, piece.name, piece.focusAreas, piece.details);
       TodayState.pieces[i].category = piece.category || 'pieces';
       TodayState.pieces[i].repId = piece.repId || (repPiece ? repPiece.id : null);
       TodayState.pieces[i].book = inferBookFromPiece({
