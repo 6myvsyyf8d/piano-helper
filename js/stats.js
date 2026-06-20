@@ -457,7 +457,69 @@ function renderStats() {
     </div>
   `;
 
-  page.innerHTML = overviewHTML + starsHTML + streakHTML + progressHTML + trendHTML + milestonesHTML + rankingHTML + concernsHTML;
+  // ── Card 9: 数据清洗工具 ──
+  const cleanToolHTML = `
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">🧹 数据清洗</h3></div>
+      <div style="font-size:0.78rem;color:var(--text-2);margin-bottom:12px">
+        统一曲目名称（中英文）、基本功写法，修复历史数据不一致问题。
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="previewDataClean()" style="flex:1">👁 预览</button>
+        <button class="btn btn-primary btn-sm" onclick="runDataClean()" style="flex:1">🧹 执行清洗</button>
+      </div>
+      <div id="cleanResult" style="margin-top:12px;font-size:0.75rem;color:var(--text-3)"></div>
+    </div>
+  `;
+
+  page.innerHTML = overviewHTML + starsHTML + streakHTML + progressHTML + trendHTML + milestonesHTML + rankingHTML + concernsHTML + cleanToolHTML;
 }
+
+// ── 数据清洗预览 ──
+window.previewDataClean = function() {
+  const resultEl = document.getElementById('cleanResult');
+  resultEl.innerHTML = '⏳ 正在分析...';
+  
+  setTimeout(function() {
+    const stats = DataCleaner.preview();
+    if (stats.piecesAffected === 0 && stats.entriesAffected === 0) {
+      resultEl.innerHTML = '✅ 数据已经是最新格式，无需清洗';
+    } else {
+      let html = '<div style="background:rgba(255,200,100,0.1);padding:10px;border-radius:8px;border:1px solid rgba(255,200,100,0.3)">';
+      html += '<div style="font-weight:600;margin-bottom:8px">📋 发现以下数据需要标准化：</div>';
+      if (stats.piecesAffected > 0) {
+        html += '<div>• 课程曲目：<strong>' + stats.piecesAffected + '</strong> 条</div>';
+      }
+      if (stats.entriesAffected > 0) {
+        html += '<div>• 练习日志：<strong>' + stats.entriesAffected + '</strong> 条</div>';
+      }
+      html += '</div>';
+      resultEl.innerHTML = html;
+    }
+  }, 100);
+};
+
+// ── 执行数据清洗 ──
+window.runDataClean = function() {
+  if (!confirm('确定要清洗数据吗？\n\n此操作将统一曲目名称和基本功写法，修改后不可撤销。')) return;
+  
+  const resultEl = document.getElementById('cleanResult');
+  resultEl.innerHTML = '⏳ 正在清洗...';
+  
+  setTimeout(function() {
+    const report = DataCleaner.cleanAll();
+    let html = '<div style="background:rgba(100,200,100,0.1);padding:10px;border-radius:8px;border:1px solid rgba(100,200,100,0.3)">';
+    html += '<div style="font-weight:600;margin-bottom:8px">✅ 清洗完成</div>';
+    html += '<div>• 课程曲目修正：<strong>' + report.pieces + '</strong> 条</div>';
+    html += '<div>• 练习日志修正：<strong>' + report.entries + '</strong> 条</div>';
+    html += '</div>';
+    resultEl.innerHTML = html;
+    
+    // 刷新页面显示
+    setTimeout(function() {
+      renderStats();
+    }, 1500);
+  }, 100);
+};
 
 console.log('✅ Stats module loaded');

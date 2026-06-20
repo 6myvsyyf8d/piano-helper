@@ -36,8 +36,9 @@ function renderCalendar() {
     ? buildWeekViewHTML(logsMap)
     : buildCalendarHTML(calendarState.year, calendarState.month, logsMap);
 
-  const msStats = computeMilestoneStats();
-  const milestonesHTML = buildMilestonesHTML(msStats.maxStarsDay, msStats.maxDurationDay, msStats.currentStreak);
+  const msScope = calendarState.view === 'week' ? 'week' : 'month';
+  const msStats = computeMilestoneStatsForRange(msScope);
+  const milestonesHTML = buildMilestonesHTML(msStats.maxStars, msStats.maxDuration, msStats.streak, msStats.title, true);
 
   page.innerHTML = viewToggle + contentHTML + milestonesHTML;
   bindCalendarEvents();

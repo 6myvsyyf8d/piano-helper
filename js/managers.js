@@ -6,7 +6,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: '3.4-20260619',
+  VERSION: '3.4-20260620',
 
   // 初始化曲库
   init() {
@@ -471,8 +471,8 @@ const SuzukiSelectHelper = {
       '<option value="">选择曲目...</option>' +
       pieces.map(rp => {
         const label = rp.num + ' ' + Utils.escape(rp.en) + ' ' + Utils.escape(rp.name);
-        const selected = (repId && repId === rp.id) || pieceName === rp.name || pieceName === rp.en;
-        return '<option value="' + Utils.escape(rp.name) + '" data-repid="' + rp.id + '"' + (selected ? ' selected' : '') + '>' + label + '</option>';
+        const selected = (repId && repId === rp.id) || (!repId && (pieceName === rp.name || pieceName === rp.en));
+        return '<option value="' + rp.id + '" data-name="' + Utils.escape(rp.name) + '"' + (selected ? ' selected' : '') + '>' + label + '</option>';
       }).join('') +
       '</select>';
   }
@@ -489,7 +489,7 @@ window.onSuzukiBookChange = function(bookSelect) {
 
   const pieces = SuzukiSelectHelper.getPieces(book);
   pieceSelect.innerHTML = '<option value="">选择曲目...</option>' +
-    pieces.map(rp => '<option value="' + Utils.escape(rp.name) + '" data-repid="' + rp.id + '">' + rp.num + ' ' + Utils.escape(rp.en) + ' ' + Utils.escape(rp.name) + '</option>').join('');
+    pieces.map(rp => '<option value="' + rp.id + '" data-name="' + Utils.escape(rp.name) + '">' + rp.num + ' ' + Utils.escape(rp.en) + ' ' + Utils.escape(rp.name) + '</option>').join('');
 };
 /* ==========================================
    🔄 同步码管理器
@@ -696,9 +696,16 @@ const SyncCode = {
 
     var stats = { lessons: 0, logs: 0, migrated: !detection.compatible };
 
-    // 导入 lessons（含迁移）
+    // 导入 lessons（含迁移 + 数据清洗）
     if (data.l && data.l.length) {
       var importedLessons = this.migrateLessons(data.l);
+      // 数据清洗：统一曲目名称
+      importedLessons.forEach(function(lesson) {
+        if (!lesson.pieces) return;
+        lesson.pieces.forEach(function(piece) {
+          DataCleaner.cleanLessonPiece(piece);
+        });
+      });
       var merged = {};
       DB.lessons().forEach(function(l) { merged[l.id] = l; });
       importedLessons.forEach(function(l) {
@@ -713,9 +720,16 @@ const SyncCode = {
       DB.saveLessons(Object.values(merged));
     }
 
-    // 导入 logs（含迁移）
+    // 导入 logs（含迁移 + 数据清洗）
     if (data.g && data.g.length) {
       var importedLogs = this.migrateLogs(data.g);
+      // 数据清洗：统一曲目名称
+      importedLogs.forEach(function(log) {
+        if (!log.entries) return;
+        log.entries.forEach(function(entry) {
+          DataCleaner.cleanLogEntry(entry);
+        });
+      });
       var mergedLogs = {};
       DB.logs().forEach(function(l) { mergedLogs[l.id] = l; });
       importedLogs.forEach(function(l) {
@@ -751,9 +765,251 @@ const SyncCode = {
   }
 };
 
-/* ------------------------------------------
+/* ==========================================
+   🧹 数据清洗器
+   统一曲目名称、基本功写法，确保跨设备数据一致性
+   ========================================== */
+const DataCleaner = {
+  // ── 曲目名称别名映射（别名 → 标准中文名） ──
+  // 用于统一日志中的中英文曲名
+  PIECE_ALIAS_MAP: {
+    // 铃木第一册（英文名 → 中文名）
+    'Twinkle, Twinkle, Little Star Variations': '小星星变奏曲',
+    'The Honeybee': '小蜜蜂',
+    'Cuckoo': '布谷鸟',
+    'Lightly Row': '轻轻划',
+    'French Children\'s Song': '法国童谣',
+    'London Bridge': '伦敦桥',
+    'Mary Had a Little Lamb': '玛丽有只小羔羊',
+    'Go Tell Aunt Rhody': '告诉罗迪阿姨',
+    'Au Clair de la Lune': '月光下',
+    'Long, Long Ago': '很久以前',
+    'Little Playmates': '小伙伴',
+    'Chant Arabe': '阿拉伯之歌',
+    'Allegretto 1': '小快板1',
+    'Allegretto 2': '小快板2',
+    'Good-bye to Winter': '告别冬天',
+    'Christmas-Day Secrets': '圣诞节的秘密',
+    'Allegro': '快板',
+    'Musette': '风笛舞曲',
+    // 铃木第二册
+    'Écossaise': '埃科塞兹舞曲',
+    'A Short Story': '小故事',
+    'The Happy Farmer': '快乐的农夫',
+    'Minuet 1, Klavier Suite in g minor': 'G小调小步舞曲 第一首',
+    'Minuet 2, Notebook for AMB': '小步舞曲 第二首',
+    'Minuet 3': '小步舞曲 第三首',
+    'Minuet, Klavier Suite in g minor': 'G小调小步舞曲',
+    'Cradle Song': '摇篮曲',
+    'Minuet K.2': '小步舞曲 K.2',
+    'Arietta': '小咏叹调',
+    'Melody': '旋律',
+    'Sonatina': '小奏鸣曲',
+    'Musette, English Suite No.3': '风笛舞曲',
+    'Minuet, Notebook for AMB': '小步舞曲',
+    // 常见变体
+    '小步舞曲第一首': 'G小调小步舞曲 第一首',
+    '小步舞曲1': 'G小调小步舞曲 第一首',
+    'G小调小步舞曲第一首': 'G小调小步舞曲 第一首',
+    'G小调小步舞曲 1': 'G小调小步舞曲 第一首',
+  },
+
+  // ── 基本功别名映射（各种写法 → 标准写法） ──
+  FOCUS_ALIAS_MAP: {
+    // 基本功左手
+    '左手基本功': '基本功（左手）',
+    '左手基本功练习': '基本功（左手）',
+    '基本功左手': '基本功（左手）',
+    '基本功-左手': '基本功（左手）',
+    '基本功，左手': '基本功（左手）',
+    '左手': '基本功（左手）',
+    // 基本功右手
+    '右手基本功': '基本功（右手）',
+    '右手基本功练习': '基本功（右手）',
+    '基本功右手': '基本功（右手）',
+    '基本功-右手': '基本功（右手）',
+    '基本功，右手': '基本功（右手）',
+    '右手': '基本功（右手）',
+    // 基本功双手
+    '双手基本功': '基本功（双手）',
+    '双手基本功练习': '基本功（双手）',
+    '基本功双手': '基本功（双手）',
+    '基本功-双手': '基本功（双手）',
+    '双手': '基本功（双手）',
+    '合手基本功': '基本功（双手）',
+    '双手合手': '基本功（双手）',
+    // 基本功综合
+    '基本功练习': '基本功',
+    '基本功': '基本功',
+    // 练习时间/节拍器
+    '练习时间': '节拍器练习',
+    '节拍器': '节拍器练习',
+    // 其他常见变体
+    '手腕放松': '手腕',
+    '手腕练习': '手腕',
+    '音阶练习': '音阶',
+    '琶音练习': '琶音',
+    '哈农': '哈农',
+    '哈农练习': '哈农',
+    // 节奏类
+    '节奏练习': '节奏',
+    '节奏感': '节奏',
+    // 手型
+    '手型练习': '手型',
+    '手型纠正': '手型',
+  },
+
+  // ── 根据 repId 从曲库获取标准中文名 ──
+  getStandardNameByRepId(repId) {
+    if (!repId) return null;
+    const rep = DB.repertoire();
+    const piece = rep.find(p => p.id === repId);
+    return piece ? piece.name : null;
+  },
+
+  // ── 标准化曲目名称（优先用 repId 查找，再用别名映射） ──
+  standardizePieceName(name, repId) {
+    // 1. 如果有 repId，优先从曲库获取标准名
+    if (repId) {
+      const standardName = this.getStandardNameByRepId(repId);
+      if (standardName) return standardName;
+    }
+    // 2. 没有 repId 或曲库找不到，用别名映射
+    if (!name || typeof name !== 'string') return name || '';
+    const trimmed = name.trim();
+    return this.PIECE_ALIAS_MAP[trimmed] || trimmed;
+  },
+
+  // ── 标准化基本功名称 ──
+  standardizeFocusArea(name) {
+    if (!name || typeof name !== 'string') return name || '';
+    const trimmed = name.trim();
+    return this.FOCUS_ALIAS_MAP[trimmed] || trimmed;
+  },
+
+  // ── 标准化日志条目中的名称 ──
+  cleanLogEntry(entry) {
+    // 标准化曲名（传入 repId）
+    if (entry.pieceName) {
+      entry.pieceName = this.standardizePieceName(entry.pieceName, entry.repId);
+    }
+    // 标准化 focusAreas 数组
+    if (entry.focusAreas && Array.isArray(entry.focusAreas)) {
+      entry.focusAreas = entry.focusAreas
+        .map(f => this.standardizeFocusArea(f))
+        .filter((f, i, arr) => f && arr.indexOf(f) === i); // 去重
+    }
+    return entry;
+  },
+
+  // ── 标准化课程曲目中的名称 ──
+  cleanLessonPiece(piece) {
+    // 标准化曲名（传入 repId）
+    if (piece.name) {
+      piece.name = this.standardizePieceName(piece.name, piece.repId);
+    }
+    if (piece.focusAreas && Array.isArray(piece.focusAreas)) {
+      piece.focusAreas = piece.focusAreas
+        .map(f => this.standardizeFocusArea(f))
+        .filter((f, i, arr) => f && arr.indexOf(f) === i);
+    }
+    return piece;
+  },
+
+  // ── 清洗所有本地数据，返回清洗报告 ──
+  cleanAll() {
+    let report = { lessons: 0, logs: 0, pieces: 0, entries: 0, changes: [] };
+
+    // 清洗课程
+    const lessons = DB.lessons();
+    let lessonsChanged = false;
+    lessons.forEach(lesson => {
+      if (!lesson.pieces) return;
+      lesson.pieces.forEach(piece => {
+        const before = JSON.stringify({ name: piece.name, repId: piece.repId, focusAreas: piece.focusAreas });
+        this.cleanLessonPiece(piece);
+        const after = JSON.stringify({ name: piece.name, repId: piece.repId, focusAreas: piece.focusAreas });
+        if (before !== after) {
+          report.changes.push({ type: 'lesson-piece', id: lesson.id, before: JSON.parse(before), after: JSON.parse(after) });
+          report.pieces++;
+          lessonsChanged = true;
+        }
+      });
+      report.lessons++;
+    });
+    if (lessonsChanged) {
+      DB.saveLessons(lessons);
+    }
+
+    // 清洗日志
+    const logs = DB.logs();
+    let logsChanged = false;
+    logs.forEach(log => {
+      if (!log.entries) return;
+      log.entries.forEach(entry => {
+        const before = JSON.stringify({ pieceName: entry.pieceName, repId: entry.repId, focusAreas: entry.focusAreas });
+        this.cleanLogEntry(entry);
+        const after = JSON.stringify({ pieceName: entry.pieceName, repId: entry.repId, focusAreas: entry.focusAreas });
+        if (before !== after) {
+          report.changes.push({ type: 'log-entry', id: log.id, date: log.date, before: JSON.parse(before), after: JSON.parse(after) });
+          report.entries++;
+          logsChanged = true;
+        }
+      });
+    });
+    if (logsChanged) {
+      DB.saveLogs(logs);
+    }
+
+    return report;
+  },
+
+  // ── 获取清洗预览（不实际修改数据）──
+  preview() {
+    let stats = { lessonsAffected: 0, logsAffected: 0, piecesAffected: 0, entriesAffected: 0, changes: [] };
+
+    // 复制数据进行预览
+    const lessons = JSON.parse(JSON.stringify(DB.lessons()));
+    lessons.forEach(lesson => {
+      let lessonChanged = false;
+      if (!lesson.pieces) return;
+      lesson.pieces.forEach(piece => {
+        const before = JSON.stringify({ name: piece.name, repId: piece.repId, focusAreas: piece.focusAreas || [] });
+        this.cleanLessonPiece(piece);
+        const after = JSON.stringify({ name: piece.name, repId: piece.repId, focusAreas: piece.focusAreas || [] });
+        if (before !== after) {
+          lessonChanged = true;
+          stats.piecesAffected++;
+          stats.changes.push({ type: 'lesson', lessonId: lesson.id, pieceName: piece.name, before: JSON.parse(before), after: JSON.parse(after) });
+        }
+      });
+      if (lessonChanged) stats.lessonsAffected++;
+    });
+
+    const logs = JSON.parse(JSON.stringify(DB.logs()));
+    logs.forEach(log => {
+      let logChanged = false;
+      if (!log.entries) return;
+      log.entries.forEach(entry => {
+        const before = JSON.stringify({ pieceName: entry.pieceName, repId: entry.repId, focusAreas: entry.focusAreas || [] });
+        this.cleanLogEntry(entry);
+        const after = JSON.stringify({ pieceName: entry.pieceName, repId: entry.repId, focusAreas: entry.focusAreas || [] });
+        if (before !== after) {
+          logChanged = true;
+          stats.entriesAffected++;
+          stats.changes.push({ type: 'log', date: log.date, pieceName: entry.pieceName, before: JSON.parse(before), after: JSON.parse(after) });
+        }
+      });
+      if (logChanged) stats.logsAffected++;
+    });
+
+    return stats;
+  }
+};
+
+/* ==========================================
    🏅 里程碑配置（悦跑圈风格）
-   ------------------------------------------ */
+   ========================================== */
 const STAR_MILESTONES = [
   { stars: 5, label: '初露锋芒', icon: '🌟', desc: '单日获得 5 颗星' },
   { stars: 10, label: '稳步提升', icon: '⭐', desc: '单日获得 10 颗星' },
@@ -784,12 +1040,17 @@ const DURATION_MILESTONES = [
 
 /**
  * 构建里程碑 HTML（用于今日成绩、日历统计、统计页）
- * @param {number} maxStarsDay 历史最高单日星星数
- * @param {number} maxDurationDay 历史最高单日练习时长(分钟)
- * @param {number} currentStreak 当前连续练习天数
+ * @param {number} maxStarsDay 最高单日星星数
+ * @param {number} maxDurationDay 最高单日练习时长(分钟)
+ * @param {number} currentStreak 连续练习天数
+ * @param {string} [title='成就里程碑'] 可选标题
+ * @param {boolean} [onlyAchieved=false] 是否只显示达成的里程碑
  * @returns {string} HTML
  */
-function buildMilestonesHTML(maxStarsDay, maxDurationDay, currentStreak) {
+function buildMilestonesHTML(maxStarsDay, maxDurationDay, currentStreak, title, onlyAchieved) {
+  title = title || '成就里程碑';
+  onlyAchieved = onlyAchieved || false;
+
   function renderBadge(achieved, icon, label, desc) {
     const borderColor = achieved ? 'var(--accent-primary)' : 'var(--border-2)';
     const bgColor = achieved ? 'rgba(245,160,152,0.1)' : 'rgba(255,255,255,0.02)';
@@ -809,35 +1070,67 @@ function buildMilestonesHTML(maxStarsDay, maxDurationDay, currentStreak) {
   const achievedStreak = STREAK_MILESTONES.filter(m => currentStreak >= m.days);
   const achievedDuration = DURATION_MILESTONES.filter(m => maxDurationDay >= m.minutes);
 
-  const hasAnyAchievement = maxStarsDay > 0 || currentStreak > 0 || maxDurationDay > 0;
+  const hasAnyAchievement = achievedStar.length + achievedStreak.length + achievedDuration.length > 0;
+
+  let starBadges, streakBadges, durationBadges;
+  if (onlyAchieved) {
+    starBadges = achievedStar.map(m => renderBadge(true, m.icon, m.label, m.desc)).join('');
+    streakBadges = achievedStreak.map(m => renderBadge(true, m.icon, m.label, m.desc)).join('');
+    durationBadges = achievedDuration.map(m => renderBadge(true, m.icon, m.label, m.desc)).join('');
+  } else {
+    starBadges = STAR_MILESTONES.map(m => renderBadge(maxStarsDay >= m.stars, m.icon, m.label, m.desc)).join('');
+    streakBadges = STREAK_MILESTONES.map(m => renderBadge(currentStreak >= m.days, m.icon, m.label, m.desc)).join('');
+    durationBadges = DURATION_MILESTONES.map(m => renderBadge(maxDurationDay >= m.minutes, m.icon, m.label, m.desc)).join('');
+  }
+
+  function sectionHtml(label, badges) {
+    if (onlyAchieved && !badges) return '';
+    return `
+      <div style="margin-bottom:14px">
+        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">${label}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${badges || '<span style="font-size:0.65rem;color:var(--text-4);padding:8px">暂无</span>'}
+        </div>
+      </div>
+    `;
+  }
 
   let html = `
     <div class="card" style="margin-top:12px">
       <div class="card-header">
-        <h3 class="card-title">🏅 成就里程碑</h3>
+        <h3 class="card-title">🏅 ${title}</h3>
       </div>
-      ${!hasAnyAchievement ? '<div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.8rem">开始练习后解锁成就</div>' : `
-      <div style="margin-bottom:14px">
-        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">🌟 星星成就</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${STAR_MILESTONES.map(m => renderBadge(maxStarsDay >= m.stars, m.icon, m.label, m.desc)).join('')}
-        </div>
-      </div>
-      <div style="margin-bottom:14px">
-        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">🔥 连续成就</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${STREAK_MILESTONES.map(m => renderBadge(currentStreak >= m.days, m.icon, m.label, m.desc)).join('')}
-        </div>
-      </div>
-      <div>
-        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">⏱️ 时长成就</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${DURATION_MILESTONES.map(m => renderBadge(maxDurationDay >= m.minutes, m.icon, m.label, m.desc)).join('')}
-        </div>
-      </div>
+      ${!hasAnyAchievement ? `<div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.8rem">开始练习后解锁${title.replace('里程碑', '')}</div>` : `
+      ${sectionHtml('🌟 星星成就', starBadges)}
+      ${sectionHtml('🔥 连续成就', streakBadges)}
+      ${!onlyAchieved ? '' : sectionHtml('⏱️ 时长成就', durationBadges)}
+      ${onlyAchieved ? '' : sectionHtml('⏱️ 时长成就', durationBadges)}
       `}
     </div>
   `;
+
+  // 修复：上面逻辑有误，这里直接重构
+  if (hasAnyAchievement) {
+    html = `
+      <div class="card" style="margin-top:12px">
+        <div class="card-header">
+          <h3 class="card-title">🏅 ${title}</h3>
+        </div>
+        ${sectionHtml('🌟 星星成就', starBadges)}
+        ${sectionHtml('🔥 连续成就', streakBadges)}
+        ${sectionHtml('⏱️ 时长成就', durationBadges)}
+      </div>
+    `;
+  } else {
+    html = `
+      <div class="card" style="margin-top:12px">
+        <div class="card-header">
+          <h3 class="card-title">🏅 ${title}</h3>
+        </div>
+        <div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.8rem">暂无达成的里程碑</div>
+      </div>
+    `;
+  }
 
   return html;
 }
@@ -886,6 +1179,140 @@ function computeMilestoneStats() {
   }
 
   return { maxStarsDay, maxDurationDay, currentStreak };
+}
+
+/**
+ * 按指定时间范围计算里程碑统计数据
+ * @param {string} scope - 'day' | 'week' | 'month' | 'all'
+ * @returns {{maxStars: number, maxDuration: number, streak: number, title: string}}
+ */
+function computeMilestoneStatsForRange(scope) {
+  const logs = DB.logs();
+  if (!logs.length) return { maxStars: 0, maxDuration: 0, streak: 0, title: '' };
+
+  const todayStr = Utils.today();
+  const todayDate = new Date(todayStr + 'T00:00:00');
+  let filteredLogs = [];
+  let title = '';
+
+  if (scope === 'day') {
+    filteredLogs = logs.filter(l => l.date === todayStr);
+    title = '今日里程碑';
+  } else if (scope === 'week') {
+    const startOfWeek = new Date(todayDate);
+    const dayOfWeek = todayDate.getDay();
+    startOfWeek.setDate(todayDate.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    filteredLogs = logs.filter(l => {
+      const d = new Date(l.date + 'T00:00:00');
+      return d >= startOfWeek && d <= endOfWeek;
+    });
+    title = '本周里程碑';
+  } else if (scope === 'month') {
+    const year = todayDate.getFullYear();
+    const month = todayDate.getMonth();
+    filteredLogs = logs.filter(l => {
+      const d = new Date(l.date + 'T00:00:00');
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+    title = '本月里程碑';
+  } else {
+    filteredLogs = logs;
+    title = '成就里程碑';
+  }
+
+  let maxStars = 0;
+  let maxDuration = 0;
+
+  for (const l of filteredLogs) {
+    const dayStars = (l.entries || []).reduce((s, e) => s + (e.rating || 0), 0);
+    if (dayStars > maxStars) maxStars = dayStars;
+    const min = l.totalDurationMin || 0;
+    if (min > maxDuration) maxDuration = min;
+  }
+
+  // 连续天数：day 范围用今日 streak，week/month 范围用该范围的 streak
+  let streak = 0;
+  const allDatesSet = new Set(logs.map(l => l.date));
+
+  function dateToYMD(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  if (scope === 'day') {
+    const checkDate = new Date(todayDate);
+    while (allDatesSet.has(dateToYMD(checkDate))) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    if (streak === 0) {
+      const yesterdayDate = new Date(todayDate);
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const ydCheck = new Date(yesterdayDate);
+      while (allDatesSet.has(dateToYMD(ydCheck))) {
+        streak++;
+        ydCheck.setDate(ydCheck.getDate() - 1);
+      }
+    }
+  } else if (scope === 'week') {
+    const dayOfWeek = todayDate.getDay();
+    const startOfWeek = new Date(todayDate);
+    startOfWeek.setDate(todayDate.getDate() - dayOfWeek);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    const weekDates = new Set(filteredLogs.map(l => l.date));
+    let maxWeekStreak = 0;
+    let currentWeekStreak = 0;
+    const cursorDate = new Date(startOfWeek);
+    while (cursorDate <= endOfWeek) {
+      if (weekDates.has(dateToYMD(cursorDate))) {
+        currentWeekStreak++;
+        if (currentWeekStreak > maxWeekStreak) maxWeekStreak = currentWeekStreak;
+      } else {
+        currentWeekStreak = 0;
+      }
+      cursorDate.setDate(cursorDate.getDate() + 1);
+    }
+    streak = maxWeekStreak;
+  } else if (scope === 'month') {
+    const year = todayDate.getFullYear();
+    const month = todayDate.getMonth();
+    const monthDates = new Set(filteredLogs.map(l => l.date));
+    let maxMonthStreak = 0;
+    let currentMonthStreak = 0;
+    const startOfMonth = new Date(year, month, 1);
+    const endOfMonth = new Date(year, month + 1, 0);
+    const cursorDate = new Date(startOfMonth);
+    while (cursorDate <= endOfMonth) {
+      if (monthDates.has(dateToYMD(cursorDate))) {
+        currentMonthStreak++;
+        if (currentMonthStreak > maxMonthStreak) maxMonthStreak = currentMonthStreak;
+      } else {
+        currentMonthStreak = 0;
+      }
+      cursorDate.setDate(cursorDate.getDate() + 1);
+    }
+    streak = maxMonthStreak;
+  } else {
+    const checkDate = new Date(todayDate);
+    while (allDatesSet.has(dateToYMD(checkDate))) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    if (streak === 0) {
+      const yesterdayDate = new Date(todayDate);
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const ydCheck = new Date(yesterdayDate);
+      while (allDatesSet.has(dateToYMD(ydCheck))) {
+        streak++;
+        ydCheck.setDate(ydCheck.getDate() - 1);
+      }
+    }
+  }
+
+  return { maxStars, maxDuration, streak, title };
 }
 
 console.log('✅ Core modules loaded');

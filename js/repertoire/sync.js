@@ -138,7 +138,7 @@ window.exportDataAsJSON = function() {
     repertoire: DB.repertoire(),
     config: DB.config(),
     exportDate: new Date().toISOString(),
-    version: '3.3_20260618'
+    version: '3.4_20260620'
   };
 
   const json = JSON.stringify(data, null, 2);

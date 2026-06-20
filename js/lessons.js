@@ -534,10 +534,10 @@ window.saveLesson = function(lessonId) {
       let repId = '';
 
       if (nameSelect) {
-        // 曲库册：从下拉选择器读取
-        name = nameSelect.value.trim();
+        // 曲库册：从下拉选择器读取（value 是 repId，data-name 是中文曲名）
+        repId = nameSelect.value.trim();
         const selectedOption = nameSelect.options[nameSelect.selectedIndex];
-        repId = selectedOption ? (selectedOption.dataset.repid || '') : '';
+        name = selectedOption ? (selectedOption.dataset.name || '') : '';
       } else if (nameInput) {
         // 自定义册 或 已删除册：从 input 读取
         name = nameInput.value.trim();

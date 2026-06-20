@@ -351,8 +351,8 @@ function renderTodayPage() {
 
   // 已有今日日志 → 显示已完成记录
     if (log) {
-    const msStats = computeMilestoneStats();
-    const milestonesHTML = buildMilestonesHTML(msStats.maxStarsDay, msStats.maxDurationDay, msStats.currentStreak);
+    const msStats = computeMilestoneStatsForRange('day');
+    const milestonesHTML = buildMilestonesHTML(msStats.maxStars, msStats.maxDuration, msStats.streak, msStats.title, true);
     page.innerHTML = '<div id="sectionCompleted">' +
       renderTodayCompletedHTML(log) +
       milestonesHTML +

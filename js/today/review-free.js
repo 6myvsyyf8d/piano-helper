@@ -291,24 +291,27 @@ window.flipReviewCard = function(idx) {
 
     var goldBadge = item.gold ? ' <span style="font-size:0.8rem">🌟</span>' : '';
     front.innerHTML =
-      '<div style="padding:12px">' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
+      '<div class="piece-card" data-index="' + index + '" id="piece' + index + '" style="border:none;background:transparent;padding:0;margin:0">' +
+        '<div class="piece-card-top" onclick="togglePieceExpand(\'' + index + '\', event)" style="padding:12px 12px 4px 12px">' +
           '<span class="piece-number">' + (idx + 1) + '</span>' +
-          '<div style="flex:1">' +
-            '<div style="font-size:0.9rem;font-weight:700;color:var(--text-1)">' +
+          '<div class="piece-info" style="flex:1">' +
+            '<div class="piece-title" style="font-size:0.9rem;font-weight:700;color:var(--text-1)">' +
               Utils.escape(piece.en || piece.name) + goldBadge +
             '</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-2)">' + Utils.escape(piece.name) + '</div>' +
+            '<div class="piece-subtitle" style="font-size:0.75rem;color:var(--text-2)">' + Utils.escape(piece.name) + '</div>' +
           '</div>' +
+          '<span class="piece-expand-icon">▼</span>' +
         '</div>' +
-        starRatingHTML(index) +
-        '<div class="piece-extra-row" style="margin-top:8px">' +
-          '<button class="btn btn-sm ' + (piece.memorized ? 'btn-primary' : 'btn-secondary') + ' piece-mem-btn"' +
-                  ' data-index="' + index + '"' +
-                  ' onclick="toggleReviewMemorized(\'' + index + '\', \'' + piece.id + '\')"' +
-                  ' style="font-size:0.7rem;padding:5px 10px">' +
-            (piece.memorized ? '🧠 背谱' : '📖 看谱') +
-          '</button>' +
+        '<div class="piece-card-body" style="padding:0 12px 12px 12px">' +
+          starRatingHTML(index) +
+          '<div class="piece-extra-row" style="margin-top:8px">' +
+            '<button class="btn btn-sm ' + (piece.memorized ? 'btn-primary' : 'btn-secondary') + ' piece-mem-btn"' +
+                    ' data-index="' + index + '"' +
+                    ' onclick="toggleReviewMemorized(\'' + index + '\', \'' + piece.id + '\')"' +
+                    ' style="font-size:0.7rem;padding:5px 10px">' +
+              (piece.memorized ? '🧠 背谱' : '📖 看谱') +
+            '</button>' +
+          '</div>' +
         '</div>' +
       '</div>';
 

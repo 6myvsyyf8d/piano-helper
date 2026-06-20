@@ -190,14 +190,14 @@ const DateWatcher = {
 
 console.log(`
 ╔════════════════════════════════════════╗
-║   🎹 哆哩的钢琴助手 v3.4_20260619      ║
+║   🎹 哆哩的钢琴助手 v3.4_20260620      ║
 ║   ✅ All modules loaded successfully   ║
 ╚════════════════════════════════════════╝
 `);
 
 // 结束脚本标签
 (async function initApp() {
-  console.log('🎹 Piano Helper v3.4_20260619 initializing...');
+  console.log('🎹 Piano Helper v3.4_20260620 initializing...');
 
   try {
     RepertoireManager.init();
