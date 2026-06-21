@@ -1,3 +1,8 @@
+/*
+ * 哆哩的钢琴助手 — Piano Helper
+ * Copyright (c) 2024-present
+ * Licensed under the MIT License
+ */
 // Piano Helper v3 Service Worker
 // Network-first strategy + update notification
 const CACHE_NAME = 'piano3-v3';
