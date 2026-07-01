@@ -407,7 +407,10 @@ function renderTodayPage() {
     if (btnEdit) {
       btnEdit.addEventListener('click', function() {
         const lessons = DB.lessons();
-        const lesson = lessons.length ? lessons[lessons.length - 1] : null;
+        // 按日期降序排序，取最新课程
+        const lesson = lessons.length
+          ? lessons.sort((a, b) => b.date.localeCompare(a.date))[0]
+          : null;
         page.innerHTML =
           '<div id="sectionPracticeForm">' +
             '<div class="total-timer">' +
@@ -438,7 +441,10 @@ function renderTodayPage() {
 
   // 无日志 → 显示练习表单
   const lessons = DB.lessons();
-  const lesson = lessons.length ? lessons[lessons.length - 1] : null;
+  // 按日期降序排序，取最新课程（而非数组末尾元素）
+  const lesson = lessons.length
+    ? lessons.sort((a, b) => b.date.localeCompare(a.date))[0]
+    : null;
 
   page.innerHTML =
     '<div id="sectionPracticeForm">' +
