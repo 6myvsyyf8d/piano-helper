@@ -114,6 +114,11 @@ window.showLessonForm = function(lessonId) {
               <div id="lessonBookCardsContainer">
                 ${bookCardsHtml || '<p class="text-xs text-3 text-center p-12" id="lessonEmptyHint">还没有添加曲目，点击下方按钮添加</p>'}
               </div>
+              ${(!isEdit && DB.lessons().length > 0) ? `
+                <button type="button" class="btn btn-secondary btn-sm" onclick="copyPreviousLessonPieces()" style="width:100%;margin-top:8px">
+                  📋 复制上节课曲目
+                </button>
+              ` : ''}
               <button type="button" class="btn btn-primary btn-sm" onclick="showLessonAddBookPicker()" style="width:100%;margin-top:8px">
                 ➕ 添加册
               </button>
@@ -406,6 +411,88 @@ window.addCustomLessonBookCard = function() {
   const div = document.createElement('div');
   div.innerHTML = cardHtml;
   container.appendChild(div.firstElementChild);
+};
+
+/**
+ * 复制上节课的所有曲目到当前表单（仅新建课程时可用）
+ * - 取最新一次课程（按日期降序）的所有 pieces
+ * - 每首仅保留 name、book、repId，清空 details/focusAreas/score
+ * - 按册分组后追加到表单：册已存在则追加曲目，否则新建册卡片
+ * - 追加而非覆盖；移除空状态提示
+ * @returns {void}
+ */
+window.copyPreviousLessonPieces = function() {
+  // 按日期降序取最新一节课（不修改原数组）
+  const sorted = [...DB.lessons()].sort((a, b) => b.date.localeCompare(a.date));
+  if (!sorted.length) {
+    Utils.showToast('⚠️ 没有历史课程可复制', 'warning');
+    return;
+  }
+  const latestLesson = sorted[0];
+  if (!latestLesson.pieces || !latestLesson.pieces.length) {
+    Utils.showToast('⚠️ 上节课没有曲目', 'warning');
+    return;
+  }
+
+  // 提取曲目：仅保留 name、book、repId，清空其它字段
+  const copiedPieces = latestLesson.pieces.map(p => ({
+    name: p.name || '',
+    book: p.book,
+    repId: p.repId || '',
+    details: '',
+    focusAreas: [],
+    score: ''
+  }));
+
+  // 按册分组
+  const grouped = groupLessonPiecesByBook(copiedPieces);
+
+  const container = document.getElementById('lessonBookCardsContainer');
+  if (!container) return;
+
+  // 移除空状态提示
+  const emptyHint = document.getElementById('lessonEmptyHint');
+  if (emptyHint) emptyHint.remove();
+
+  // 预读曲库信息（用于判断 isDeleted，与 renderBookCard 一致）
+  const allBooks = RepertoireManager.getBookList();
+
+  // 按册号升序遍历，逐册追加
+  Array.from(grouped.keys()).sort((a, b) => a - b).forEach(bookNum => {
+    const bookPieces = grouped.get(bookNum);
+    const existingCard = container.querySelector('.lesson-book-card[data-book-num="' + bookNum + '"]');
+
+    if (existingCard) {
+      // 册卡片已存在：将曲目追加到该册的 .lesson-book-pieces 容器
+      const piecesContainer = existingCard.querySelector('.lesson-book-pieces');
+      if (!piecesContainer) return;
+
+      // 移除该册的空状态文本
+      const placeholder = piecesContainer.querySelector('p');
+      if (placeholder) placeholder.remove();
+
+      // 当前已有曲目数作为起始 idx
+      const startIdx = piecesContainer.querySelectorAll('.lesson-piece-card').length;
+      const isCustom = RepertoireManager.isCustomBook(bookNum);
+      const isDeleted = !isCustom && !allBooks.includes(bookNum);
+
+      bookPieces.forEach((piece, i) => {
+        const idx = startIdx + i;
+        const cardHtml = lessonPieceCardHTML(piece, idx, bookNum, isDeleted);
+        const div = document.createElement('div');
+        div.innerHTML = cardHtml;
+        piecesContainer.appendChild(div.firstElementChild);
+      });
+    } else {
+      // 册卡片不存在：新建整张册卡片（renderBookCard 内部处理 isCustom/isDeleted）
+      const cardHtml = renderBookCard(bookNum, bookPieces);
+      const div = document.createElement('div');
+      div.innerHTML = cardHtml;
+      container.appendChild(div.firstElementChild);
+    }
+  });
+
+  Utils.showToast('✅ 已复制上节课曲目', 'success');
 };
 
 /**
