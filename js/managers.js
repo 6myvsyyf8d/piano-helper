@@ -11,7 +11,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v3.4_20260705-0',
+  VERSION: 'v3.4_20260705-1',
 
   // 初始化曲库
   init() {
@@ -539,6 +539,7 @@ const SyncCode = {
       l: DB.lessons(),
       g: DB.logs(),
       r: DB.repertoire(),
+      m: DB.bookMeta(),
       t: new Date().toISOString().slice(0, 10)
     };
     return this.encode(data);
@@ -772,6 +773,15 @@ const SyncCode = {
         });
         DB.saveRepertoire(localRep);
       }
+    }
+
+    // 导入 bookMeta（合并：新数据优先）
+    if (data.m && typeof data.m === 'object') {
+      var mergedMeta = {};
+      var currentMeta = DB.bookMeta();
+      for (var k in currentMeta) mergedMeta[k] = currentMeta[k];
+      for (var k in data.m) mergedMeta[k] = data.m[k];
+      DB.saveBookMeta(mergedMeta);
     }
 
     return { success: true, stats: stats };

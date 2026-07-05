@@ -141,6 +141,7 @@ window.exportDataAsJSON = function() {
     lessons: DB.lessons(),
     logs: DB.logs(),
     repertoire: DB.repertoire(),
+    bookMeta: DB.bookMeta(),
     config: DB.config(),
     exportDate: new Date().toISOString(),
     version: '3.4_20260620'
@@ -278,6 +279,7 @@ async function handleImport(mode) {
     const newLogs = data.logs || data.piano_logs || [];
     const newRep = data.repertoire || data.piano_repertoire || [];
     const newConfig = data.config || data.piano_config || {};
+    const newBookMeta = data.bookMeta || {};
 
     if (!newLessons.length && !newLogs.length && !newRep.length) {
       Utils.showToast('❌ 数据格式不正确，未找到课程/练习/曲库数据', 'error');
@@ -308,6 +310,9 @@ async function handleImport(mode) {
       newRep.forEach(p => { repMap[p.id] = p; });
       const mergedRep = Object.values(repMap);
 
+      // 合并 bookMeta：新数据优先
+      const mergedBookMeta = { ...DB.bookMeta(), ...newBookMeta };
+
       // 合并配置
       const mergedConfig = { ...DB.config(), ...newConfig };
 
@@ -326,6 +331,7 @@ async function handleImport(mode) {
       DB.saveLessons(mergedLessons);
       DB.saveLogs(mergedLogs);
       DB.saveRepertoire(mergedRep);
+      DB.saveBookMeta(mergedBookMeta);
       DB.saveConfig(mergedConfig);
 
       closeModal();
@@ -338,6 +344,7 @@ async function handleImport(mode) {
       if (newLessons.length) DB.saveLessons(newLessons);
       if (newLogs.length) DB.saveLogs(newLogs);
       if (newRep.length) DB.saveRepertoire(newRep);
+      if (Object.keys(newBookMeta).length) DB.saveBookMeta(newBookMeta);
       if (Object.keys(newConfig).length) DB.saveConfig(newConfig);
 
       closeModal();

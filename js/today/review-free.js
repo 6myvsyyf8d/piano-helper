@@ -48,35 +48,10 @@ function incrementSkipCount() {
 }
 
 /**
- * 判断曲目是否为金卡（最近 7 天最后一次评分 ≥ 4 星）
- * @param {string} repId 曲库 ID
- * @returns {boolean}
- */
-function isGoldCard(repId) {
-  if (!repId) return false;
-  const logs = DB.logs();
-  const today = new Date(Utils.today() + 'T00:00:00');
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
-
-  let lastRating = 0;
-  for (let i = logs.length - 1; i >= 0; i--) {
-    const logDate = new Date(logs[i].date + 'T00:00:00');
-    if (logDate < sevenDaysAgo) break;
-    for (const entry of logs[i].entries) {
-      if (entry.repId === repId && entry.rating > 0) {
-        lastRating = entry.rating;
-      }
-    }
-  }
-  return lastRating >= 4;
-}
-
-/**
  * 构建复习候选池（按优先级降序）
  * priority = (memorized===false ? +50 : 0) + daysSinceLastPractice
  * @param {string[]} excludeNames 要排除的曲名列表（当日课程曲目）
- * @returns {Array<{piece: Repertoire, priority: number, gold: boolean}>}
+ * @returns {Array<{piece: Repertoire, priority: number}>}
  */
 function buildReviewCandidates(excludeNames) {
   const today = new Date(Utils.today() + 'T00:00:00');
@@ -107,9 +82,8 @@ function buildReviewCandidates(excludeNames) {
     }
 
     const priority = (piece.memorized === false ? 50 : 0) + daysSince;
-    const gold = isGoldCard(piece.id);
 
-    candidates.push({ piece, priority, gold });
+    candidates.push({ piece, priority });
   }
 
   // 按 priority 降序
@@ -169,7 +143,7 @@ function generateReviewList(lesson) {
 /**
  * 渲染翻卡 UI（背面卡片，点击逐张翻转）
  * @param {HTMLElement} container 容器
- * @param {Array<{piece: Repertoire, priority: number, gold: boolean}>} selected 选中的曲目
+ * @param {Array<{piece: Repertoire, priority: number}>} selected 选中的曲目
  * @returns {void}
  */
 function renderFlipCards(container, selected) {
@@ -180,23 +154,20 @@ function renderFlipCards(container, selected) {
   html += '<div class="flip-cards-container" style="display:flex;flex-direction:column;gap:12px;margin-top:8px">';
 
   selected.forEach((item, i) => {
-    const goldClass = item.gold ? ' gold-card' : '';
-    const goldBadge = item.gold ? '<span style="position:absolute;top:6px;right:8px;font-size:1.1rem">🌟</span>' : '';
     const daysSince = item.piece.lastPracticeDate
       ? Math.floor((new Date(Utils.today() + 'T00:00:00') - new Date(item.piece.lastPracticeDate + 'T00:00:00')) / 86400000)
       : 999;
     const daysLabel = daysSince >= 999 ? '从未练习' : daysSince + '天未练';
 
     html +=
-      '<div class="flip-card' + goldClass + '" data-flip-idx="' + i + '" id="flipCard' + i + '"' +
+      '<div class="flip-card" data-flip-idx="' + i + '" id="flipCard' + i + '"' +
            ' style="position:relative;border-radius:12px;overflow:hidden;cursor:pointer;' +
-           'border:1px solid ' + (item.gold ? 'var(--accent-yellow)' : 'var(--border-2)') + ';' +
+           'border:1px solid var(--border-2);' +
            'background:var(--elevated);transition:all 0.3s var(--ease-out)">' +
         // 背面（未翻转时显示）
         '<div class="flip-card-back" data-back="' + i + '"' +
              ' style="padding:16px;display:flex;align-items:center;justify-content:center;gap:12px"' +
              ' onclick="flipReviewCard(' + i + ')">' +
-          goldBadge +
           '<span style="font-size:1.8rem">🎵</span>' +
           '<div style="text-align:center">' +
             '<div style="font-size:0.9rem;font-weight:700;color:var(--text-1)">点击翻卡 ' + (i + 1) + '/' + selected.length + '</div>' +
@@ -230,8 +201,8 @@ function renderFlipCards(container, selected) {
    ------------------------------------------ */
 
 /**
- * 翻转一张复习卡片（金色光芒特效，文字不镜像）
- * 总时长约 4 秒：背面消失 2s → 正面曲名发光 2s → 恢复为练习卡片 2.5s 后
+ * 翻转一张复习卡片
+ * 总时长约 4 秒：背面消失 2s → 正面曲名展示 2s → 恢复为练习卡片
  * @param {number} idx 卡片索引 (0-3)
  * @returns {void}
  */
@@ -261,22 +232,20 @@ window.flipReviewCard = function(idx) {
   // 禁止重复点击
   back.style.pointerEvents = 'none';
 
-  // ── Phase 1: 背面消失（2s，带金色光芒） ──
-  if (card) card.classList.add('flip-card-glowing');
+  // ── Phase 1: 背面消失（2s） ──
   back.style.animation = 'cardBackOut 2s ease-in-out forwards';
 
-  // ── Phase 2: 背面消失后，显示正面曲名（金色发光由小变大） ──
+  // ── Phase 2: 背面消失后，显示正面曲名 ──
   setTimeout(function() {
     back.style.display = 'none';
     front.style.display = 'block';
     front.style.animation = 'cardFrontIn 2s ease-out forwards';
 
-    var goldBadge = item.gold ? ' <span style="font-size:0.8rem">🌟</span>' : '';
     front.innerHTML =
       '<div style="padding:20px;display:flex;align-items:center;justify-content:center;min-height:70px">' +
         '<div class="flip-title-reveal" style="text-align:center">' +
           '<div style="font-size:1.2rem;font-weight:700;color:var(--accent-yellow)">' +
-            Utils.escape(piece.en || piece.name) + goldBadge +
+            Utils.escape(piece.en || piece.name) +
           '</div>' +
           '<div style="font-size:0.8rem;color:var(--text-2);margin-top:6px">' + Utils.escape(piece.name) + '</div>' +
         '</div>' +
@@ -288,20 +257,17 @@ window.flipReviewCard = function(idx) {
     if (card) {
       card.style.animation = '';
       card.style.transform = '';
-      card.classList.remove('flip-card-glowing');
-      card.classList.add('flip-card-settled');
-      card.style.borderColor = item.gold ? 'var(--accent-yellow)' : 'var(--accent-primary)';
+      card.style.borderColor = 'var(--accent-primary)';
     }
     front.style.animation = '';
 
-    var goldBadge = item.gold ? ' <span style="font-size:0.8rem">🌟</span>' : '';
     front.innerHTML =
       '<div class="piece-card" data-index="' + index + '" id="piece' + index + '" style="border:none;background:transparent;padding:0;margin:0">' +
         '<div class="piece-card-top" onclick="togglePieceExpand(\'' + index + '\', event)" style="padding:12px 12px 4px 12px">' +
           '<span class="piece-number">' + (idx + 1) + '</span>' +
           '<div class="piece-info" style="flex:1">' +
             '<div class="piece-title" style="font-size:0.9rem;font-weight:700;color:var(--text-1)">' +
-              Utils.escape(piece.en || piece.name) + goldBadge +
+              Utils.escape(piece.en || piece.name) +
             '</div>' +
             '<div class="piece-subtitle" style="font-size:0.75rem;color:var(--text-2)">' + Utils.escape(piece.name) + '</div>' +
           '</div>' +
