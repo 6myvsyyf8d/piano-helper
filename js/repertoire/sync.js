@@ -260,10 +260,15 @@ async function handleImport(mode) {
   const jsonTextarea = document.getElementById('importJSON');
   let jsonData = '';
 
-  // 优先使用文件
+  // 优先使用文件（兼容旧版 Safari，不使用 file.text()）
   if (fileInput.files.length > 0) {
     const file = fileInput.files[0];
-    jsonData = await file.text();
+    jsonData = await new Promise(function(resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function(e) { resolve(e.target.result); };
+      reader.onerror = function(e) { reject(e); };
+      reader.readAsText(file, 'UTF-8');
+    });
   } else if (jsonTextarea.value.trim()) {
     jsonData = jsonTextarea.value.trim();
   } else {
