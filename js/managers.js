@@ -11,7 +11,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v3.4_20260721-0',
+  VERSION: 'v3.4_20260721-1',
 
   // 初始化曲库
   init() {
@@ -538,11 +538,74 @@ const SyncCode = {
       v: 3,
       l: DB.lessons(),
       g: DB.logs(),
-      r: DB.repertoire(),
       m: DB.bookMeta(),
       t: new Date().toISOString().slice(0, 10)
     };
     return this.encode(data);
+  },
+
+  /**
+   * 从 logs 推导曲库动态状态
+   * @param {Array} logs
+   * @returns {Object} repId -> { totalMinutes, practiceCount, lastPracticeDate, startedDate }
+   */
+  deriveRepStateFromLogs(logs) {
+    var state = {};
+    if (!logs || !logs.length) return state;
+    logs.forEach(function(log) {
+      if (!log.entries) return;
+      log.entries.forEach(function(entry) {
+        if (!entry.repId) return;
+        var id = entry.repId;
+        if (!state[id]) {
+          state[id] = { totalMinutes: 0, practiceCount: 0, lastPracticeDate: null, startedDate: null };
+        }
+        var dur = entry.durationMin || 0;
+        state[id].totalMinutes += dur;
+        state[id].practiceCount += 1;
+        var d = log.date;
+        if (!state[id].startedDate || d < state[id].startedDate) state[id].startedDate = d;
+        if (!state[id].lastPracticeDate || d > state[id].lastPracticeDate) state[id].lastPracticeDate = d;
+      });
+    });
+    return state;
+  },
+
+  /**
+   * 应用从 logs 推导的状态到本地曲库
+   * @param {Array} logs
+   */
+  applyDerivedRepState(logs) {
+    var derived = this.deriveRepStateFromLogs(logs);
+    var rep = DB.repertoire();
+    var changed = false;
+    rep.forEach(function(piece) {
+      var d = derived[piece.id];
+      if (!d) return;
+      if (piece.status === 'untouched') {
+        piece.status = 'learning';
+        changed = true;
+      }
+      if (d.totalMinutes > 0) {
+        piece.totalMinutes = (piece.totalMinutes || 0) + d.totalMinutes;
+        changed = true;
+      }
+      if (d.practiceCount > 0) {
+        piece.practiceCount = (piece.practiceCount || 0) + d.practiceCount;
+        changed = true;
+      }
+      if (d.startedDate && !piece.startedDate) {
+        piece.startedDate = d.startedDate;
+        changed = true;
+      }
+      if (d.lastPracticeDate) {
+        if (!piece.lastPracticeDate || d.lastPracticeDate > piece.lastPracticeDate) {
+          piece.lastPracticeDate = d.lastPracticeDate;
+          changed = true;
+        }
+      }
+    });
+    if (changed) DB.saveRepertoire(rep);
   },
 
    /**
@@ -576,13 +639,6 @@ const SyncCode = {
         if (!sampleEntry.category) {
           issues.push('练习日志缺少 category（分类）字段');
         }
-      }
-    }
-
-    if (data.r && data.r.length) {
-      var sampleRep = data.r[0];
-      if (sampleRep.lastPracticeDate === undefined && sampleRep.memorized === undefined) {
-        issues.push('曲库数据缺少练习状态字段（将使用默认值）');
       }
     }
 
@@ -758,7 +814,12 @@ const SyncCode = {
       DB.saveLogs(Object.values(mergedLogs));
     }
 
-    // 导入 repertoire（含迁移）
+    // 从导入的 logs 推导曲库动态状态（同步码精简后不再携带 repertoire）
+    if (data.g && data.g.length) {
+      this.applyDerivedRepState(data.g);
+    }
+
+    // 导入 repertoire（含迁移）——兼容旧版同步码
     if (data.r && data.r.length) {
       var importedRep = this.migrateRepertoire(data.r);
       if (!DB.repertoire().length) {

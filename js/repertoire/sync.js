@@ -33,7 +33,7 @@ window.showSyncPanel = function() {
           <div class="flex-row gap-8 mb-16">
             <button class="btn btn-primary btn-sm" onclick="copySyncCode()" style="flex:1">📋 复制同步码</button>
           </div>
-          <p class="text-xs text-3">包含：${DB.lessons().length} 条课程 · ${DB.logs().length} 条练习 · ${DB.repertoire().length} 首曲目</p>
+          <p class="text-xs text-3">包含：${DB.lessons().length} 条课程 · ${DB.logs().length} 条练习 · 同步码长度 ${syncCode.length} 字符</p>
 
           <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
 
@@ -133,30 +133,104 @@ function updateSyncButtonState() {
    ========================================== */
 
 /**
- * 导出所有数据为 JSON 文件（自动下载）
+ * 显示导出选择面板，让用户选择要导出的数据类型
  * @returns {void}
  */
 window.exportDataAsJSON = function() {
-  const data = {
-    lessons: DB.lessons(),
-    logs: DB.logs(),
-    repertoire: DB.repertoire(),
-    bookMeta: DB.bookMeta(),
-    config: DB.config(),
-    exportDate: new Date().toISOString(),
-    version: '3.4_20260620'
-  };
+  const modal = document.getElementById('modalContainer');
 
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `piano-data-${Utils.today()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">📥 导出数据</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-xs text-2 mb-8">请选择要导出的数据类型（默认推荐导出课程、练习日志和自定义册名）</p>
 
-  Utils.showToast('✅ 数据已导出', 'success');
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="exportLessons" checked style="width:16px;height:16px">
+              <span>📚 课程记录</span>
+              <span class="text-xs text-3" style="margin-left:auto">${DB.lessons().length} 条</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="exportLogs" checked style="width:16px;height:16px">
+              <span>📝 练习日志</span>
+              <span class="text-xs text-3" style="margin-left:auto">${DB.logs().length} 条</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="exportBookMeta" checked style="width:16px;height:16px">
+              <span>🏷️ 自定义册名</span>
+              <span class="text-xs text-3" style="margin-left:auto">${Object.keys(DB.bookMeta()).length} 条</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="exportRepertoire" style="width:16px;height:16px">
+              <span>🎼 曲库进度（含背谱、状态等）</span>
+              <span class="text-xs text-3" style="margin-left:auto">${DB.repertoire().length} 首</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="exportConfig" style="width:16px;height:16px">
+              <span>⚙️ 应用配置</span>
+            </label>
+          </div>
+
+          <button class="btn btn-primary" id="btnConfirmExport" style="width:100%;margin-top:8px">
+            📥 确认导出
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btnConfirmExport').addEventListener('click', function() {
+    const includeLessons = document.getElementById('exportLessons').checked;
+    const includeLogs = document.getElementById('exportLogs').checked;
+    const includeBookMeta = document.getElementById('exportBookMeta').checked;
+    const includeRepertoire = document.getElementById('exportRepertoire').checked;
+    const includeConfig = document.getElementById('exportConfig').checked;
+
+    if (!includeLessons && !includeLogs && !includeBookMeta && !includeRepertoire && !includeConfig) {
+      Utils.showToast('⚠️ 请至少选择一项数据', 'warning');
+      return;
+    }
+
+    const data = {
+      exportDate: new Date().toISOString(),
+      version: RepertoireManager.VERSION
+    };
+
+    if (includeLessons) data.lessons = DB.lessons();
+    if (includeLogs) data.logs = DB.logs();
+    if (includeBookMeta) data.bookMeta = DB.bookMeta();
+    if (includeRepertoire) data.repertoire = DB.repertoire();
+    if (includeConfig) data.config = DB.config();
+
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `piano-data-${Utils.today()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    closeModal();
+    Utils.showToast('✅ 数据已导出', 'success');
+  });
 };
 
 /**
@@ -286,8 +360,8 @@ async function handleImport(mode) {
     const newConfig = data.config || data.piano_config || {};
     const newBookMeta = data.bookMeta || {};
 
-    if (!newLessons.length && !newLogs.length && !newRep.length) {
-      Utils.showToast('❌ 数据格式不正确，未找到课程/练习/曲库数据', 'error');
+    if (!newLessons.length && !newLogs.length && !newRep.length && !Object.keys(newBookMeta).length && !Object.keys(newConfig).length) {
+      Utils.showToast('❌ 数据格式不正确，未找到任何可导入的数据', 'error');
       return;
     }
 
