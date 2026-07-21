@@ -1,5 +1,5 @@
 /*
- * 哆哩的钢琴助手 — Piano Helper
+ * 钢琴练习助手 — Piano Practice Helper
  * Copyright (c) 2024-present
  * Licensed under the MIT License
  */
@@ -195,7 +195,7 @@ const DateWatcher = {
 
 console.log(`
 ╔════════════════════════════════════════╗
-║   🎹 哆哩的钢琴助手 ${RepertoireManager.VERSION}  ║
+║   🎹 钢琴练习助手 ${RepertoireManager.VERSION}  ║
 ║   ✅ All modules loaded successfully   ║
 ╚════════════════════════════════════════╝
 `);

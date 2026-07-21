@@ -1,5 +1,5 @@
 /*
- * 哆哩的钢琴助手 — Piano Helper
+ * 钢琴练习助手 — Piano Practice Helper
  * Copyright (c) 2024-present
  * Licensed under the MIT License
  */
@@ -11,7 +11,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v3.4_20260707-0',
+  VERSION: 'v3.4_20260721-0',
 
   // 初始化曲库
   init() {
