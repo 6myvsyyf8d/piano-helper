@@ -97,8 +97,8 @@ window.showLessonForm = function(lessonId) {
 
   const modal = document.getElementById('modalContainer');
   modal.innerHTML = `
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
+    <div class="modal-overlay modal-lesson-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal modal-lesson">
         <div class="modal-header">
           <h2 class="modal-title">${isEdit ? '✏️ 编辑课程' : '📒 新增课程'}</h2>
           <button class="modal-close" onclick="closeModal()">✕</button>
@@ -143,6 +143,16 @@ window.showLessonForm = function(lessonId) {
       </div>
     </div>
   `;
+
+  // 阻止左右滑动时画面跟随（iOS橡皮筋效果）
+  var overlay = modal.querySelector('.modal-lesson-overlay');
+  if (overlay) {
+    overlay.addEventListener('touchmove', function(e) {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
 };
 
 /* ------------------------------------------

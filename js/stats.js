@@ -134,101 +134,59 @@ function renderStats() {
   const learning = rep.filter(p => p.status === 'learning').length;
   const untouched = rep.filter(p => p.status === 'untouched').length;
   const totalRep = rep.length;
-  const learnedPct = totalRep ? Math.round(learned / totalRep * 100) : 0;
-  const learningPct = totalRep ? Math.round(learning / totalRep * 100) : 0;
-  const barColors = ['--accent-green', '--accent-yellow', '--border-2'];
-  const barLabels = [
+
+  // 使用更精确的百分比计算，确保总和为100%
+  var rawLearned = totalRep ? learned / totalRep * 100 : 0;
+  var rawLearning = totalRep ? learning / totalRep * 100 : 0;
+  var rawUntouched = totalRep ? untouched / totalRep * 100 : 0;
+  var learnedPct = Math.round(rawLearned);
+  var learningPct = Math.round(rawLearning);
+  var untouchedPct = Math.round(rawUntouched);
+  // 修正四舍五入误差，确保总和为100
+  var diff = 100 - (learnedPct + learningPct + untouchedPct);
+  if (diff !== 0 && totalRep > 0) {
+    // 将误差加到最大的一段上
+    if (learned >= learning && learned >= untouched) learnedPct += diff;
+    else if (learning >= untouched) learningPct += diff;
+    else untouchedPct += diff;
+  }
+
+  var barLabels = [
     { label: '已学会', count: learned, pct: learnedPct, color: 'var(--accent-green)' },
     { label: '学习中', count: learning, pct: learningPct, color: 'var(--accent-yellow)' },
-    { label: '未学', count: untouched, pct: totalRep ? 100 - learnedPct - learningPct : 0, color: 'var(--border-2)' }
+    { label: '未学', count: untouched, pct: untouchedPct, color: 'var(--border-2)' }
   ];
+  // 过滤掉数量为0的项，进度条和标签保持一致
+  var activeLabels = barLabels.filter(function(b) { return b.count > 0; });
 
   const progressHTML = `
     <div class="card">
       <div class="card-header"><h3 class="card-title">📖 曲目进度</h3></div>
       <div style="display:flex;height:24px;border-radius:12px;overflow:hidden;margin-bottom:12px;gap:2px">
-        ${barLabels.filter(b => b.count > 0).map(b =>
+        ${activeLabels.map(b =>
           '<div style="height:100%;width:' + b.pct + '%;background:' + b.color + ';border-radius:12px;transition:width 0.5s var(--ease-out)"></div>'
         ).join('')}
       </div>
-      <div style="display:flex;gap:20px;font-size:0.78rem;color:var(--text-2)">
-        ${barLabels.map(b => '<span>● ' + b.label + ' <strong style="color:var(--text-1)">' + b.count + '</strong> 首</span>').join('')}
+      <div style="display:flex;gap:20px;font-size:0.78rem;color:var(--text-2);flex-wrap:wrap">
+        ${activeLabels.map(b => '<span>● ' + b.label + ' <strong style="color:var(--text-1)">' + b.count + '</strong> 首</span>').join('')}
       </div>
+      <div style="margin-top:8px;font-size:0.7rem;color:var(--text-4)">共 ${totalRep} 首曲目</div>
     </div>
   `;
 
-  // ── Card 3: 7天 + 30天趋势 ──
-  // 使用预建的 logsByDate Map，O(1) 查找
-  function buildTrendBars(days) {
-    let maxMin = 1;
-    const barData = new Array(days);
-    for (let i = 0; i < days; i++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - (days - 1 - i));
-      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const log = logsByDate.get(ds);
-      const min = log ? (log.totalDurationMin || 0) : 0;
-      if (min > maxMin) maxMin = min;
-      barData[i] = { min, month: d.getMonth() + 1, day: d.getDate(), isToday: ds === today };
-    }
-
-    const parts = [];
-    for (let i = 0; i < days; i++) {
-      const b = barData[i];
-      const h = maxMin > 0 ? Math.max(4, Math.round(b.min / maxMin * 100)) : 4;
-      const barColor = b.isToday ? 'var(--accent-primary)' : 'rgba(245,160,152,0.3)';
-      parts.push(
-        '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0">' +
-          '<span style="font-size:0.65rem;color:var(--text-3)">' + b.min + '分</span>' +
-          '<div style="width:100%;max-width:32px;height:' + h + 'px;background:' + barColor + ';border-radius:6px 6px 0 0;transition:height 0.4s var(--ease-out)"></div>' +
-          '<span style="font-size:0.6rem;color:var(--text-4)">' + b.month + '/' + b.day + '</span>' +
-        '</div>'
-      );
-    }
-    return parts.join('');
-  }
-
-  const trendHTML = `
-    <div class="card">
-      <div class="card-header"><h3 class="card-title">📈 练习趋势</h3></div>
-      <div style="margin-bottom:16px">
-        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">最近 7 天（分钟）</div>
-        <div style="display:flex;align-items:flex-end;gap:4px;min-height:120px">
-          ${buildTrendBars(7)}
-        </div>
-      </div>
-      <div>
-        <div style="font-size:0.7rem;color:var(--text-3);margin-bottom:8px">最近 30 天（分钟）</div>
-        <div style="display:flex;align-items:flex-end;gap:2px;min-height:80px">
-          ${buildTrendBars(30)}
-        </div>
-      </div>
-    </div>
-  `;
-
-  // ── Card 4: 曲目练习排名 ──
-  const pieceStats = {};
-  for (let i = 0; i < logs.length; i++) {
-    const log = logs[i];
-    const entries = log.entries;
-    for (let j = 0; j < entries.length; j++) {
-      const e = entries[j];
-      const cleanName = DataCleaner.standardizePieceName(e.pieceName, e.repId);
-      let bookInfo = '';
-      if (e.book) {
-        const bookName = RepertoireManager.getBookDisplayName(e.book);
-        bookInfo = bookName;
-      } else if (e.repId) {
-        const piece = DB.repertoire().find(p => p.id === e.repId);
-        if (piece && piece.book) {
-          bookInfo = RepertoireManager.getBookDisplayName(piece.book);
-        }
-      }
-      const key = cleanName + '|' + (bookInfo || '');
-      let stat = pieceStats[key];
+  // ── Card 3: 曲目练习排名（曲库范围） ──
+  // 先从日志中统计每首曲目的练习数据
+  var pieceStats = {};
+  for (var i = 0; i < logs.length; i++) {
+    var log = logs[i];
+    var entries = log.entries;
+    for (var j = 0; j < entries.length; j++) {
+      var e = entries[j];
+      if (!e.repId) continue;
+      var stat = pieceStats[e.repId];
       if (!stat) {
-        stat = { name: cleanName, bookInfo: bookInfo || '', days: 0, count: 0, totalMin: 0, lastDate: '' };
-        pieceStats[key] = stat;
+        stat = { repId: e.repId, days: 0, count: 0, totalMin: 0, lastDate: '' };
+        pieceStats[e.repId] = stat;
       }
       stat.count++;
       stat.totalMin += e.durationMin || 0;
@@ -236,18 +194,40 @@ function renderStats() {
       if (log.date > (stat.lastDate || '')) stat.lastDate = log.date;
     }
   }
-  const pieceList = Object.values(pieceStats).sort((a, b) => b.count - a.count);
+
+  // 遍历曲库，为每个曲目生成统计条目（未练过的显示为0）
+  var pieceList = rep.map(function(piece) {
+    var stat = pieceStats[piece.id];
+    return {
+      name: piece.name,
+      bookInfo: piece.book ? RepertoireManager.getBookDisplayName(piece.book) : '',
+      status: piece.status,
+      count: stat ? stat.count : 0,
+      days: stat ? stat.days : 0,
+      totalMin: stat ? stat.totalMin : 0,
+      lastDate: stat ? stat.lastDate : ''
+    };
+  }).sort(function(a, b) {
+    // 优先按练习次数降序，次数相同按曲名排序
+    if (b.count !== a.count) return b.count - a.count;
+    return a.name.localeCompare(b.name);
+  });
 
   function daysSince(dateStr) {
     if (!dateStr) return '—';
-    const diff = Math.floor((now - new Date(dateStr + 'T00:00:00')) / 86400000);
+    var diff = Math.floor((now - new Date(dateStr + 'T00:00:00')) / 86400000);
     return diff === 0 ? '今天' : diff + '天前';
   }
 
-  const rankingHTML = `
+  var statusLabel = function(status) {
+    if (status === 'learned') return '<span style="font-size:0.6rem;color:var(--accent-green);background:rgba(142,212,166,0.15);padding:1px 5px;border-radius:4px">已学会</span>';
+    if (status === 'learning') return '<span style="font-size:0.6rem;color:var(--accent-yellow);background:rgba(245,216,154,0.15);padding:1px 5px;border-radius:4px">学习中</span>';
+    return '<span style="font-size:0.6rem;color:var(--text-4);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:4px">未学</span>';
+  };
+
+  var rankingHTML = `
     <div class="card">
       <div class="card-header"><h3 class="card-title">🎵 曲目练习排名</h3></div>
-      ${pieceList.length === 0 ? '<div style="text-align:center;color:var(--text-3);padding:20px">暂无练习记录</div>' : ''}
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:0.78rem">
           <thead>
@@ -255,6 +235,7 @@ function renderStats() {
               <th style="padding:8px 4px;width:24px">#</th>
               <th style="padding:8px 4px">曲名</th>
               <th style="padding:8px 4px">册名</th>
+              <th style="padding:8px 4px;text-align:center">状态</th>
               <th style="padding:8px 4px;text-align:center">次数</th>
               <th style="padding:8px 4px;text-align:center">天数</th>
               <th style="padding:8px 4px;text-align:center">分钟</th>
@@ -263,10 +244,11 @@ function renderStats() {
           </thead>
           <tbody>
             ${pieceList.map((p, i) => `
-              <tr style="border-bottom:1px solid var(--border-2)">
+              <tr style="border-bottom:1px solid var(--border-2);opacity:${p.count > 0 ? '1' : '0.5'}">
                 <td style="padding:8px 4px;color:var(--text-4)">${i + 1}</td>
                 <td style="padding:8px 4px;font-weight:600">${Utils.escape(p.name)}</td>
                 <td style="padding:8px 4px;color:var(--text-3);font-size:0.72rem">${Utils.escape(p.bookInfo) || '—'}</td>
+                <td style="padding:8px 4px;text-align:center">${statusLabel(p.status)}</td>
                 <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${p.count}</td>
                 <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${p.days}</td>
                 <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${Math.round(p.totalMin * 10) / 10}</td>
@@ -279,29 +261,25 @@ function renderStats() {
     </div>
   `;
 
-  // ── Card 5: 注意事项追踪 ──
-  const focusKeywords = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏', '背谱', '踏板', '手腕', '手臂', '触键', '表情', '呼吸'];
-  const concernMap = {};
-  const lessonFound = new Set();  // 复用一个 Set，避免每次循环创建
+  // ── Card 4: 注意事项雷达图 ──
+  var focusKeywords = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏', '背谱', '踏板', '手腕', '手臂', '触键', '表情', '呼吸'];
+  var concernMap = {};
+  var lessonFound = new Set();
 
-  for (let i = 0; i < lessons.length; i++) {
-    const lesson = lessons[i];
-    const lessonDate = lesson.date;
+  for (var i = 0; i < lessons.length; i++) {
+    var lesson = lessons[i];
+    var lessonDate = lesson.date;
     lessonFound.clear();
 
-    // 从 focusAreas 收集
-    const pieces = lesson.pieces;
-    for (let j = 0; j < pieces.length; j++) {
-      const focusAreas = pieces[j].focusAreas;
+    var pieces = lesson.pieces;
+    for (var j = 0; j < pieces.length; j++) {
+      var focusAreas = pieces[j].focusAreas;
       if (!focusAreas || !focusAreas.length) continue;
-      for (let k = 0; k < focusAreas.length; k++) {
-        const key = DataCleaner.standardizeFocusArea(focusAreas[k].trim());
-        let c = concernMap[key];
+      for (var k = 0; k < focusAreas.length; k++) {
+        var key = DataCleaner.standardizeFocusArea(focusAreas[k].trim());
+        var c = concernMap[key];
         if (!c) {
           concernMap[key] = c = { minDate: lessonDate, maxDate: lessonDate, count: 0 };
-        } else {
-          if (lessonDate < c.minDate) c.minDate = lessonDate;
-          if (lessonDate > c.maxDate) c.maxDate = lessonDate;
         }
         if (!lessonFound.has(key)) {
           lessonFound.add(key);
@@ -312,15 +290,14 @@ function renderStats() {
       }
     }
 
-    // 从 details 和 notes 文本中匹配关键词（用数组 join，避免中间数组创建）
-    let textBuf = lesson.notes || '';
-    for (let j = 0; j < pieces.length; j++) {
+    var textBuf = lesson.notes || '';
+    for (var j = 0; j < pieces.length; j++) {
       textBuf += ' ' + (pieces[j].details || '');
     }
-    for (let k = 0; k < focusKeywords.length; k++) {
-      const kw = focusKeywords[k];
+    for (var k = 0; k < focusKeywords.length; k++) {
+      var kw = focusKeywords[k];
       if (!lessonFound.has(kw) && textBuf.includes(kw)) {
-        let c = concernMap[kw];
+        var c = concernMap[kw];
         if (!c) {
           concernMap[kw] = c = { minDate: lessonDate, maxDate: lessonDate, count: 0 };
         }
@@ -331,44 +308,106 @@ function renderStats() {
     }
   }
 
-  const concerns = Object.entries(concernMap)
-    .map(([tag, data]) => {
-      const spanDays = Math.floor((new Date(data.maxDate + 'T00:00:00') - new Date(data.minDate + 'T00:00:00')) / 86400000);
-      return { tag, count: data.count, firstDate: data.minDate, lastDate: data.maxDate, spanDays };
-    })
-    .sort((a, b) => (b.spanDays * b.count) - (a.spanDays * a.count));
+  // 分大类计算得分
+  var categories = [
+    { key: 'tech', label: '技术基础', keywords: ['手型', '指法', '手腕', '手臂', '触键'], color: '#8ED4A6' },
+    { key: 'music', label: '音乐表现', keywords: ['节奏', '音准', '乐感', '表情', '呼吸'], color: '#9BB9DC' },
+    { key: 'skill', label: '演奏技巧', keywords: ['力度', '速度', '视奏'], color: '#F5D89A' },
+    { key: 'mem', label: '记忆熟练', keywords: ['背谱', '踏板'], color: '#BAB8E0' }
+  ];
 
-  const concernsHTML = `
+  var catScores = categories.map(function(cat) {
+    var score = 0;
+    var keywordsFound = [];
+    cat.keywords.forEach(function(kw) {
+      var data = concernMap[kw];
+      if (data) {
+        var spanDays = Math.floor((new Date(data.maxDate + 'T00:00:00') - new Date(data.minDate + 'T00:00:00')) / 86400000);
+        score += data.count * (spanDays + 1);
+        keywordsFound.push(kw + ' (' + data.count + '次)');
+      }
+    });
+    return { label: cat.label, color: cat.color, score: score, details: keywordsFound };
+  });
+
+  var maxScore = Math.max.apply(null, catScores.map(function(c) { return c.score; })) || 1;
+  catScores.forEach(function(c) { c.normalized = Math.round(c.score / maxScore * 100); });
+
+  // 生成雷达图 SVG
+  function renderRadarChart(cats) {
+    var size = 200;
+    var center = size / 2;
+    var radius = 70;
+    var count = cats.length;
+    var angleStep = (Math.PI * 2) / count;
+
+    // 网格圆
+    var gridCircles = [0.25, 0.5, 0.75, 1].map(function(ratio) {
+      var r = radius * ratio;
+      return '<circle cx="' + center + '" cy="' + center + '" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>';
+    }).join('');
+
+    // 轴线
+    var axisLines = cats.map(function(_, i) {
+      var angle = i * angleStep - Math.PI / 2;
+      var x = center + radius * Math.cos(angle);
+      var y = center + radius * Math.sin(angle);
+      return '<line x1="' + center + '" y1="' + center + '" x2="' + x + '" y2="' + y + '" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>';
+    }).join('');
+
+    // 数据多边形
+    var dataPoints = cats.map(function(cat, i) {
+      var angle = i * angleStep - Math.PI / 2;
+      var r = radius * (cat.normalized / 100);
+      return (center + r * Math.cos(angle)) + ',' + (center + r * Math.sin(angle));
+    }).join(' ');
+
+    // 标签
+    var labels = cats.map(function(cat, i) {
+      var angle = i * angleStep - Math.PI / 2;
+      var labelR = radius + 22;
+      var x = center + labelR * Math.cos(angle);
+      var y = center + labelR * Math.sin(angle);
+      var anchor = Math.abs(Math.cos(angle)) < 0.3 ? 'middle' : (Math.cos(angle) > 0 ? 'start' : 'end');
+      return '<text x="' + x + '" y="' + y + '" text-anchor="' + anchor + '" fill="var(--text-2)" font-size="11" font-weight="600">' + cat.label + '</text>' +
+             '<text x="' + x + '" y="' + (y + 13) + '" text-anchor="' + anchor + '" fill="' + cat.color + '" font-size="10">' + cat.normalized + '</text>';
+    }).join('');
+
+    // 数据点
+    var dots = cats.map(function(cat, i) {
+      var angle = i * angleStep - Math.PI / 2;
+      var r = radius * (cat.normalized / 100);
+      var x = center + r * Math.cos(angle);
+      var y = center + r * Math.sin(angle);
+      return '<circle cx="' + x + '" cy="' + y + '" r="3" fill="' + cat.color + '" stroke="var(--bg-primary)" stroke-width="2"/>';
+    }).join('');
+
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" style="display:block;margin:0 auto">' +
+      gridCircles + axisLines +
+      '<polygon points="' + dataPoints + '" fill="rgba(245,160,152,0.12)" stroke="var(--accent-primary)" stroke-width="2" stroke-linejoin="round"/>' +
+      dots + labels +
+      '</svg>';
+  }
+
+  // 详细列表（按大类分组）
+  var detailHtml = catScores.map(function(cat) {
+    if (cat.details.length === 0) return '';
+    return '<div style="margin-bottom:12px">' +
+      '<div style="font-size:0.78rem;font-weight:600;color:' + cat.color + ';margin-bottom:4px">' + cat.label + '</div>' +
+      '<div style="font-size:0.7rem;color:var(--text-3);line-height:1.6">' + cat.details.join('、') + '</div>' +
+      '</div>';
+  }).join('');
+
+  var concernsHTML = `
     <div class="card">
-      <div class="card-header"><h3 class="card-title">⚠️ 注意事项追踪</h3></div>
-      ${concerns.length === 0 ? '<div style="text-align:center;color:var(--text-3);padding:20px">暂无课程记录</div>' : ''}
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:0.78rem">
-          <thead>
-            <tr style="color:var(--text-3);font-size:0.68rem;text-align:left;border-bottom:1px solid var(--border-2)">
-              <th style="padding:8px 4px">问题</th>
-              <th style="padding:8px 4px;text-align:center">出现次数</th>
-              <th style="padding:8px 4px;text-align:center">持续天数</th>
-              <th style="padding:8px 4px;text-align:right">日期范围</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${concerns.map(c => {
-              const severityColor = c.spanDays > 60 ? 'var(--accent-red)' : c.spanDays > 30 ? 'var(--accent-yellow)' : 'var(--accent-green)';
-              return `
-              <tr style="border-bottom:1px solid var(--border-2)">
-                <td style="padding:8px 4px;font-weight:700;color:${severityColor}">${Utils.escape(c.tag)}</td>
-                <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${c.count} 次</td>
-                <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${c.spanDays} 天</td>
-                <td style="padding:8px 4px;text-align:right;color:var(--text-3);font-size:0.7rem">${Utils.formatDate(c.firstDate)} → ${Utils.formatDate(c.lastDate)}</td>
-              </tr>
-            `}).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div style="margin-top:12px;font-size:0.65rem;color:var(--text-4)">
-        按「次数 × 持续时间」综合排序。红色 = 持续超过 60 天，需重点注意。
-      </div>
+      <div class="card-header"><h3 class="card-title">⚠️ 注意事项分析</h3></div>
+      ${catScores.every(function(c) { return c.score === 0; }) ?
+        '<div style="text-align:center;color:var(--text-3);padding:20px">暂无课程记录</div>' :
+        '<div style="padding:8px 0">' +
+          renderRadarChart(catScores) +
+          '<div style="margin-top:16px">' + detailHtml + '</div>' +
+        '</div>'
+      }
     </div>
   `;
 
@@ -445,7 +484,6 @@ function renderStats() {
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">🏅 成就里程碑</h3>
-        <span style="font-size:0.65rem;color:var(--text-3)">悦跑圈风格</span>
       </div>
 
       ${maxStarsDay > 0 || currentStreak > 0 || maxDurationDay > 0 ? '' : '<div style="text-align:center;color:var(--text-3);padding:20px">开始练习后解锁成就</div>'}
@@ -490,7 +528,7 @@ function renderStats() {
     </div>
   `;
 
-  page.innerHTML = overviewHTML + starsHTML + streakHTML + progressHTML + trendHTML + milestonesHTML + rankingHTML + concernsHTML + cleanToolHTML;
+  page.innerHTML = overviewHTML + starsHTML + streakHTML + progressHTML + milestonesHTML + rankingHTML + concernsHTML + cleanToolHTML;
 }
 
 // ── 数据清洗预览 ──
