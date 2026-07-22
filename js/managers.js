@@ -11,7 +11,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v3.4_20260721-1',
+  VERSION: 'v3.4_20260722-0',
 
   // 初始化曲库
   init() {
@@ -533,14 +533,18 @@ const SyncCode = {
     }
   },
 
-  generateCode() {
-    var data = {
-      v: 3,
-      l: DB.lessons(),
-      g: DB.logs(),
-      m: DB.bookMeta(),
-      t: new Date().toISOString().slice(0, 10)
-    };
+  generateCode(selected) {
+    var data = { v: 3, t: new Date().toISOString().slice(0, 10) };
+    if (selected) {
+      if (selected.lessons && selected.lessons.length) data.l = selected.lessons;
+      if (selected.logs && selected.logs.length) data.g = selected.logs;
+      if (selected.bookMeta && Object.keys(selected.bookMeta).length) data.m = selected.bookMeta;
+      if (selected.repertoire && selected.repertoire.length) data.r = selected.repertoire;
+    } else {
+      data.l = DB.lessons();
+      data.g = DB.logs();
+      data.m = DB.bookMeta();
+    }
     return this.encode(data);
   },
 

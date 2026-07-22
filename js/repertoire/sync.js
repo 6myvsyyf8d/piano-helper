@@ -14,8 +14,53 @@
  */
 window.showSyncPanel = function() {
   const storageInfo = DB.getStorageInfo();
-  const syncCode = SyncCode.generateCode();
+  const lessons = DB.lessons().slice().sort((a, b) => b.date.localeCompare(a.date));
+  const logs = DB.logs().slice().sort((a, b) => b.date.localeCompare(a.date));
+  const bookMeta = DB.bookMeta();
+  const rep = DB.repertoire();
   const modal = document.getElementById('modalContainer');
+
+  // 构建课程子级列表
+  const lessonItems = lessons.map((l, i) => {
+    const pieceNames = (l.pieces || []).map(p => p.name).join('、');
+    const label = l.date + (pieceNames ? '：' + pieceNames.slice(0, 20) : '');
+    const checked = i === 0 ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:0.75rem">' +
+      '<input type="checkbox" class="sync-chk-lesson" data-idx="' + i + '" ' + checked + ' style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(label) + '</span></label>';
+  }).join('');
+
+  // 构建日志子级列表
+  const logItems = logs.map((l, i) => {
+    const entryCount = (l.entries || []).length;
+    const label = l.date + ' (' + entryCount + '条)';
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:0.75rem">' +
+      '<input type="checkbox" class="sync-chk-log" data-idx="' + i + '" style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(label) + '</span></label>';
+  }).join('');
+
+  // 构建册名子级列表
+  const metaKeys = Object.keys(bookMeta);
+  const metaItems = metaKeys.map(k => {
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:0.75rem">' +
+      '<input type="checkbox" class="sync-chk-meta" data-key="' + k + '" checked style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(bookMeta[k]) + ' (' + k + ')</span></label>';
+  }).join('');
+
+  // 构建曲库子级列表（按册分组）
+  const bookGroups = {};
+  rep.forEach(p => {
+    if (!bookGroups[p.book]) bookGroups[p.book] = [];
+    bookGroups[p.book].push(p);
+  });
+  const repItems = Object.keys(bookGroups).sort((a, b) => a - b).map(bookNum => {
+    const bookName = RepertoireManager.getBookDisplayName(Number(bookNum));
+    const pieces = bookGroups[bookNum];
+    const label = bookName + ' (' + pieces.length + '首)';
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:0.75rem">' +
+      '<input type="checkbox" class="sync-chk-rep" data-book="' + bookNum + '" style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(label) + '</span></label>';
+  }).join('');
 
   modal.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
@@ -26,14 +71,77 @@ window.showSyncPanel = function() {
         </div>
         <div class="modal-body">
           <h3 class="font-bold mb-8">📤 生成同步码</h3>
-          <p class="text-xs text-2 mb-8">复制下方同步码，发送到另一台设备粘贴即可同步</p>
-          <textarea class="form-input" id="syncCodeOutput" readonly
-                    style="min-height:100px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"
-                    onclick="this.select()">${syncCode}</textarea>
-          <div class="flex-row gap-8 mb-16">
-            <button class="btn btn-primary btn-sm" onclick="copySyncCode()" style="flex:1">📋 复制同步码</button>
+          <p class="text-xs text-2 mb-8">选择要同步的数据，点击生成同步码</p>
+
+          <div style="margin-bottom:8px">
+            <div onclick="var d=document.getElementById('syncLessonList');d.style.display=d.style.display==='none'?'block':'none'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+              <span>📚 课程记录</span>
+              <span class="text-xs text-3">(${lessons.length}条)</span>
+              <span style="margin-left:auto" id="syncLessonArrow">▼</span>
+            </div>
+            <div id="syncLessonList" style="max-height:160px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+              ${lessonItems || '<span class="text-xs text-3">暂无课程</span>'}
+            </div>
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson',1)" style="font-size:0.7rem;padding:2px 8px">仅最近1次</button>
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson',3)" style="font-size:0.7rem;padding:2px 8px">最近3次</button>
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+            </div>
           </div>
-          <p class="text-xs text-3">包含：${DB.lessons().length} 条课程 · ${DB.logs().length} 条练习 · 同步码长度 ${syncCode.length} 字符</p>
+
+          <div style="margin-bottom:8px">
+            <div onclick="var d=document.getElementById('syncLogList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncLogArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+              <span>📝 练习日志</span>
+              <span class="text-xs text-3">(${logs.length}条)</span>
+              <span style="margin-left:auto" id="syncLogArrow">▶</span>
+            </div>
+            <div id="syncLogList" style="display:none;max-height:160px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+              ${logItems || '<span class="text-xs text-3">暂无日志</span>'}
+            </div>
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('log','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('log','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom:8px">
+            <div onclick="var d=document.getElementById('syncMetaList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncMetaArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+              <span>🏷️ 自定义册名</span>
+              <span class="text-xs text-3">(${metaKeys.length}条)</span>
+              <span style="margin-left:auto" id="syncMetaArrow">▶</span>
+            </div>
+            <div id="syncMetaList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+              ${metaItems || '<span class="text-xs text-3">暂无自定义册名</span>'}
+            </div>
+          </div>
+
+          <div style="margin-bottom:8px">
+            <div onclick="var d=document.getElementById('syncRepList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncRepArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+              <span>🎼 曲库进度</span>
+              <span class="text-xs text-3">(${rep.length}首)</span>
+              <span style="margin-left:auto" id="syncRepArrow">▶</span>
+            </div>
+            <div id="syncRepList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+              ${repItems || '<span class="text-xs text-3">暂无曲目</span>'}
+            </div>
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('rep','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('rep','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-sm" id="btnGenSyncCode" style="width:100%;margin-bottom:8px">🔗 生成同步码</button>
+
+          <div id="syncCodeDisplay" style="display:none">
+            <textarea class="form-input" id="syncCodeOutput" readonly
+                      style="min-height:100px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"
+                      onclick="this.select()"></textarea>
+            <div class="flex-row gap-8 mb-8">
+              <button class="btn btn-primary btn-sm" onclick="copySyncCode()" style="flex:1">📋 复制同步码</button>
+            </div>
+            <p class="text-xs text-3" id="syncCodeInfo"></p>
+          </div>
 
           <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
 
@@ -56,11 +164,11 @@ window.showSyncPanel = function() {
             </div>
             <div class="flex-between">
               <span class="text-sm">课程记录</span>
-              <span class="text-sm text-2">${DB.lessons().length} 条</span>
+              <span class="text-sm text-2">${lessons.length} 条</span>
             </div>
             <div class="flex-between">
               <span class="text-sm">练习日志</span>
-              <span class="text-sm text-2">${DB.logs().length} 条</span>
+              <span class="text-sm text-2">${logs.length} 条</span>
             </div>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="exportDataAsJSON()" style="width:100%;margin-bottom:8px">
@@ -83,6 +191,61 @@ window.showSyncPanel = function() {
     </div>
   `;
 
+  // 生成同步码按钮事件
+  document.getElementById('btnGenSyncCode').addEventListener('click', () => {
+    const selected = {};
+
+    // 收集选中的课程
+    const lessonChecks = document.querySelectorAll('.sync-chk-lesson:checked');
+    if (lessonChecks.length) {
+      selected.lessons = lessonChecks.map(c => lessons[parseInt(c.dataset.idx)]).filter(Boolean);
+    }
+
+    // 收集选中的日志
+    const logChecks = document.querySelectorAll('.sync-chk-log:checked');
+    if (logChecks.length) {
+      selected.logs = logChecks.map(c => logs[parseInt(c.dataset.idx)]).filter(Boolean);
+    }
+
+    // 收集选中的册名
+    const metaChecks = document.querySelectorAll('.sync-chk-meta:checked');
+    if (metaChecks.length) {
+      const metaObj = {};
+      metaChecks.forEach(c => { metaObj[c.dataset.key] = bookMeta[c.dataset.key]; });
+      selected.bookMeta = metaObj;
+    }
+
+    // 收集选中的曲库
+    const repChecks = document.querySelectorAll('.sync-chk-rep:checked');
+    if (repChecks.length) {
+      const selectedBooks = new Set(repChecks.map(c => Number(c.dataset.book)));
+      selected.repertoire = rep.filter(p => selectedBooks.has(p.book));
+    }
+
+    // 检查是否至少选了一项
+    if (!selected.lessons && !selected.logs && !selected.bookMeta && !selected.repertoire) {
+      Utils.showToast('⚠️ 请至少选择一项数据', 'warning');
+      return;
+    }
+
+    const syncCode = SyncCode.generateCode(selected);
+    const display = document.getElementById('syncCodeDisplay');
+    const output = document.getElementById('syncCodeOutput');
+    const info = document.getElementById('syncCodeInfo');
+
+    display.style.display = 'block';
+    output.value = syncCode;
+
+    const parts = [];
+    if (selected.lessons) parts.push(selected.lessons.length + '条课程');
+    if (selected.logs) parts.push(selected.logs.length + '条练习');
+    if (selected.bookMeta) parts.push(Object.keys(selected.bookMeta).length + '条册名');
+    if (selected.repertoire) parts.push(selected.repertoire.length + '首曲库');
+    info.textContent = '包含：' + parts.join(' · ') + ' · 同步码长度 ' + syncCode.length + ' 字符';
+
+    Utils.showToast('✅ 同步码已生成（' + syncCode.length + '字符）', 'success');
+  });
+
   // 导入同步码按钮事件
   document.getElementById('btnImportSync').addEventListener('click', () => {
     const code = document.getElementById('syncCodeInput').value.trim();
@@ -99,6 +262,28 @@ window.showSyncPanel = function() {
       Utils.showToast('❌ ' + result.error, 'error');
     }
   });
+};
+
+/**
+ * 同步面板快捷选择
+ * @param {string} type - 'lesson' | 'log' | 'rep'
+ * @param {number|string} value - 1, 3, 'all', 'none'
+ */
+window.syncQuickSelect = function(type, value) {
+  let selector;
+  if (type === 'lesson') selector = '.sync-chk-lesson';
+  else if (type === 'log') selector = '.sync-chk-log';
+  else if (type === 'rep') selector = '.sync-chk-rep';
+  else return;
+
+  const checks = document.querySelectorAll(selector);
+  if (value === 'all') {
+    checks.forEach(c => c.checked = true);
+  } else if (value === 'none') {
+    checks.forEach(c => c.checked = false);
+  } else {
+    checks.forEach((c, i) => { c.checked = i < value; });
+  }
 };
 
 /**
@@ -133,11 +318,51 @@ function updateSyncButtonState() {
    ========================================== */
 
 /**
- * 显示导出选择面板，让用户选择要导出的数据类型
+ * 显示导出选择面板，让用户选择要导出的数据类型和具体项目
  * @returns {void}
  */
 window.exportDataAsJSON = function() {
   const modal = document.getElementById('modalContainer');
+  const lessons = DB.lessons().slice().sort((a, b) => b.date.localeCompare(a.date));
+  const logs = DB.logs().slice().sort((a, b) => b.date.localeCompare(a.date));
+  const bookMeta = DB.bookMeta();
+  const metaKeys = Object.keys(bookMeta);
+  const rep = DB.repertoire();
+
+  // 课程子级列表
+  const lessonItems = lessons.map((l, i) => {
+    const pieceNames = (l.pieces || []).map(p => p.name).join('、');
+    const label = l.date + (pieceNames ? '：' + pieceNames.slice(0, 20) : '');
+    return '<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.72rem">' +
+      '<input type="checkbox" class="export-chk-lesson" data-idx="' + i + '" checked style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(label) + '</span></label>';
+  }).join('');
+
+  // 日志子级列表
+  const logItems = logs.map((l, i) => {
+    const label = l.date + ' (' + (l.entries || []).length + '条)';
+    return '<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.72rem">' +
+      '<input type="checkbox" class="export-chk-log" data-idx="' + i + '" checked style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(label) + '</span></label>';
+  }).join('');
+
+  // 册名子级列表
+  const metaItems = metaKeys.map(k => {
+    return '<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.72rem">' +
+      '<input type="checkbox" class="export-chk-meta" data-key="' + k + '" checked style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(bookMeta[k]) + ' (' + k + ')</span></label>';
+  }).join('');
+
+  // 曲库子级列表（按册分组）
+  const bookGroups = {};
+  rep.forEach(p => { if (!bookGroups[p.book]) bookGroups[p.book] = []; bookGroups[p.book].push(p); });
+  const repItems = Object.keys(bookGroups).sort((a, b) => a - b).map(bookNum => {
+    const bookName = RepertoireManager.getBookDisplayName(Number(bookNum));
+    const count = bookGroups[bookNum].length;
+    return '<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.72rem">' +
+      '<input type="checkbox" class="export-chk-rep" data-book="' + bookNum + '" checked style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(bookName) + ' (' + count + '首)</span></label>';
+  }).join('');
 
   modal.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
@@ -147,38 +372,50 @@ window.exportDataAsJSON = function() {
           <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
         <div class="modal-body">
-          <p class="text-xs text-2 mb-8">请选择要导出的数据类型（默认推荐导出课程、练习日志和自定义册名）</p>
+          <p class="text-xs text-2 mb-8">勾选要导出的数据类型，展开可选择性导出具体项目</p>
 
           <div class="form-group">
             <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="checkbox" id="exportLessons" checked style="width:16px;height:16px">
+              <input type="checkbox" id="exportLessons" checked style="width:16px;height:16px" onchange="var d=document.getElementById('exportLessonList');d.style.display=this.checked?'block':'none'">
               <span>📚 课程记录</span>
-              <span class="text-xs text-3" style="margin-left:auto">${DB.lessons().length} 条</span>
+              <span class="text-xs text-3" style="margin-left:auto">${lessons.length} 条</span>
             </label>
+            <div id="exportLessonList" style="max-height:140px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px;margin-top:4px">
+              ${lessonItems || '<span class="text-xs text-3">暂无课程</span>'}
+            </div>
           </div>
 
           <div class="form-group">
             <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="checkbox" id="exportLogs" checked style="width:16px;height:16px">
+              <input type="checkbox" id="exportLogs" checked style="width:16px;height:16px" onchange="var d=document.getElementById('exportLogList');d.style.display=this.checked?'block':'none'">
               <span>📝 练习日志</span>
-              <span class="text-xs text-3" style="margin-left:auto">${DB.logs().length} 条</span>
+              <span class="text-xs text-3" style="margin-left:auto">${logs.length} 条</span>
             </label>
+            <div id="exportLogList" style="max-height:140px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px;margin-top:4px">
+              ${logItems || '<span class="text-xs text-3">暂无日志</span>'}
+            </div>
           </div>
 
           <div class="form-group">
             <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="checkbox" id="exportBookMeta" checked style="width:16px;height:16px">
+              <input type="checkbox" id="exportBookMeta" checked style="width:16px;height:16px" onchange="var d=document.getElementById('exportMetaList');d.style.display=this.checked?'block':'none'">
               <span>🏷️ 自定义册名</span>
-              <span class="text-xs text-3" style="margin-left:auto">${Object.keys(DB.bookMeta()).length} 条</span>
+              <span class="text-xs text-3" style="margin-left:auto">${metaKeys.length} 条</span>
             </label>
+            <div id="exportMetaList" style="max-height:100px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px;margin-top:4px">
+              ${metaItems || '<span class="text-xs text-3">暂无自定义册名</span>'}
+            </div>
           </div>
 
           <div class="form-group">
             <label class="form-label" style="display:flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="checkbox" id="exportRepertoire" style="width:16px;height:16px">
+              <input type="checkbox" id="exportRepertoire" style="width:16px;height:16px" onchange="var d=document.getElementById('exportRepList');d.style.display=this.checked?'block':'none'">
               <span>🎼 曲库进度（含背谱、状态等）</span>
-              <span class="text-xs text-3" style="margin-left:auto">${DB.repertoire().length} 首</span>
+              <span class="text-xs text-3" style="margin-left:auto">${rep.length} 首</span>
             </label>
+            <div id="exportRepList" style="display:none;max-height:100px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px;margin-top:4px">
+              ${repItems || '<span class="text-xs text-3">暂无曲目</span>'}
+            </div>
           </div>
 
           <div class="form-group">
@@ -213,10 +450,25 @@ window.exportDataAsJSON = function() {
       version: RepertoireManager.VERSION
     };
 
-    if (includeLessons) data.lessons = DB.lessons();
-    if (includeLogs) data.logs = DB.logs();
-    if (includeBookMeta) data.bookMeta = DB.bookMeta();
-    if (includeRepertoire) data.repertoire = DB.repertoire();
+    if (includeLessons) {
+      const checked = document.querySelectorAll('.export-chk-lesson:checked');
+      data.lessons = checked.map(c => lessons[parseInt(c.dataset.idx)]).filter(Boolean);
+    }
+    if (includeLogs) {
+      const checked = document.querySelectorAll('.export-chk-log:checked');
+      data.logs = checked.map(c => logs[parseInt(c.dataset.idx)]).filter(Boolean);
+    }
+    if (includeBookMeta) {
+      const checked = document.querySelectorAll('.export-chk-meta:checked');
+      const metaObj = {};
+      checked.forEach(c => { metaObj[c.dataset.key] = bookMeta[c.dataset.key]; });
+      data.bookMeta = metaObj;
+    }
+    if (includeRepertoire) {
+      const checked = document.querySelectorAll('.export-chk-rep:checked');
+      const selectedBooks = new Set(checked.map(c => Number(c.dataset.book)));
+      data.repertoire = rep.filter(p => selectedBooks.has(p.book));
+    }
     if (includeConfig) data.config = DB.config();
 
     const json = JSON.stringify(data, null, 2);

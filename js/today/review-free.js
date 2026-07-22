@@ -57,6 +57,14 @@ function buildReviewCandidates(excludeNames) {
   const today = new Date(Utils.today() + 'T00:00:00');
   const rep = DB.repertoire();
 
+  // 读取翻卡范围设定
+  var range = {};
+  try { range = JSON.parse(localStorage.getItem('piano_review_range') || '{}'); } catch(e) {}
+  var rangeIds = null;
+  if (range.enabled && Array.isArray(range.selectedPieceIds)) {
+    rangeIds = new Set(range.selectedPieceIds);
+  }
+
   // 排除当日已练（从今日日志中获取）
   const todayLog = DB.logs().find(l => l.date === Utils.today());
   const todayPracticedIds = new Set();
@@ -69,6 +77,8 @@ function buildReviewCandidates(excludeNames) {
   for (const piece of rep) {
     // 必须是已学会
     if (piece.status !== 'learned') continue;
+    // 范围筛选
+    if (rangeIds && !rangeIds.has(piece.id)) continue;
     // 排除当日课程曲目
     if (excludeNames.includes(piece.name)) continue;
     // 排除当日已练
@@ -352,6 +362,7 @@ window.skipReviewCard = function() {
 function bindTodayEvents(lesson, existingLog) {
   // 注意：编辑模式下 lesson 为 null，但仍需绑定事件
   console.log('[bindTodayEvents] 开始绑定事件', { lesson: !!lesson, existingLog: !!existingLog });
+  window._currentLesson = lesson || null;
 
   initTotalTimer();
 
@@ -680,6 +691,119 @@ window.removeFreePiece = function(index) {
   if (freeList && freeList.children.length === 0) {
     freeList.innerHTML = '<p class="text-xs text-3 text-center p-12">点击下方按钮添加练习曲目</p>';
   }
+};
+
+/* ------------------------------------------
+   翻卡范围设定
+   ------------------------------------------ */
+
+/**
+ * 显示翻卡范围设定弹窗
+ * 按册筛选 + 手动勾选/排除曲目
+ */
+window.showReviewRangePanel = function() {
+  const rep = DB.repertoire();
+  const learnedPieces = rep.filter(p => p.status === 'learned');
+
+  // 按册分组
+  const bookGroups = {};
+  learnedPieces.forEach(p => {
+    if (!bookGroups[p.book]) bookGroups[p.book] = [];
+    bookGroups[p.book].push(p);
+  });
+
+  // 读取当前范围设定
+  var savedRange = {};
+  try { savedRange = JSON.parse(localStorage.getItem('piano_review_range') || '{}'); } catch(e) {}
+  var savedIds = new Set(savedRange.selectedPieceIds || []);
+
+  // 构建册列表 HTML
+  var booksHtml = Object.keys(bookGroups).sort(function(a, b) { return a - b; }).map(function(bookNum) {
+    var pieces = bookGroups[bookNum];
+    var bookName = RepertoireManager.getBookDisplayName(Number(bookNum));
+    var allChecked = pieces.every(function(p) { return savedIds.has(p.id); });
+    var someChecked = pieces.some(function(p) { return savedIds.has(p.id); });
+
+    var piecesHtml = pieces.map(function(p) {
+      var checked = savedIds.has(p.id) ? 'checked' : '';
+      return '<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.72rem">' +
+        '<input type="checkbox" class="range-chk-piece" data-id="' + p.id + '" ' + checked + ' style="width:14px;height:14px">' +
+        '<span>' + p.num + '. ' + Utils.escape(p.en || p.name) + '</span></label>';
+    }).join('');
+
+    return '<div style="margin-bottom:8px">' +
+      '<div onclick="var d=this.nextElementSibling;d.style.display=d.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.arrow\').textContent=d.style.display===\'none\'?\'▶\':\'▼\'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.82rem;font-weight:600">' +
+        '<input type="checkbox" class="range-chk-book" data-book="' + bookNum + '" ' + (allChecked ? 'checked' : '') + ' style="width:14px;height:14px" onchange="var book=\'' + bookNum + '\';var chks=document.querySelectorAll(\'.range-chk-piece[data-book=\\\'\'+book+\\\'\']\');chks.forEach(function(c){c.checked=this.checked}.bind(this))">' +
+        '<span>' + Utils.escape(bookName) + ' (' + pieces.length + '首)</span>' +
+        '<span class="arrow" style="margin-left:auto">' + (someChecked ? '▼' : '▶') + '</span>' +
+      '</div>' +
+      '<div style="' + (someChecked ? '' : 'display:none') + ';padding-left:20px;border-left:2px solid var(--border-1);margin-left:4px" data-book-list="' + bookNum + '">' +
+        piecesHtml +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  var modal = document.getElementById('modalContainer');
+  modal.innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+      '<div class="modal">' +
+        '<div class="modal-header">' +
+          '<h2 class="modal-title">⚙️ 翻卡范围设定</h2>' +
+          '<button class="modal-close" onclick="closeModal()">✕</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<p class="text-xs text-2 mb-8">勾选参与翻卡复习的曲目（仅显示已学会的曲目）</p>' +
+          '<div style="display:flex;gap:4px;margin-bottom:12px">' +
+            '<button class="btn btn-sm btn-secondary" onclick="var chks=document.querySelectorAll(\'.range-chk-piece\');chks.forEach(function(c){c.checked=true})" style="font-size:0.7rem;padding:2px 8px">全选</button>' +
+            '<button class="btn btn-sm btn-secondary" onclick="var chks=document.querySelectorAll(\'.range-chk-piece\');chks.forEach(function(c){c.checked=false})" style="font-size:0.7rem;padding:2px 8px">清空</button>' +
+          '</div>' +
+          (booksHtml || '<p class="text-sm text-3 text-center p-12">暂无已学会曲目</p>') +
+          '<button class="btn btn-primary" id="btnSaveReviewRange" style="width:100%;margin-top:12px">💾 保存并重新抽卡</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  // 为每个曲目复选框添加 data-book 属性和联动逻辑
+  document.querySelectorAll('.range-chk-piece').forEach(function(chk) {
+    // 找到父级 book-list 容器获取 data-book-list
+    var parentList = chk.closest('[data-book-list]');
+    if (parentList) {
+      chk.setAttribute('data-book', parentList.getAttribute('data-book-list'));
+    }
+    chk.addEventListener('change', function() {
+      var bookNum = this.getAttribute('data-book');
+      var bookChk = document.querySelector('.range-chk-book[data-book="' + bookNum + '"]');
+      if (!bookChk) return;
+      var pieces = document.querySelectorAll('.range-chk-piece[data-book="' + bookNum + '"]');
+      var allChecked = true;
+      pieces.forEach(function(p) { if (!p.checked) allChecked = false; });
+      bookChk.checked = allChecked;
+    });
+  });
+
+  // 保存按钮
+  document.getElementById('btnSaveReviewRange').addEventListener('click', function() {
+    var checked = document.querySelectorAll('.range-chk-piece:checked');
+    var selectedIds = [];
+    checked.forEach(function(c) { selectedIds.push(c.getAttribute('data-id')); });
+
+    if (selectedIds.length === 0) {
+      // 清空范围设定 = 使用默认行为（全部已学会曲目）
+      localStorage.removeItem('piano_review_range');
+      Utils.showToast('✅ 范围已清空，将使用全部已学会曲目', 'success');
+    } else {
+      localStorage.setItem('piano_review_range', JSON.stringify({
+        enabled: true,
+        selectedPieceIds: selectedIds
+      }));
+      Utils.showToast('✅ 范围已保存（' + selectedIds.length + '首）', 'success');
+    }
+
+    closeModal();
+    // 重新生成复习列表
+    var lesson = window._currentLesson || null;
+    generateReviewList(lesson);
+  });
 };
 
 console.log('✅ Review-Free module loaded');
