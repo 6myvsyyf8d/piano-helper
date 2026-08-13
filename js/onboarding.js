@@ -21,32 +21,32 @@ const Onboarding = {
   // 5 步引导定义
   STEPS: [
     {
-      title: '欢迎使用 🎹',
-      body: '这是帮你记录孩子钢琴练习的工具。每天练琴、上课反馈、曲库管理，都在这里。',
+      title: '欢迎使用钢琴练习助手 🎹',
+      body: '一站式管理孩子的钢琴练习：记录每日练习、上课标注反馈、查看曲谱提醒。',
       anim: 'welcome',
       btn: '开始 →'
     },
     {
-      title: '记录每天的练习',
-      body: '在「今日」页面：选曲子 → 点击开始计时 → 练完评分 → 保存。就这么简单。',
+      title: '📋 记录每天的练习',
+      body: '在「今日」页面：选曲子 → 设速度 → 开始计时 → 练完评分保存。',
       anim: 'practice',
       btn: '下一步 →'
     },
     {
-      title: '上课时点「标记此刻」',
-      body: '在「课程」页面新增课程时，老师讲反馈的瞬间点一下「标记此刻」，记录时间点。课后整理成语音图钉。',
-      anim: 'marker',
+      title: '🎼 上课时记录反馈',
+      body: '在「课程」页面新建课程，点击曲子旁的「课堂记录」按钮：上传曲谱照片 → 在照片上点击放置图钉 → 填写老师反馈内容。',
+      anim: 'lesson',
       btn: '下一步 →'
     },
     {
-      title: '练琴时看曲谱提醒',
-      body: '选一首曲子开始练习时，如果有老师的反馈，会自动展示曲谱照片和语音图钉。点图钉就能听到老师的提醒。',
+      title: '🔍 练习时查看提醒',
+      body: '在「今日」页面点击「课堂记录」按钮查看曲谱照片，图钉标记了老师反馈的位置，点击图钉查看详情或播放录音回听。',
       anim: 'feedback',
       btn: '下一步 →'
     },
     {
       title: '准备好了！',
-      body: '先添加一首孩子正在练的曲子吧。后面会自动给你每日练习建议。',
+      body: '先添加一首孩子正在练的曲子，开始记录吧。',
       anim: 'ready',
       btn: '开始使用'
     }
@@ -115,31 +115,59 @@ const Onboarding = {
   _renderAnim(anim) {
     switch (anim) {
       case 'welcome':
-        return '<div class="anim-piano">🎹</div>';
+        return '<div class="anim-piano" style="font-size:3rem">🎹</div>';
       case 'practice':
         return `
-          <div class="anim-flow">
-            <span class="anim-flow-item">🎵</span>
-            <span class="anim-flow-arrow">→</span>
-            <span class="anim-flow-item">⏱</span>
-            <span class="anim-flow-arrow">→</span>
-            <span class="anim-flow-item">⭐</span>
+          <div class="anim-flow" style="display:flex;align-items:center;justify-content:center;gap:12px;font-size:1.5rem;padding:12px 0">
+            <span style="background:rgba(94,106,210,0.15);border:1px solid rgba(94,106,210,0.3);padding:8px 14px;border-radius:8px;font-size:0.85rem;color:#a5ade8">🎵 选曲</span>
+            <span style="color:var(--text-4)">→</span>
+            <span style="background:rgba(94,106,210,0.15);border:1px solid rgba(94,106,210,0.3);padding:8px 14px;border-radius:8px;font-size:0.85rem;color:#a5ade8">⏱ 计时</span>
+            <span style="color:var(--text-4)">→</span>
+            <span style="background:rgba(94,106,210,0.15);border:1px solid rgba(94,106,210,0.3);padding:8px 14px;border-radius:8px;font-size:0.85rem;color:#a5ade8">⭐ 评分</span>
           </div>
         `;
-      case 'marker':
-        return '<div class="anim-tap">⏱<span class="anim-tap-ring"></span></div>';
+      case 'lesson':
+        return `
+          <div class="anim-flow" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
+            <div style="background:rgba(245,160,152,0.12);border:1px solid rgba(245,160,152,0.25);padding:6px 16px;border-radius:6px;font-size:0.8rem;color:var(--accent-primary)">🎼 课堂记录</div>
+            <span style="color:var(--text-4);font-size:0.7rem">↓</span>
+            <div style="border:1px dashed rgba(255,255,255,0.12);border-radius:8px;padding:12px 20px;position:relative;min-width:120px">
+              <span style="font-size:0.75rem;color:var(--text-3)">📷 曲谱照片</span>
+              <span style="position:absolute;top:50%;left:60%;transform:translate(-50%,-50%);width:14px;height:14px;background:#5E6AD2;border:2px solid #fff;border-radius:50%;display:inline-block"></span>
+            </div>
+            <span style="color:var(--text-4);font-size:0.7rem">↓</span>
+            <div style="background:rgba(94,106,210,0.1);border:1px solid rgba(94,106,210,0.2);padding:5px 12px;border-radius:6px;font-size:0.72rem;color:#a5ade8">📝 填写反馈内容</div>
+          </div>
+        `;
       case 'feedback':
         return `
-          <div class="anim-pin-stack">
-            <div class="anim-pin red">📌</div>
-            <div class="anim-pin yellow">📌</div>
-            <div class="anim-pin green">📌</div>
+          <div class="anim-flow" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
+            <div style="background:rgba(94,106,210,0.08);border:1px solid rgba(94,106,210,0.3);padding:4px 12px;border-radius:6px;font-size:0.72rem;color:#a5ade8">🎼 课堂记录 ·2</div>
+            <span style="color:var(--text-4);font-size:0.7rem">↓</span>
+            <div style="border:1px dashed rgba(255,255,255,0.12);border-radius:8px;padding:16px 24px;position:relative;min-width:140px">
+              <span style="font-size:0.7rem;color:var(--text-3)">曲谱照片</span>
+              <span style="position:absolute;top:30%;left:55%;transform:translate(-50%,-50%);width:16px;height:16px;background:#5E6AD2;border:2px solid #fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.5rem;color:#fff;font-weight:700">1</span>
+              <span style="position:absolute;top:60%;left:45%;transform:translate(-50%,-50%);width:16px;height:16px;background:#4caf7d;border:2px solid #fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.5rem;color:#fff;font-weight:700">2</span>
+            </div>
+            <span style="color:var(--text-4);font-size:0.7rem">↓</span>
+            <div style="background:rgba(255,236,165,0.3);border:1px solid rgba(120,100,30,0.2);padding:6px 12px;border-radius:6px;font-size:0.7rem;color:#0a0a0a;font-weight:700;text-align:left;max-width:200px">
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="width:12px;height:12px;border-radius:50%;border:2px solid #5E6AD2;background:rgba(94,106,210,0.2);display:inline-block"></span>
+                <span style="font-size:0.65rem">未完成</span>
+                <span style="font-size:0.65rem;margin-left:auto">🎹指法</span>
+              </div>
+              <div style="font-size:0.62rem;margin-top:2px">📍 第5小节左手</div>
+              <div style="font-size:0.62rem;color:#333;background:rgba(255,248,215,0.7);padding:2px 4px;border-radius:3px;margin-top:2px">💬 左手要轻</div>
+              <div style="margin-top:3px">
+                <span style="background:#5E6AD2;color:#fff;padding:1px 6px;border-radius:3px;font-size:0.55rem">▶️ 从00:11播</span>
+              </div>
+            </div>
           </div>
         `;
       case 'ready':
-        return '<div class="anim-piano">🎉</div>';
+        return '<div class="anim-piano" style="font-size:3rem">🎉</div>';
       default:
-        return '<div class="anim-piano">🎹</div>';
+        return '<div class="anim-piano" style="font-size:3rem">🎹</div>';
     }
   },
 
