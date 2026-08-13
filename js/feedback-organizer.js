@@ -51,21 +51,42 @@ const FeedbackOrganizer = {
       f.pieceTitle === this._pieceTitle && f.lessonId === this._lessonId
     );
 
-    // 找出这些反馈共用的曲谱照片（如果有）
-    const photoOwner = this._currentFeedbacks.find(f => f.sheetPhotoId);
-    const existingPhotoId = photoOwner ? photoOwner.sheetPhotoId : null;
+    // 收集所有已有照片 ID（去重，保持首次出现顺序）
+    const seenIds = new Set();
+    const existingPhotoIds = [];
+    this._currentFeedbacks.forEach(function(f) {
+      if (f.sheetPhotoId && !seenIds.has(f.sheetPhotoId)) {
+        seenIds.add(f.sheetPhotoId);
+        existingPhotoIds.push(f.sheetPhotoId);
+      }
+    });
 
     // 初始化 SheetAnnotator
     const self = this;
     SheetAnnotator.init({
-      photoBlobId: existingPhotoId,
-      onPlacePin: function(x, y) { self._openEditPanel({ pinX: x, pinY: y }); },
+      photoBlobIds: existingPhotoIds,
+      onPlacePin: function(x, y, photoPage) { self._openEditPanel({ pinX: x, pinY: y, photoPage: photoPage }); },
       onPinClick: function(pinId) { self._onPinClicked(pinId); }
     }).then(function() {
-      SheetAnnotator.onPhotoUploaded(function(blobId) {
-        // 照片换了，把所有当前曲子的 feedback 的 sheetPhotoId 都更新
+      SheetAnnotator.onPhotoUploaded(function(blobId, pageNum) {
+        // 新照片上传：所有当前曲子 feedback 共享照片列表
+        // 更新所有 feedback 的 sheetPhotoId（如果还没有的话）
         self._currentFeedbacks.forEach(function(f) {
-          Feedback.update(f.id, { sheetPhotoId: blobId });
+          if (!f.sheetPhotoId) {
+            Feedback.update(f.id, { sheetPhotoId: blobId, photoPage: pageNum || 1 });
+          }
+        });
+        self._refreshFeedbackList();
+      });
+      SheetAnnotator.onPhotosChanged(function(blobIds) {
+        // 照片列表变化（删除等），同步更新无 photo 的 feedback
+        self._refreshFeedbackList();
+      });
+      SheetAnnotator.onPinMoved(function(pinId, pinX, pinY) {
+        // 图钉拖拽移动：更新 FeedbackItem 的 pinX/pinY
+        Feedback.update(pinId, { pinX: pinX, pinY: pinY });
+        self._currentFeedbacks = Feedback.all().filter(function(f) {
+          return f.pieceTitle === self._pieceTitle && f.lessonId === self._lessonId;
         });
         self._refreshFeedbackList();
       });
@@ -120,6 +141,7 @@ const FeedbackOrganizer = {
       id: f.id,
       pinX: f.pinX,
       pinY: f.pinY,
+      photoPage: f.photoPage || 1,
       status: f.status,
       category: f.category,
       locationLabel: f.locationLabel
@@ -147,7 +169,6 @@ const FeedbackOrganizer = {
             '<span class="organizer-fb-pin">📌 #' + (idx + 1) + '</span>' +
             '<span class="organizer-fb-loc">' + locLabel + '</span>' +
             '<span class="organizer-fb-cat">' + catIcon + ' ' + catLabel + '</span>' +
-            '<span class="organizer-fb-status ' + statusInfo.cls + '">' + statusInfo.icon + '</span>' +
           '</div>' +
           teacherNote +
           '<div class="organizer-fb-actions">' +
@@ -161,8 +182,8 @@ const FeedbackOrganizer = {
   },
 
   _statusInfo(status) {
-    if (status === 'resolved') return { cls: 'st-resolved', icon: '🟢' };
-    return { cls: 'st-new', icon: '🔵' };
+    if (status === 'resolved') return { cls: 'st-resolved', icon: '🟢', label: '已完成' };
+    return { cls: 'st-new', icon: '🔵', label: '未完成' };
   },
 
   /**
@@ -189,12 +210,13 @@ const FeedbackOrganizer = {
       id: existing ? existing.id : null,
       pinX: existing ? existing.pinX : opts.pinX,
       pinY: existing ? existing.pinY : opts.pinY,
+      photoPage: existing ? (existing.photoPage || 1) : (opts.photoPage || 1),
       pieceTitle: existing ? existing.pieceTitle : this._pieceTitle,
       locationLabel: existing ? existing.locationLabel : '',
       category: existing ? existing.category : 'technique',
       teacherNote: existing ? existing.teacherNote : '',
       parentVoiceId: existing ? existing.parentVoiceId : null,
-      timestamp: existing ? (existing.timestamp || null) : null,
+      timestamp: existing ? (existing.timestamp || null) : (this._getCurrentLessonTimestamp()),
       markerId: existing ? (existing.markerId || null) : null
     };
     this._editingVoiceId = this._editingPin.parentVoiceId;
@@ -223,42 +245,27 @@ const FeedbackOrganizer = {
         ' onclick="FeedbackOrganizer._setCategory(\'' + c.key + '\')">' + c.icon + ' ' + c.label + '</button>';
     }).join('');
 
-    // 录音时间选择：列出这首曲子的所有 marker
-    const markersForPiece = this._getMarkersForPiece();
-    const currentTs = p.timestamp;
-    const tsOptions = ['<option value="">不关联录音</option>']
-      .concat(markersForPiece.map(function(m) {
-        const sel = (currentTs !== null && currentTs === m.timestamp) ? ' selected' : '';
-        return '<option value="' + m.id + '"' + sel + '>' + m.timeLabel + (m.label ? ' ' + Utils.escape(m.label) : '') + '</option>';
-      }));
-    const tsSelectHtml = markersForPiece.length
-      ? '<select class="form-input" id="pinEditTimestamp" style="width:100%;padding:5px 8px;font-size:0.8rem"' +
-        ' onchange="FeedbackOrganizer._setTimestamp(this.value)">' + tsOptions.join('') + '</select>'
-      : '<span class="text-xs" style="color:var(--text-4)">这首曲子没有课堂标记，无法关联录音</span>';
-
     const voiceSectionHtml = this._renderVoiceSection();
 
     const overlay = document.createElement('div');
     overlay.id = 'pinEditPanel';
     overlay.className = 'pin-edit-overlay';
+    overlay.style.background = 'rgba(0,0,0,0.2)';
+    overlay.style.backdropFilter = 'blur(2px)';
     overlay.innerHTML =
-      '<div class="pin-edit-panel" onclick="event.stopPropagation()">' +
-        '<div class="pin-edit-header">' +
+      '<div class="pin-edit-panel" onclick="event.stopPropagation()" style="background:rgba(20,25,52,0.78)">' +
+        '<div class="pin-edit-header" style="background:rgba(20,25,52,0.78)">' +
           '<span class="pin-edit-title">' + (p.id ? '编辑图钉' : '新建图钉') + '</span>' +
           '<button type="button" class="pin-edit-close" onclick="FeedbackOrganizer._closeEditPanel()">✕</button>' +
         '</div>' +
         '<div class="pin-edit-body">' +
           '<div class="form-group">' +
-            '<label class="form-label">🎵 曲子</label>' +
+            '<label class="form-label">🎵 曲名</label>' +
             '<input type="text" class="form-input" id="pinEditPiece" value="' + Utils.escape(p.pieceTitle) + '" placeholder="曲名">' +
           '</div>' +
           '<div class="form-group">' +
             '<label class="form-label">📍 位置描述（可选）</label>' +
             '<input type="text" class="form-input" id="pinEditLocation" value="' + Utils.escape(p.locationLabel) + '" placeholder="如：第5小节左手 / B段">' +
-          '</div>' +
-          '<div class="form-group">' +
-            '<label class="form-label">⏱ 录音时间（可选）</label>' +
-            tsSelectHtml +
           '</div>' +
           '<div class="form-group">' +
             '<label class="form-label">🏷 类型</label>' +
@@ -275,6 +282,7 @@ const FeedbackOrganizer = {
         '</div>' +
         '<div class="pin-edit-footer">' +
           '<button type="button" class="btn btn-secondary btn-sm" onclick="FeedbackOrganizer._closeEditPanel()">取消</button>' +
+          (p.id ? '<button type="button" class="btn btn-danger btn-sm" style="background:#e74c3c;color:#fff;border:none" onclick="FeedbackOrganizer._deletePinFromEdit()">🗑 删除</button>' : '') +
           '<button type="button" class="btn btn-primary btn-sm" onclick="FeedbackOrganizer._savePin()">保存图钉</button>' +
         '</div>' +
       '</div>';
@@ -546,14 +554,17 @@ const FeedbackOrganizer = {
       Utils.showToast('⚠️ 请填曲子名', 'warning');
       return;
     }
-    const photoId = SheetAnnotator.getPhotoBlobId();
+    // 获取图钉所在页的照片 ID
+    const photoPage = this._editingPin.photoPage || 1;
+    const allPhotoIds = SheetAnnotator.getPhotoBlobIds();
+    const pageIdx = photoPage - 1;
+    const photoId = (allPhotoIds.length > pageIdx) ? allPhotoIds[pageIdx] : (allPhotoIds.length > 0 ? allPhotoIds[0] : null);
     const payload = {
       lessonId: this._lessonId,
-      markerId: this._editingPin.markerId || null,
       timestamp: this._editingPin.timestamp,
       pieceTitle: piece,
       sheetPhotoId: photoId,
-      photoPage: 1,
+      photoPage: photoPage,
       pinX: this._editingPin.pinX,
       pinY: this._editingPin.pinY,
       locationLabel: loc,
@@ -572,6 +583,25 @@ const FeedbackOrganizer = {
     this._editingVoiceId = null;
     this._closeEditPanel();
     this._refreshFeedbackList();
+  },
+
+  /**
+   * 从编辑面板中删除图钉
+   */
+  async _deletePinFromEdit() {
+    if (!this._editingPin || !this._editingPin.id) return;
+    if (!confirm('确定删除这个图钉？')) return;
+    var fbId = this._editingPin.id;
+    var f = Feedback.find(fbId);
+    if (f && f.parentVoiceId) {
+      try { await StorageAdapter.remove(f.parentVoiceId); } catch (e) {}
+    }
+    Feedback.remove(fbId);
+    this._editingPin = null;
+    this._editingVoiceId = null;
+    this._closeEditPanel();
+    this._refreshFeedbackList();
+    Utils.showToast('已删除图钉', 'info');
   },
 
   _closeEditPanel() {
@@ -623,6 +653,19 @@ const FeedbackOrganizer = {
     this._currentFeedbacks = [];
     // 触发今日页刷新（如果用户切到今日页能看到新反馈）
     Events.emit('feedback:updated');
+  },
+
+  /**
+   * 获取当前课程已过时间（秒），用于新建图钉时自动记录时间戳
+   * 录音中取录音时间，未录音取课程开始时间
+   * @returns {number|null}
+   */
+  _getCurrentLessonTimestamp() {
+    if (typeof LessonMarkers !== 'undefined' && typeof LessonMarkers._elapsedSec === 'function') {
+      var sec = LessonMarkers._elapsedSec();
+      return sec > 0 ? sec : null;
+    }
+    return null;
   },
 
   _formatTime(sec) {

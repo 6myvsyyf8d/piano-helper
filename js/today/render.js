@@ -856,14 +856,24 @@ function _refreshFeedbackRowUI(feedbackId, updated) {
  */
 window.viewSheetPhoto = async function(pieceName) {
   var feedbacks = Feedback.byPiece(pieceName);
-  var photoOwner = feedbacks.find(function(f) { return f.sheetPhotoId; });
-  if (!photoOwner || !photoOwner.sheetPhotoId) {
+
+  // 收集所有唯一的照片 ID（去重，保持首次出现顺序）
+  var seenIds = new Set();
+  var allPhotoIds = [];
+  feedbacks.forEach(function(f) {
+    if (f.sheetPhotoId && !seenIds.has(f.sheetPhotoId)) {
+      seenIds.add(f.sheetPhotoId);
+      allPhotoIds.push(f.sheetPhotoId);
+    }
+  });
+
+  if (allPhotoIds.length === 0) {
     Utils.showToast('⚠️ 无曲谱照片', 'warning');
     return;
   }
 
   // 把当前曲子的 feedbacks 存到闭包，供图钉点击回调使用
-  window._sheetViewerContext = { pieceName: pieceName, feedbacks: feedbacks };
+  window._sheetViewerContext = { pieceName: pieceName, feedbacks: feedbacks, allPhotoIds: allPhotoIds };
 
   var statusMap = {
     'new': { icon: '🔵', label: '未完成', color: '#5E6AD2' },
@@ -879,7 +889,7 @@ window.viewSheetPhoto = async function(pieceName) {
     '<div style="position:relative;max-width:100%;max-height:100%;overflow:auto">' +
       '<button type="button" onclick="window._closeSheetViewer()" ' +
       'style="position:absolute;top:8px;right:8px;z-index:2;font-size:1.2rem;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.6);color:#fff;cursor:pointer">✕</button>' +
-      '<div id="sheetPhotoContainer" style="position:relative;display:inline-block">' +
+      '<div id="sheetPhotoContainer" style="display:flex;flex-direction:column;align-items:center;gap:4px">' +
         '<p style="color:#aaa;text-align:center;padding:40px">加载中...</p>' +
       '</div>' +
     '</div>';
@@ -912,29 +922,49 @@ window.viewSheetPhoto = async function(pieceName) {
   };
 
   /**
-   * 渲染所有图钉（根据 feedbacks 当前状态渲染颜色）
-   * 挂载到 container 中
+   * 渲染所有图钉（根据 feedbacks 当前状态渲染颜色，按 photoPage 分到各页）
    */
   function renderPins(container) {
     var fbs = window._sheetViewerContext.feedbacks;
-    var pinsLayer = container.querySelector('.sheet-pins-layer');
-    if (!pinsLayer) {
-      pinsLayer = document.createElement('div');
-      pinsLayer.className = 'sheet-pins-layer';
-      pinsLayer.style.cssText = 'position:absolute;inset:0;pointer-events:auto';
-      container.appendChild(pinsLayer);
-    }
     var pinData = fbs.filter(function(f) { return f.pinX !== null && f.pinX !== undefined; });
-    pinsLayer.innerHTML = pinData.map(function(f, idx) {
-      var s = statusMap[f.status] || statusMap['new'];
-      var left = (f.pinX * 100).toFixed(1);
-      var top = (f.pinY * 100).toFixed(1);
-      return '<div data-fb-id="' + f.id + '"' +
-        ' onclick="window._openSheetPinPopup(this)"' +
-        ' style="position:absolute;left:' + left + '%;top:' + top + '%;transform:translate(-50%,-50%);' +
-        'width:26px;height:26px;border-radius:50%;background:' + s.color + ';border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);' +
-        'display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer">' + (idx + 1) + '</div>';
-    }).join('');
+
+    // 按 photoPage 分组
+    var pinsByPage = {};
+    pinData.forEach(function(p) {
+      var page = (p.photoPage != null) ? p.photoPage : 1;
+      if (!pinsByPage[page]) pinsByPage[page] = [];
+      pinsByPage[page].push(p);
+    });
+
+    // 全局序号：按页码从小到大累加
+    var globalIdx = 0;
+    // 为每个照片页渲染图钉
+    var photoWraps = container.querySelectorAll('.sheet-photo-wrap');
+    photoWraps.forEach(function(wrap) {
+      var pageIdx = parseInt(wrap.getAttribute('data-page'), 10);
+      var pageNum = pageIdx + 1;
+      var pagePins = pinsByPage[pageNum] || [];
+
+      var pinsLayer = wrap.querySelector('.sheet-pins-layer');
+      if (!pinsLayer) {
+        pinsLayer = document.createElement('div');
+        pinsLayer.className = 'sheet-pins-layer';
+        pinsLayer.style.cssText = 'position:absolute;inset:0;pointer-events:auto';
+        wrap.appendChild(pinsLayer);
+      }
+
+      pinsLayer.innerHTML = pagePins.map(function(f) {
+        globalIdx++;
+        var s = statusMap[f.status] || statusMap['new'];
+        var left = (f.pinX * 100).toFixed(1);
+        var top = (f.pinY * 100).toFixed(1);
+        return '<div data-fb-id="' + f.id + '"' +
+          ' onclick="window._openSheetPinPopup(this)"' +
+          ' style="position:absolute;left:' + left + '%;top:' + top + '%;transform:translate(-50%,-50%);' +
+          'width:26px;height:26px;border-radius:50%;background:' + s.color + ';border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);' +
+          'display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer">' + globalIdx + '</div>';
+      }).join('');
+    });
   }
 
   /**
@@ -1243,22 +1273,52 @@ window.viewSheetPhoto = async function(pieceName) {
     window._sheetPinToggleStatus(fbId, btn);
   };
 
-  // 加载照片
+  // 加载所有照片
   try {
-    var record = await StorageAdapter.get(photoOwner.sheetPhotoId);
-    if (!record || !record.blob) {
-      document.getElementById('sheetPhotoContainer').innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">照片已删除</p>';
+    var container = document.getElementById('sheetPhotoContainer');
+    var photosHtml = '';
+    var loadedCount = 0;
+
+    for (var p = 0; p < allPhotoIds.length; p++) {
+      var photoId = allPhotoIds[p];
+      var pageNum = p + 1;
+      try {
+        var record = await StorageAdapter.get(photoId);
+        if (!record || !record.blob) {
+          photosHtml += '<div class="sheet-photo-wrap" data-page="' + p + '" style="position:relative;display:inline-block;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;overflow:hidden">' +
+            '<p style="color:#aaa;text-align:center;padding:20px">照片已删除</p></div>';
+          continue;
+        }
+        var blob = record.blob;
+        var url = URL.createObjectURL(blob);
+        photosHtml += '<div class="sheet-photo-wrap" data-page="' + p + '" style="position:relative;display:inline-block;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;overflow:hidden">' +
+          '<img src="' + url + '" style="max-width:100%;max-height:80vh;display:block;border-radius:8px" alt="曲谱 第' + pageNum + '页">' +
+          '<div class="sheet-pins-layer" style="position:absolute;inset:0;pointer-events:auto"></div>' +
+          '<div style="position:absolute;top:4px;right:4px">' +
+            '<span style="font-size:0.65rem;color:rgba(255,255,255,0.7);background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px">第' + pageNum + '页</span>' +
+          '</div>' +
+          '</div>';
+        loadedCount++;
+        // 清理 URL（图片加载后）
+        (function(imgUrl) {
+          var imgs = container.querySelectorAll('img');
+          // URL 延迟清理
+          setTimeout(function() { URL.revokeObjectURL(imgUrl); }, 5000);
+        })(url);
+      } catch (e) {
+        photosHtml += '<div class="sheet-photo-wrap" data-page="' + p + '" style="position:relative;display:inline-block;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;overflow:hidden">' +
+          '<p style="color:#aaa;text-align:center;padding:20px">加载失败</p></div>';
+      }
+    }
+
+    if (loadedCount === 0) {
+      container.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">无可用照片</p>';
       return;
     }
-    var blob = record.blob;
-    var url = URL.createObjectURL(blob);
-    var container = document.getElementById('sheetPhotoContainer');
 
-    container.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:80vh;display:block;border-radius:8px" alt="曲谱">';
+    container.innerHTML = photosHtml;
     // 渲染图钉
     renderPins(container);
-    // 清理 URL
-    container.querySelector('img').onload = function() { URL.revokeObjectURL(url); };
   } catch (e) {
     console.error('[viewSheetPhoto] error:', e);
     document.getElementById('sheetPhotoContainer').innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">加载失败</p>';

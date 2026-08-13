@@ -158,23 +158,12 @@ const LessonMarkers = {
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;margin-bottom:4px;border-top:1px dashed var(--border-2)">' +
         '<span style="font-size:0.7rem;color:var(--text-3);font-weight:600">⏱ 本课标记</span>' +
         '<div style="display:flex;gap:6px;align-items:center">' +
-          (this._lessonId !== null
-            ? '<button type="button" title="整理：上传曲谱照片 + 语音图钉"' +
-              ' onclick="LessonMarkers._openOrganizerForPiece(this)"' +
-              (pieceName ? '' : ' disabled') +
-              ' style="font-size:0.7rem;padding:3px 10px;border-radius:6px;border:1px solid rgba(245,160,152,0.35);' +
-              'background:rgba(245,160,152,0.1);color:var(--accent-primary);cursor:pointer;' +
-              (pieceName ? '' : 'opacity:0.4;cursor:not-allowed') + '">🎼 课堂记录</button>'
-            : ''
-          ) +
-          '<button type="button" class="piece-mark-btn"' +
-          ' onclick="markLessonPieceFromCard(this)"' +
+          '<button type="button" title="整理：上传曲谱照片 + 语音图钉"' +
+          ' onclick="LessonMarkers._openOrganizerForPiece(this)"' +
           (pieceName ? '' : ' disabled') +
-          ' style="font-size:0.7rem;padding:3px 10px;border-radius:6px;border:1px solid rgba(94,106,210,0.35);' +
-          'background:rgba(94,106,210,0.12);color:#a5ade8;cursor:pointer;' +
-          (pieceName ? '' : 'opacity:0.4;cursor:not-allowed') + '">' +
-            '⏱ 标记此刻' +
-          '</button>' +
+          ' style="font-size:0.7rem;padding:3px 10px;border-radius:6px;border:1px solid rgba(245,160,152,0.35);' +
+          'background:rgba(245,160,152,0.1);color:var(--accent-primary);cursor:pointer;' +
+          (pieceName ? '' : 'opacity:0.4;cursor:not-allowed') + '">🎼 课堂记录</button>' +
         '</div>' +
       '</div>';
 
@@ -361,10 +350,6 @@ const LessonMarkers = {
    * @param {HTMLElement} btn 点击的按钮元素（用于向上找卡片）
    */
   _openOrganizerForPiece(btn) {
-    if (this._lessonId === null) {
-      Utils.showToast('📋 请先保存本课程，再整理曲谱反馈', 'warning');
-      return;
-    }
     var cardEl = btn.closest('.lesson-piece-card');
     var pieceName = this._getPieceNameFromCard(cardEl);
     if (!pieceName) {
