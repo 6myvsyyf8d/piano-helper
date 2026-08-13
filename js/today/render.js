@@ -187,31 +187,158 @@ function renderCompletedSection(catKey, titleHtml, entries) {
  * @param {string} index      曲目索引（如 "0"、"1"）
  * @param {string} pieceName  曲目名称
  * @param {number} num        卡片内序号（显示用）
- * @param {string[]} focusAreas 练习重点标签数组
+ * @param {string[]} focusAreas 练习重点标签数组（用于在老师要求里高亮）
  * @param {string} details    老师要求/备注
  * @returns {string} HTML
  */
-function pieceCardHTML(index, pieceName, num, focusAreas, details) {
-  const focusHtml = (focusAreas && focusAreas.length)
-    ? '<div class="piece-focus-row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-2)">' +
-        '<span style="font-size:0.75rem;color:var(--text-3);margin-right:6px">🏷 练习重点：</span>' +
-        focusAreas.map(tag =>
-          '<span class="badge badge-info" style="font-size:0.7rem;padding:2px 8px;margin:2px;display:inline-block">' +
-            Utils.escape(tag) +
-          '</span>'
-        ).join('') +
-      '</div>'
-    : '';
-
-  const detailsHtml = details
-    ? '<div class="piece-details-row" style="margin-top:12px;padding:12px;background:rgba(var(--accent-primary-rgb),0.08);border-radius:8px;font-size:0.8rem;color:var(--text-2);line-height:1.5">' +
+function pieceCardHTML(index, pieceName, num, focusAreas, details, lessonId) {
+  // 老师要求：重点关键词高亮显示
+  var detailsHtml = '';
+  if (details) {
+    var highlighted = Utils.escape(details);
+    var focusKws = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
+    focusKws.forEach(function(kw) {
+      // 用 HTML 高亮包裹匹配到的关键词
+      highlighted = highlighted.split(kw).join(
+        '<span style="background:rgba(94,106,210,0.25);color:#a5ade8;padding:1px 4px;border-radius:3px;font-weight:600">' + kw + '</span>'
+      );
+    });
+    detailsHtml =
+      '<div class="piece-details-row" style="margin-top:12px;padding:12px;background:rgba(var(--accent-primary-rgb),0.08);border-radius:8px;font-size:0.8rem;color:var(--text-2);line-height:1.5">' +
         '<span style="font-weight:600;color:var(--text-1)">📝 </span>' +
-        Utils.escape(details) +
-      '</div>'
-    : '';
+        highlighted +
+      '</div>';
+  }
+
+  // 老师反馈（整理后的，带时间点+状态）
+  var feedbackHtml = '';
+  // 曲谱查看按钮（移到工具栏，此处只生成 HTML 片段）
+  var sheetBtnHtml = '';
+  if (typeof Feedback !== 'undefined' && pieceName) {
+    var feedbacks = Feedback.byPiece(pieceName).filter(function(f) {
+      return !lessonId || String(f.lessonId) === String(lessonId);
+    });
+    if (feedbacks.length) {
+      var statusMap = {
+        'new': { icon: '🔵', label: '未完成', color: '#5E6AD2' },
+        'resolved': { icon: '✅', label: '完成', color: '#4caf7d' }
+      };
+
+      // 曲谱照片查看入口：如果任一 feedback 有 sheetPhotoId，显示查看按钮
+      var photoOwner = feedbacks.find(function(f) { return f.sheetPhotoId; });
+      if (photoOwner) {
+        var pinCount = feedbacks.filter(function(f) { return f.pinX !== null && f.pinX !== undefined; }).length;
+        sheetBtnHtml = '<button type="button" onclick="viewSheetPhoto(\'' + Utils.escape(pieceName) + '\')" ' +
+          'style="font-size:0.7rem;padding:4px 10px;border-radius:6px;border:1px solid rgba(94,106,210,0.3);background:rgba(94,106,210,0.08);color:#a5ade8;cursor:pointer">' +
+          '🎼 课堂记录' + (pinCount ? '<span style="margin-left:3px;font-size:0.62rem;opacity:0.8">·' + pinCount + '</span>' : '') + '</button>';
+      }
+
+      var items = feedbacks.map(function(f) {
+        var s = statusMap[f.status] || statusMap['new'];
+        // 方案B：优先用 feedback 自己的 timestamp；向后兼容旧数据（无 timestamp 时从 marker 查找）
+        var timeLabel = '';
+        var markerNote = '';
+        var playBlobId = null;
+        var playOffsetSec = 0;
+        if (f.timestamp != null) {
+          // 新数据：图钉有自己的时间戳
+          var sec = f.timestamp;
+          var mm = Math.floor(sec / 60);
+          var ss = sec % 60;
+          timeLabel = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+          // 从课程录音段中定位
+          var lessons = DB.lessons();
+          for (var i = 0; i < lessons.length; i++) {
+            if (String(lessons[i].id) === String(f.lessonId)) {
+              var segments = lessons[i].lessonAudios
+                || (lessons[i].lessonAudioId ? [{ id: lessons[i].lessonAudioId, startSec: 0, durationSec: lessons[i].audioDurationSec || 0 }] : []);
+              if (segments.length && typeof LessonAudio !== 'undefined') {
+                var seg = LessonAudio.findSegmentForTimestamp(segments, f.timestamp || 0);
+                if (seg) {
+                  playBlobId = seg.id;
+                  playOffsetSec = seg.offsetSec;
+                }
+              }
+              break;
+            }
+          }
+        } else if (f.markerId) {
+          // 旧数据兼容：从 marker 查找时间戳
+          var lessons = DB.lessons();
+          for (var i = 0; i < lessons.length; i++) {
+            var markers = lessons[i].audioMarkers || [];
+            var m = markers.find(function(mk) { return mk.id === f.markerId; });
+            if (m) {
+              var sec = m.timestamp;
+              var mm = Math.floor(sec / 60);
+              var ss = sec % 60;
+              timeLabel = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+              markerNote = m.label || m.note || '';
+              var segments = lessons[i].lessonAudios
+                || (lessons[i].lessonAudioId ? [{ id: lessons[i].lessonAudioId, startSec: 0, durationSec: lessons[i].audioDurationSec || 0 }] : []);
+              if (segments.length && typeof LessonAudio !== 'undefined') {
+                var seg = LessonAudio.findSegmentForTimestamp(segments, m.timestamp || 0);
+                if (seg) {
+                  playBlobId = seg.id;
+                  playOffsetSec = seg.offsetSec;
+                }
+              }
+              break;
+            }
+          }
+        }
+        // 优先用 feedback 的 locationLabel + teacherNote，空则 fallback 到 marker.note
+        var content = '';
+        var locLabel = f.locationLabel ? ' ' + Utils.escape(f.locationLabel) : '';
+        var noteLabel = f.teacherNote ? ' ' + Utils.escape(f.teacherNote) : '';
+        if (locLabel || noteLabel) {
+          content = locLabel + noteLabel;
+        } else if (markerNote) {
+          content = ' ' + Utils.escape(markerNote);
+        }
+        // 录音播放按钮（有定位到的录音段才显示）
+        var playBtn = '';
+        if (playBlobId) {
+          playBtn = '<button type="button" class="feedback-play-btn" data-feedback-id="' + f.id + '" data-blob-id="' + playBlobId + '" data-timestamp="' + playOffsetSec + '"' +
+            ' onclick="event.stopPropagation(); playFeedbackAudio(\'' + f.id + '\', this)"' +
+            ' style="font-size:0.68rem;padding:2px 8px;border-radius:4px;border:1px solid rgba(94,106,210,0.35);background:rgba(94,106,210,0.1);color:#a5ade8;cursor:pointer">▶️ 从' + timeLabel + '播</button>';
+        }
+        // 方案 D：状态圆圈（紫○未完成 / 绿✓已完成），整行点击切换状态
+        var isResolved = (f.status === Feedback.STATUS_RESOLVED);
+        var statusDotStyle = isResolved
+          ? 'background:#4caf7d;border-color:#4caf7d;color:#fff;'
+          : 'background:transparent;border-color:#5E6AD2;color:#5E6AD2;';
+        var statusDotIcon = isResolved ? '✓' : '';
+        var rowBaseStyle =
+          'display:flex;align-items:center;gap:6px;padding:6px 8px;margin:2px -8px;' +
+          'font-size:0.78rem;border-radius:6px;cursor:pointer;user-select:none;' +
+          'transition:background 120ms ease-out;';
+        var rowHoverClass = 'feedback-row-toggle';
+        var resolvedMuteStyle = isResolved ? 'opacity:0.55;text-decoration:line-through;text-decoration-thickness:1px;' : '';
+        var rowOnclick = 'onclick="toggleFeedbackStatus(\'' + f.id + '\', this, event)"';
+        var rowDataStatus = 'data-status="' + f.status + '"';
+        return '<div ' + rowOnclick + ' ' + rowDataStatus + ' class="' + rowHoverClass + '" style="' + rowBaseStyle + '" data-feedback-id="' + f.id + '">' +
+          (timeLabel ? '<span style="color:var(--text-4);font-family:monospace;font-size:0.72rem;min-width:36px;pointer-events:none">' + timeLabel + '</span>' : '<span style="min-width:36px;pointer-events:none"></span>') +
+          // 方案D：彩色状态圆（紫○/绿✓），跟整行一起接收点击
+          '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1.5px solid;flex-shrink:0;font-size:11px;font-weight:600;pointer-events:none;' + statusDotStyle + '">' + statusDotIcon + '</span>' +
+          '<span style="flex:1;color:var(--text-2);' + resolvedMuteStyle + ';pointer-events:none">' + content + '</span>' +
+          // 右侧播放按钮（用 stopPropagation 阻止触发行切换）
+          (playBtn ? playBtn : '') +
+        '</div>';
+      }).join('');
+      feedbackHtml =
+        '<div class="piece-feedback-row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-2)">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+            '<span style="font-size:0.75rem;color:var(--text-3)">📌 老师反馈</span>' +
+            (sheetBtnHtml ? sheetBtnHtml : '') +
+          '</div>' +
+          items +
+        '</div>';
+    }
+  }
 
   return (
-    '<div class="piece-card" data-index="' + index + '" id="piece' + index + '">' +
+    '<div class="piece-card" data-index="' + index + '" id="piece' + index + '" data-piece-name="' + Utils.escape(pieceName) + '">' +
       '<div class="piece-card-top" onclick="togglePieceExpand(\'' + index + '\', event)">' +
         '<span class="piece-number">' + num + '</span>' +
         '<div class="piece-info">' +
@@ -220,23 +347,23 @@ function pieceCardHTML(index, pieceName, num, focusAreas, details) {
         '<span class="piece-expand-icon">▼</span>' +
       '</div>' +
       '<div class="piece-card-body">' +
-        focusHtml +
         detailsHtml +
+        feedbackHtml +
         starRatingHTML(index) +
-        '<div class="piece-extra-row">' +
-          '<div class="piece-extra-item">' +
-            '<label class="piece-extra-label">速度 BPM</label>' +
-            '<input type="number" class="form-input piece-speed" data-index="' + index + '"' +
-                   ' placeholder="120" min="40" max="240"' +
+        '<div class="piece-toolbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px">' +
+          '<label style="display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;color:var(--text-3)">' +
+            '速度' +
+            '<input type="number" class="piece-speed" data-index="' + index + '"' +
+                   ' placeholder="120" min="40" max="240" maxlength="3"' +
                    ' oninput="onPieceSpeedChange(\'' + index + '\', this.value)"' +
-                   ' style="width:80px;padding:5px 8px;font-size:0.8rem">' +
-          '</div>' +
+                   ' style="width:56px;padding:4px 8px;font-size:0.7rem;text-align:center;border:1px solid var(--border-1);border-radius:8px;background:var(--surface-1);color:var(--text-2);font-family:inherit">' +
+          '</label>' +
           '<button class="btn btn-sm btn-secondary piece-mem-btn" data-index="' + index + '"' +
                   ' onclick="togglePieceMemorized(\'' + index + '\', this)"' +
-                  ' style="font-size:0.7rem;padding:5px 10px">📖 看谱</button>' +
+                  ' style="font-size:0.7rem;padding:4px 10px">📖 看谱</button>' +
           '<button class="btn btn-sm btn-secondary piece-hand-btn" data-index="' + index + '"' +
                   ' onclick="togglePieceHands(\'' + index + '\', this)"' +
-                  ' style="font-size:0.7rem;padding:5px 10px">🤲 合手</button>' +
+                  ' style="font-size:0.7rem;padding:4px 10px">🤲 合手</button>' +
         '</div>' +
       '</div>' +
     '</div>'
@@ -285,7 +412,7 @@ function buildPracticeFormHTML(lesson) {
     const catKey = 'book_' + bookNum;
 
     const cardsHtml = piecesInBook.map(({ p, i }, seqInBook) =>
-      pieceCardHTML(String(i), p.name, seqInBook + 1, p.focusAreas, p.details)
+      pieceCardHTML(String(i), p.name, seqInBook + 1, p.focusAreas, p.details, lesson.id)
     ).join('');
 
     html += renderCategorySectionOpen(catKey, bookLabel, cardsHtml);
@@ -394,11 +521,17 @@ function renderTodayPage() {
   const log = DB.logs().find(l => l.date === todayStr) || null;
   console.log('[renderTodayPage] 今日日志:', !!log);
 
+  // Phase 1：顶部建议卡片 + 使用方法入口
+  const suggestionHTML = buildSuggestionCardHTML();
+  const helpBtnHTML = '<div style="text-align:right;padding:0 12px 4px">' +
+    '<button onclick="Onboarding.start()" style="font-size:0.75rem;color:var(--text-4);background:none;border:none;cursor:pointer;text-decoration:underline">📖 使用方法</button>' +
+  '</div>';
+
   // 已有今日日志 → 显示已完成记录
     if (log) {
     const msStats = computeMilestoneStatsForRange('day');
     const milestonesHTML = buildMilestonesHTML(msStats.maxStars, msStats.maxDuration, msStats.streak, msStats.title, true);
-    page.innerHTML = '<div id="sectionCompleted">' +
+    page.innerHTML = helpBtnHTML + suggestionHTML + '<div id="sectionCompleted">' +
       renderTodayCompletedHTML(log) +
       milestonesHTML +
     '</div>';
@@ -412,6 +545,7 @@ function renderTodayPage() {
           ? lessons.sort((a, b) => b.date.localeCompare(a.date))[0]
           : null;
         page.innerHTML =
+          helpBtnHTML + buildSuggestionCardHTML() +
           '<div id="sectionPracticeForm">' +
             '<div class="total-timer">' +
               '<span class="total-timer-label">⏱ 练习计时</span>' +
@@ -432,6 +566,7 @@ function renderTodayPage() {
               '<button id="btnCompletePractice" class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem;font-weight:700">✅ 保存修改</button>' +
             '</div>' +
           '</div>';
+        bindSuggestionCard();
         // 注意：即使没有课程，也要绑定事件（计时器、自由练习等仍需工作）
         bindTodayEvents(lesson, log);
       });
@@ -447,6 +582,7 @@ function renderTodayPage() {
     : null;
 
   page.innerHTML =
+    helpBtnHTML + suggestionHTML +
     '<div id="sectionPracticeForm">' +
       '<div class="total-timer">' +
         '<span class="total-timer-label">⏱ 练习计时</span>' +
@@ -468,11 +604,665 @@ function renderTodayPage() {
       '</div>' +
     '</div>';
 
+  // 绑定建议卡片按钮（如果有）
+  bindSuggestionCard();
   // 绑定事件（即使没有课程也要绑定，确保计时器、自由练习等功能正常）
   bindTodayEvents(lesson, null);
 }
 
 // app.js 兼容别名
 const renderToday = renderTodayPage;
+
+/* ==========================================
+   💡 Phase 1：每日建议卡片
+   ========================================== */
+
+/**
+ * 构建建议卡片 HTML
+ * @returns {string} 无建议时返回空字符串
+ */
+function buildSuggestionCardHTML() {
+  let suggestion = null;
+  try {
+    suggestion = Suggestions.generate();
+  } catch (e) {
+    console.error('[Suggestions] generate error:', e);
+    return '';
+  }
+  if (!suggestion) return '';
+
+  const toneClass = Suggestions.toneClass(suggestion.tone);
+  const detail = suggestion.detail ? `<div class="suggestion-detail">${Utils.escape(suggestion.detail)}</div>` : '';
+  const actionLabel = (suggestion.action && suggestion.action.label) || '去查看';
+  const actionTarget = (suggestion.action && suggestion.action.target) || '';
+  const pieceName = (suggestion.action && suggestion.action.pieceName) || '';
+
+  return `
+    <div class="suggestion-card ${toneClass}" id="suggestionCard"
+         data-target="${Utils.escape(actionTarget)}"
+         data-piece="${Utils.escape(pieceName)}">
+      <div class="suggestion-icon">${suggestion.icon || '💡'}</div>
+      <div class="suggestion-content">
+        <div class="suggestion-title">${Utils.escape(suggestion.title)}</div>
+        ${detail}
+      </div>
+      <button type="button" class="suggestion-action" onclick="handleSuggestionClick()">
+        ${Utils.escape(actionLabel)} <span class="suggestion-arrow">→</span>
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * 绑定建议卡片按钮（render 后调用一次即可，按钮已用 onclick 绑定，此函数留作扩展）
+ */
+function bindSuggestionCard() {
+  // 当前用 onclick="handleSuggestionClick()" 直接绑定，无需额外逻辑
+  // 留作未来改成事件委托的扩展点
+}
+
+/**
+ * 建议卡片点击处理
+ */
+window.handleSuggestionClick = function() {
+  const card = document.getElementById('suggestionCard');
+  if (!card) return;
+  const target = card.dataset.target;
+  const pieceName = card.dataset.piece;
+
+  if (target === 'today') {
+    // 练习类建议：留在今日页，如果有指定曲子，滚动+高亮到对应卡片
+    if (pieceName) {
+      Utils.showToast(`🎵 准备练习：${pieceName}`, 'info');
+      scrollToPieceCard(pieceName);
+    } else {
+      const form = document.getElementById('todayPracticeForm');
+      if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  } else if (target === 'feedback') {
+    // 反馈类建议：留在今日页，找到第一条有未完成反馈的曲目卡片并滚动+高亮
+    const allUnresolved = Feedback.byStatus(Feedback.STATUS_NEW);
+    if (allUnresolved.length === 0) {
+      Utils.showToast('📌 暂无待练反馈', 'info');
+      return;
+    }
+    // 找到第一条在今日页有卡片的反馈
+    let found = false;
+    for (const fb of allUnresolved) {
+      if (fb.pieceTitle && scrollToPieceCard(fb.pieceTitle)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      Utils.showToast(`📌 ${allUnresolved.length} 个反馈待练（对应曲目不在今日练习中）`, 'info');
+    }
+  } else {
+    Utils.showToast('💡 点击了建议', 'info');
+  }
+};
+
+/**
+ * 滚动+高亮到指定曲名的曲目卡片
+ * @param {string} pieceName 曲子名称
+ * @returns {boolean} 是否找到并滚动成功
+ */
+function scrollToPieceCard(pieceName) {
+  if (!pieceName) return false;
+  const cards = document.querySelectorAll('.piece-card[data-piece-name]');
+  for (const card of cards) {
+    if (card.dataset.pieceName === pieceName) {
+      // 展开卡片（如果折叠了）
+      const body = card.querySelector('.piece-card-body');
+      if (body && body.style.display === 'none') {
+        body.style.display = '';
+      }
+      // 滚动到卡片
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // 高亮闪烁
+      card.style.transition = 'box-shadow 0.3s ease';
+      card.style.boxShadow = '0 0 0 2px rgba(94,106,210,0.6), 0 0 20px rgba(94,106,210,0.3)';
+      setTimeout(() => {
+        card.style.boxShadow = '';
+      }, 2000);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 方案 D：点击反馈整行切换状态（new ↔ resolved）
+ * 点击播放按钮会 stopPropagation，所以不会触发到这里
+ */
+window.toggleFeedbackStatus = function(feedbackId, rowEl, evt) {
+  if (evt && evt.target) {
+    // 双重保险：点的是播放按钮就不切状态
+    var tgt = evt.target;
+    while (tgt && tgt !== rowEl) {
+      if (tgt.classList && tgt.classList.contains('feedback-play-btn')) return;
+      if (tgt.tagName === 'BUTTON') return;
+      tgt = tgt.parentNode;
+    }
+  }
+  var current = Feedback.find(feedbackId);
+  if (!current) return;
+  var updated;
+  if (current.status === Feedback.STATUS_RESOLVED) {
+    updated = Feedback.markRegress(feedbackId, 'self');
+    if (updated) Utils.showToast('↩️ 已撤销完成', 'info');
+  } else {
+    updated = Feedback.markProgress(feedbackId);
+    if (updated) Utils.showToast('✅ 完成！', 'success');
+  }
+  if (updated) _refreshFeedbackRowUI(feedbackId, updated);
+};
+
+/**
+ * 反馈「✅ 完成」（兼容保留，供别处旧代码调用）
+ */
+window.markFeedbackProgress = function(feedbackId, btn) {
+  const updated = Feedback.markProgress(feedbackId);
+  if (!updated) return;
+  Utils.showToast('✅ 完成！', 'success');
+  _refreshFeedbackRowUI(feedbackId, updated);
+};
+
+/**
+ * 反馈「↩️ 撤销」（兼容保留，供别处旧代码调用）
+ */
+window.markFeedbackRegress = function(feedbackId, btn) {
+  const updated = Feedback.markRegress(feedbackId, 'self');
+  if (!updated) return;
+  Utils.showToast('↩️ 已撤销完成', 'info');
+  _refreshFeedbackRowUI(feedbackId, updated);
+};
+
+/**
+ * 反馈项：从课堂录音的 marker 时间点开始播放
+ * @param {string} feedbackId
+ * @param {HTMLElement} btnEl 点击的播放按钮
+ */
+window.playFeedbackAudio = function(feedbackId, btnEl) {
+  if (typeof LessonAudio === 'undefined') {
+    Utils.showToast('⚠️ 录音模块未加载', 'warning');
+    return;
+  }
+  const blobId = btnEl && btnEl.dataset ? btnEl.dataset.blobId : '';
+  const timestamp = parseInt(btnEl && btnEl.dataset ? btnEl.dataset.timestamp || '0' : '0', 10);
+  if (!blobId) { Utils.showToast('⚠️ 音频不存在', 'error'); return; }
+  // 正在播放 → 停止；否则从 marker 时间点播放
+  if (LessonAudio.isPlaying(feedbackId)) {
+    LessonAudio.stopPlayback();
+    return;
+  }
+  const originalText = btnEl.textContent;
+  btnEl.textContent = '⏸ 播放中...';
+  LessonAudio.playFromTimestamp(blobId, timestamp, feedbackId, function() {
+    // 播放结束：恢复按钮文案
+    const row = document.querySelector('[data-feedback-id="' + feedbackId + '"]');
+    if (!row) return;
+    const playBtn = row.querySelector('.feedback-play-btn');
+    if (playBtn) playBtn.textContent = originalText;
+  });
+};
+
+/**
+ * 方案 D 局部刷新：状态圆圈、data-status、内容变淡删除线、onclick
+ * DOM 顺序：row > [0]timeSpan [1]statusDotSpan [2]contentSpan [3]playBtn(可选)
+ * @param {string} feedbackId
+ * @param {FeedbackItem} updated
+ */
+function _refreshFeedbackRowUI(feedbackId, updated) {
+  var row = document.querySelector('[data-feedback-id="' + feedbackId + '"]');
+  if (!row) return;
+  var isResolved = (updated.status === Feedback.STATUS_RESOLVED);
+  row.setAttribute('data-status', updated.status);
+  // 第2个子元素：状态圆圈 span
+  var dotSpan = row.children[1];
+  if (dotSpan && dotSpan.tagName === 'SPAN') {
+    if (isResolved) {
+      dotSpan.style.background = '#4caf7d';
+      dotSpan.style.borderColor = '#4caf7d';
+      dotSpan.style.color = '#fff';
+      dotSpan.textContent = '✓';
+    } else {
+      dotSpan.style.background = 'transparent';
+      dotSpan.style.borderColor = '#5E6AD2';
+      dotSpan.style.color = '#5E6AD2';
+      dotSpan.textContent = '';
+    }
+  }
+  // 第3个子元素：内容 span
+  var contentSpan = row.children[2];
+  if (contentSpan) {
+    if (isResolved) {
+      contentSpan.style.opacity = '0.55';
+      contentSpan.style.textDecoration = 'line-through';
+      contentSpan.style.textDecorationThickness = '1px';
+    } else {
+      contentSpan.style.opacity = '';
+      contentSpan.style.textDecoration = '';
+      contentSpan.style.textDecorationThickness = '';
+    }
+  }
+  // 更新行 onclick（保险起见，即使函数相同也重置一下 evt.target 判定）
+  row.onclick = function(evt) { toggleFeedbackStatus(feedbackId, row, evt); };
+}
+
+/**
+ * 查看曲谱照片 + 图钉（可交互：点图钉弹出详情浮层，可听录音/推进状态）
+ * @param {string} pieceName 曲子名称
+ */
+window.viewSheetPhoto = async function(pieceName) {
+  var feedbacks = Feedback.byPiece(pieceName);
+  var photoOwner = feedbacks.find(function(f) { return f.sheetPhotoId; });
+  if (!photoOwner || !photoOwner.sheetPhotoId) {
+    Utils.showToast('⚠️ 无曲谱照片', 'warning');
+    return;
+  }
+
+  // 把当前曲子的 feedbacks 存到闭包，供图钉点击回调使用
+  window._sheetViewerContext = { pieceName: pieceName, feedbacks: feedbacks };
+
+  var statusMap = {
+    'new': { icon: '🔵', label: '未完成', color: '#5E6AD2' },
+    'resolved': { icon: '✅', label: '完成', color: '#4caf7d' }
+  };
+
+  // 创建模态
+  var overlay = document.createElement('div');
+  overlay.id = 'sheetPhotoViewer';
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML =
+    '<div style="position:relative;max-width:100%;max-height:100%;overflow:auto">' +
+      '<button type="button" onclick="window._closeSheetViewer()" ' +
+      'style="position:absolute;top:8px;right:8px;z-index:2;font-size:1.2rem;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.6);color:#fff;cursor:pointer">✕</button>' +
+      '<div id="sheetPhotoContainer" style="position:relative;display:inline-block">' +
+        '<p style="color:#aaa;text-align:center;padding:40px">加载中...</p>' +
+      '</div>' +
+    '</div>';
+  // 浮层挂在 body 直接子元素（而非 modal 内层），避免被 modal 的 overflow:auto 容器裁剪/遮挡
+  var bodyPopup = document.createElement('div');
+  bodyPopup.id = 'sheetPinPopup';
+  bodyPopup.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;z-index:10001;box-sizing:border-box';
+  document.body.appendChild(bodyPopup);
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) window._closeSheetViewer();
+  });
+  document.body.appendChild(overlay);
+
+  window._closeSheetViewer = function() {
+    // 关闭时清理播放
+    if (typeof LessonAudio !== 'undefined') LessonAudio.stopPlayback();
+    var vw = document.getElementById('sheetPhotoViewer');
+    if (vw) vw.remove();
+    var bp = document.getElementById('sheetPinPopup');
+    if (bp) bp.remove();
+    delete window._sheetViewerContext;
+    delete window._openSheetPinPopup;
+    delete window._closeSheetPinPopup;
+    delete window._sheetPinProgress;
+    delete window._sheetPinRegress;
+    delete window._sheetPinPlay;
+    delete window._closeSheetViewer;
+    // 刷新今日页面反馈行 UI（状态可能被推进过）
+    if (window._sheetViewerRefresh) { window._sheetViewerRefresh(); delete window._sheetViewerRefresh; }
+  };
+
+  /**
+   * 渲染所有图钉（根据 feedbacks 当前状态渲染颜色）
+   * 挂载到 container 中
+   */
+  function renderPins(container) {
+    var fbs = window._sheetViewerContext.feedbacks;
+    var pinsLayer = container.querySelector('.sheet-pins-layer');
+    if (!pinsLayer) {
+      pinsLayer = document.createElement('div');
+      pinsLayer.className = 'sheet-pins-layer';
+      pinsLayer.style.cssText = 'position:absolute;inset:0;pointer-events:auto';
+      container.appendChild(pinsLayer);
+    }
+    var pinData = fbs.filter(function(f) { return f.pinX !== null && f.pinX !== undefined; });
+    pinsLayer.innerHTML = pinData.map(function(f, idx) {
+      var s = statusMap[f.status] || statusMap['new'];
+      var left = (f.pinX * 100).toFixed(1);
+      var top = (f.pinY * 100).toFixed(1);
+      return '<div data-fb-id="' + f.id + '"' +
+        ' onclick="window._openSheetPinPopup(this)"' +
+        ' style="position:absolute;left:' + left + '%;top:' + top + '%;transform:translate(-50%,-50%);' +
+        'width:26px;height:26px;border-radius:50%;background:' + s.color + ';border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);' +
+        'display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer">' + (idx + 1) + '</div>';
+    }).join('');
+  }
+
+  /**
+   * 点击图钉 → 打开详情浮层
+   */
+  window._openSheetPinPopup = function(pinEl) {
+    try {
+    var fbId = pinEl.getAttribute('data-fb-id');
+    var f = Feedback.find(fbId);
+    if (!f) return;
+    // 更新 context 中的 feedback（状态可能变了）
+    var ctx = window._sheetViewerContext;
+    ctx.feedbacks = Feedback.byPiece(ctx.pieceName);
+
+    var s = statusMap[f.status] || statusMap['new'];
+    var cat = Feedback.categoryInfo(f.category);
+
+    // 计算录音播放信息
+    var playBlobId = null;
+    var playOffsetSec = 0;
+    var timeLabel = '';
+    var tsSource = null; // 'own' 或 'marker'
+    var debugReason = null;
+    if (f.timestamp != null) {
+      tsSource = 'own';
+      var sec = f.timestamp;
+      var mm = Math.floor(sec / 60);
+      var ss = sec % 60;
+      timeLabel = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+      var lessons = DB.lessons();
+      var lesson = null;
+      for (var i = 0; i < lessons.length; i++) {
+        if (String(lessons[i].id) === String(f.lessonId)) { lesson = lessons[i]; break; }
+      }
+      if (!lesson) {
+        debugReason = '找不到 lessonId=' + f.lessonId;
+      } else {
+        var segments = lesson.lessonAudios
+          || (lesson.lessonAudioId ? [{ id: lesson.lessonAudioId, startSec: 0, durationSec: lesson.audioDurationSec || 0 }] : []);
+        if (!segments.length) {
+          debugReason = 'lesson ' + f.lessonId + ' 无录音段';
+        } else if (typeof LessonAudio === 'undefined') {
+          debugReason = 'LessonAudio 未加载';
+        } else {
+          var seg = LessonAudio.findSegmentForTimestamp(segments, f.timestamp || 0);
+          if (seg) { playBlobId = seg.id; playOffsetSec = seg.offsetSec; }
+          else { debugReason = 'findSegmentForTimestamp(' + f.timestamp + ') 未命中, segments=' + JSON.stringify(segments); }
+        }
+      }
+    } else if (f.markerId) {
+      tsSource = 'marker';
+      var lessons = DB.lessons();
+      for (var i = 0; i < lessons.length; i++) {
+        var markers = lessons[i].audioMarkers || [];
+        var m = markers.find(function(mk) { return mk.id === f.markerId; });
+        if (m) {
+          var sec = m.timestamp;
+          var mm = Math.floor(sec / 60);
+          var ss = sec % 60;
+          timeLabel = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+          var segments = lessons[i].lessonAudios
+            || (lessons[i].lessonAudioId ? [{ id: lessons[i].lessonAudioId, startSec: 0, durationSec: lessons[i].audioDurationSec || 0 }] : []);
+          if (segments.length && typeof LessonAudio !== 'undefined') {
+            var seg = LessonAudio.findSegmentForTimestamp(segments, m.timestamp || 0);
+            if (seg) { playBlobId = seg.id; playOffsetSec = seg.offsetSec; }
+            else { debugReason = 'marker ' + m.id + ': findSegmentForTimestamp 未命中'; }
+          } else if (!segments.length) {
+            debugReason = 'marker ' + m.id + ': lesson 无录音段';
+          }
+          break;
+        }
+      }
+    }
+
+    if (!playBlobId && timeLabel) {
+      console.warn('[sheet pin popup] 有时间戳但找不到录音段, fbId=' + f.id + ', ts=' + timeLabel + ', source=' + tsSource + ', reason=' + (debugReason || '?'));
+    }
+
+    var playBtnHtml = '';
+    if (playBlobId) {
+      playBtnHtml = '<button type="button" data-sheet-play-id="' + f.id + '"' +
+        ' onclick="window._sheetPinPlay(this, \'' + f.id + '\', \'' + playBlobId + '\', ' + playOffsetSec + ')"' +
+        ' style="font-size:0.7rem;padding:3px 10px;border-radius:5px;border:1px solid #5E6AD2;background:#5E6AD2;color:#fff;font-weight:700;cursor:pointer">▶️ 从' + timeLabel + '播</button>';
+    } else if (timeLabel) {
+      playBtnHtml = '<span style="font-size:0.7rem;color:#555;font-weight:700;padding:3px 8px;border:1px dashed #999;border-radius:5px">⏱ ' + timeLabel + '（录音不可用）</span>';
+    }
+
+    // 方案 D：状态圆圈（紫○未完成 / 绿✓已完成），点击圆圈切换状态，不再使用独立按钮
+    var pinResolved = (f.status === Feedback.STATUS_RESOLVED);
+    var pinDotBg = pinResolved ? '#4caf7d' : 'transparent';
+    var pinDotBorder = pinResolved ? '#4caf7d' : '#5E6AD2';
+    var pinDotColor = pinResolved ? '#fff' : '#5E6AD2';
+    var pinDotIcon = pinResolved ? '✓' : '';
+    // 状态圆圈：描边统一 2px 加粗；未完成加淡紫内填充，避免空心圈被半透底色稀释
+    var pinDotBorderW = '2px';
+    var pinDotBgFinal = pinResolved
+      ? '#4caf7d'
+      : 'rgba(94,106,210,0.20)';
+    var pinStatusDot =
+      '<span onclick="event.stopPropagation(); window._sheetPinToggleStatus(\'' + f.id + '\', this)"' +
+      ' title="' + (pinResolved ? '已完成，点击撤销' : '未完成，点击标记完成') + '"' +
+      ' style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;' +
+      'border-radius:999px;border:' + pinDotBorderW + ' solid ' + pinDotBorder + ';background:' + pinDotBgFinal + ';' +
+      'color:' + pinDotColor + ';font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;' +
+      'box-shadow:0 1px 2px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.15)">' + pinDotIcon + '</span>';
+    var pinStatusLabel =
+      '<span style="font-size:0.72rem;color:' + s.color + ';font-weight:700">' + s.label + '</span>';
+
+    // 淡黄便利贴底色方案：黑字 fill + 4 方向白色 text-shadow 做描边
+    //   浅底（白谱纸+淡黄叠）→ 黑字直接可读
+    //   深底（黑音符+淡黄叠）→ 白描边把黑字框出来
+    var txtOutline =
+      'color:#0a0a0a;' +
+      'text-shadow:' +
+      '-1px -1px 0 rgba(255,255,255,0.92),' +
+      ' 1px -1px 0 rgba(255,255,255,0.92),' +
+      '-1px  1px 0 rgba(255,255,255,0.92),' +
+      ' 1px  1px 0 rgba(255,255,255,0.92),' +
+      ' 0 1px 2px rgba(0,0,0,0.15);';
+    var locHtml = f.locationLabel
+      ? '<div style="font-size:0.75rem;margin-bottom:4px;font-weight:700;' + txtOutline + '">📍 ' + Utils.escape(f.locationLabel) + '</div>'
+      : '';
+    // 老师原话框：更浓的米白底（几乎不透明，稳承托文字）+ 纯黑字，与外框半透便利贴拉开层次
+    var noteHtml = f.teacherNote
+      ? '<div style="font-size:0.75rem;color:#0a0a0a;margin-bottom:6px;padding:6px 8px;' +
+        'background:rgba(255,248,215,0.90);border-radius:5px;font-weight:700;' +
+        'border:1px solid rgba(120,100,30,0.18);' +
+        'box-shadow:inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.12)">💬 ' +
+        Utils.escape(f.teacherNote) + '</div>'
+      : '';
+    var voiceBtnHtml = '';
+    if (f.parentVoiceId) {
+      voiceBtnHtml = '<button type="button" data-sheet-voice-id="' + f.id + '"' +
+        ' onclick="window._sheetPinPlayVoice(this, \'' + f.parentVoiceId + '\')"' +
+        ' style="font-size:0.7rem;padding:3px 10px;border-radius:5px;border:1px solid #9333ea;background:#9333ea;color:#fff;font-weight:700;cursor:pointer">🎤 家长讲解</button>';
+    }
+
+    // 计算浮层位置：用 fixed 定位 + box-sizing:border-box
+    // 用 documentElement.clientWidth/Height 取"不含滚动条"的真实可视区
+    var popupEl = document.getElementById('sheetPinPopup');
+    var pinRect = pinEl.getBoundingClientRect();
+
+    var dEl = document.documentElement;
+    var vw = dEl.clientWidth;
+    var vh = dEl.clientHeight;
+    var targetWidth = Math.min(240, vw - 16);
+    var gap = 14;
+    var edgeMargin = 12;
+    var txtOutlineLocal = txtOutline; // 黑字白描边（适配淡黄底色）
+    // 状态标签（紫色"未完成"/绿色"完成"）需保留彩色本体色，再叠白色描边做对比
+    var statusTxtOutline =
+      'color:' + s.color + ';' +
+      'text-shadow:' +
+      '-1px -1px 0 rgba(255,255,255,0.92),' +
+      ' 1px -1px 0 rgba(255,255,255,0.92),' +
+      '-1px  1px 0 rgba(255,255,255,0.92),' +
+      ' 1px  1px 0 rgba(255,255,255,0.92);';
+
+    // 先设初始样式：opacity:0 + pointer-events:none 防闪烁，同时保证浏览器正常渲染布局
+    // 不能再用 left:-9999px —— 部分浏览器对极端离屏元素 getBoundingClientRect() 返回 0×0
+    // 底色：淡黄便利贴 rgba(255,236,165,0.55)，边框仍用主题紫做弱分割
+    popupEl.style.cssText =
+      'position:fixed;left:0;top:0;width:' + targetWidth + 'px;' +
+      'opacity:0;pointer-events:none;' +
+      'box-sizing:border-box;' +
+      'background:rgba(255,236,165,0.55);border:1px solid rgba(120,100,30,0.22);border-radius:10px;' +
+      'padding:8px 10px;box-shadow:0 4px 18px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.18) inset;' +
+      'z-index:10001;' + txtOutlineLocal +
+      'font-family:inherit;line-height:1.4;font-weight:700;' +
+      'max-height:' + (vh - 16) + 'px;overflow-y:auto';
+
+    // 先写内容，再测真实尺寸（最稳：不再估任何 padding/border）
+    popupEl.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          pinStatusDot +
+          // 状态文字：彩色本体 + 白描边
+          '<span style="font-size:0.72rem;font-weight:700;' + statusTxtOutline + '">' + s.label + '</span>' +
+          // 分类标签：黑字白描边
+          '<span style="font-size:0.72rem;font-weight:700;' + txtOutlineLocal + '">' + cat.icon + ' ' + cat.label + '</span>' +
+        '</div>' +
+        '<button type="button" onclick="window._closeSheetPinPopup()" style="font-size:0.9rem;background:none;border:none;' + txtOutlineLocal + 'cursor:pointer;padding:0 2px;font-weight:700">✕</button>' +
+      '</div>' +
+      locHtml +
+      noteHtml +
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
+        playBtnHtml +
+        voiceBtnHtml +
+      '</div>';
+
+    // ★ 渲染后测量真实宽高（彻底消除 padding/border/box-model 估算误差）
+    var realRect = popupEl.getBoundingClientRect();
+    var realWidth = realRect.width;
+    var realHeight = realRect.height;
+
+    // 默认放图钉右侧（距离用 gap = 14px）
+    var leftPx = pinRect.right + gap;
+    var topPx = pinRect.top + 4;
+
+    // 简易定位：右侧 → 左侧 → 上方 → 下方，视口 clamp
+    if (leftPx + realWidth > vw - edgeMargin) {
+      leftPx = pinRect.left - realWidth - gap;
+    }
+    if (leftPx < edgeMargin) {
+      leftPx = pinRect.left + pinRect.width / 2 - realWidth / 2;
+      topPx = pinRect.top - realHeight - gap;
+    }
+    if (topPx < edgeMargin) {
+      leftPx = pinRect.left + pinRect.width / 2 - realWidth / 2;
+      topPx = pinRect.bottom + gap;
+    }
+    // 硬 clamp 到视口
+    leftPx = Math.max(edgeMargin, Math.min(leftPx, vw - realWidth - edgeMargin));
+    topPx  = Math.max(edgeMargin, Math.min(topPx, vh - realHeight - edgeMargin));
+
+    leftPx = Math.trunc(leftPx);
+    topPx  = Math.trunc(topPx);
+
+    popupEl.style.left = leftPx + 'px';
+    popupEl.style.top = topPx + 'px';
+
+    popupEl.style.opacity = '1';
+    popupEl.style.pointerEvents = 'auto';
+  } catch (err) {
+    // 兜底：任何异常都不允许静默吞掉，把错误显示到浮层里便于排查
+    console.error('[sheet pin popup] 打开失败:', err);
+    var pe = document.getElementById('sheetPinPopup');
+    if (pe) {
+      pe.style.cssText =
+        'position:fixed;left:16px;top:16px;width:260px;opacity:1;pointer-events:auto;box-sizing:border-box;' +
+        'background:#fff3cd;border:1px solid #e0a800;border-radius:8px;padding:10px;z-index:10001;' +
+        'color:#6b4d00;font-size:12px;font-weight:700;line-height:1.5';
+      pe.innerHTML = '⚠️ 打开图钉失败<br><span style="font-weight:400;color:#8a6d3b">' +
+        Utils.escape(String(err && err.message || err)) + '</span>';
+    }
+  }
+};
+
+  window._closeSheetPinPopup = function() {
+    var el = document.getElementById('sheetPinPopup');
+    if (el) { el.innerHTML = ''; el.style.cssText = ''; }
+    if (typeof LessonAudio !== 'undefined') LessonAudio.stopPlayback();
+  };
+
+  /**
+   * 浮层里播放课堂录音
+   */
+  window._sheetPinPlay = function(btn, fbId, blobId, offset) {
+    if (typeof LessonAudio === 'undefined') { Utils.showToast('⚠️ 录音模块未加载', 'warning'); return; }
+    var playId = 'sheet_pin_' + fbId;
+    if (LessonAudio.isPlaying(playId)) { LessonAudio.stopPlayback(); return; }
+    var orig = btn.innerHTML;
+    btn.innerHTML = '⏸ 播放中...';
+    LessonAudio.playFromTimestamp(blobId, offset, playId, function() { btn.innerHTML = orig; });
+  };
+
+  /**
+   * 浮层里播放家长语音
+   */
+  window._sheetPinPlayVoice = function(btn, voiceId) {
+    if (typeof LessonAudio === 'undefined') { Utils.showToast('⚠️ 录音模块未加载', 'warning'); return; }
+    var playId = 'sheet_voice_' + voiceId;
+    if (LessonAudio.isPlaying(playId)) { LessonAudio.stopPlayback(); return; }
+    var orig = btn.innerHTML;
+    btn.innerHTML = '⏸ 播放中...';
+    LessonAudio.playFromTimestamp(voiceId, 0, playId, function() { btn.innerHTML = orig; });
+  };
+
+  /**
+   * 浮层方案 D：点击状态圆圈切换 new ↔ resolved
+   * 推进/撤销合并一个函数，切完刷新图钉颜色 + 重开浮层 + 同步今日行
+   */
+  window._sheetPinToggleStatus = function(fbId, dotEl) {
+    var current = Feedback.find(fbId);
+    if (!current) return;
+    var updated;
+    if (current.status === Feedback.STATUS_RESOLVED) {
+      updated = Feedback.markRegress(fbId, 'self');
+      if (updated) Utils.showToast('↩️ 已撤销完成', 'info');
+    } else {
+      updated = Feedback.markProgress(fbId);
+      if (updated) Utils.showToast('✅ 完成！', 'success');
+    }
+    if (!updated) return;
+    // 刷新曲谱区图钉颜色（图钉颜色跟状态绑定）
+    var container = document.getElementById('sheetPhotoContainer');
+    if (typeof renderPins === 'function' && container) renderPins(container);
+    // 重新打开浮层（状态圆圈/标签等会重绘）
+    var newPin = document.querySelector('#sheetPhotoViewer [data-fb-id="' + fbId + '"]');
+    if (newPin) window._openSheetPinPopup(newPin);
+    // 同步刷新今日页面的反馈行 UI
+    window._sheetViewerRefresh = function() { _refreshFeedbackRowUI(fbId, updated); };
+  };
+
+  /**
+   * 浮层里"搞定"推进状态（兼容保留，旧代码可能调）
+   */
+  window._sheetPinProgress = function(fbId, btn) {
+    window._sheetPinToggleStatus(fbId, btn);
+  };
+
+  /**
+   * 浮层里"↩️ 撤销"（兼容保留，旧代码可能调）
+   */
+  window._sheetPinRegress = function(fbId, btn) {
+    window._sheetPinToggleStatus(fbId, btn);
+  };
+
+  // 加载照片
+  try {
+    var record = await StorageAdapter.get(photoOwner.sheetPhotoId);
+    if (!record || !record.blob) {
+      document.getElementById('sheetPhotoContainer').innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">照片已删除</p>';
+      return;
+    }
+    var blob = record.blob;
+    var url = URL.createObjectURL(blob);
+    var container = document.getElementById('sheetPhotoContainer');
+
+    container.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:80vh;display:block;border-radius:8px" alt="曲谱">';
+    // 渲染图钉
+    renderPins(container);
+    // 清理 URL
+    container.querySelector('img').onload = function() { URL.revokeObjectURL(url); };
+  } catch (e) {
+    console.error('[viewSheetPhoto] error:', e);
+    document.getElementById('sheetPhotoContainer').innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">加载失败</p>';
+  }
+};
 
 console.log('✅ Render module loaded');

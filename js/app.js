@@ -209,9 +209,17 @@ if (headerVer) headerVer.textContent = RepertoireManager.VERSION;
   console.log('🎹 Piano Helper ' + RepertoireManager.VERSION + ' initializing...');
 
   try {
+    // 数据 Schema 迁移（必须在 RepertoireManager.init / renderAll 之前）
+    Schema.migrate();
     RepertoireManager.init();
     LogoManager.load();
     renderAll();
+
+    // Phase 1：首次启动冷启动引导（必须 renderAll 之后，确保引导覆盖层在页面之上）
+    if (Onboarding.shouldStart()) {
+      // 略延迟，让首屏先稳定
+      setTimeout(() => Onboarding.start(), 300);
+    }
 
     // 启动跨日监听（修复 0 点不重置 Bug）
     DateWatcher.start();

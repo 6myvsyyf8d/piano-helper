@@ -70,12 +70,27 @@
  */
 
 /**
+ * @typedef {Object} AudioMarker
+ * 课堂书签（spec v1.1：背景录音 + 时间戳书签）
+ * @property {string} id                       唯一 ID
+ * @property {number} timestamp                相对录音开始的秒数
+ * @property {string} [pieceTitle]             快速选择的曲子（可空）
+ * @property {string} [label]                  简短标记（可空，课后补填）
+ * @property {boolean} [reviewed]              是否已整理为 FeedbackItem
+ * @property {number} createdAt                创建时间戳
+ */
+
+/**
  * @typedef {Object} Lesson
  * 课程记录
  * @property {string} id                       唯一 ID
  * @property {string} date                     上课日期 YYYY-MM-DD
  * @property {LessonPiece[]} pieces            课程曲目列表
  * @property {string} [teacherNotes]           老师笔记
+ * @property {AudioMarker[]} [audioMarkers]    课堂书签（spec v1.1：背景录音时间戳标记，默认 []）
+ * @property {string|null} [lessonAudioId]      课堂录音首段 blob ID（向后兼容）
+ * @property {number} [audioDurationSec]        课堂录音总时长（秒，课程时间轴）
+ * @property {Array<{id:string, startSec:number, durationSec:number}>} [lessonAudios] 多段录音（spec v1.1 切后台自动保存）
  */
 
 /**
@@ -90,6 +105,7 @@
  * @property {number} [speed]                  练习速度 BPM
  * @property {boolean} [memorized]             是否背谱
  * @property {boolean} [handsTogether]         是否合手
+ * @property {Object|null} [metrics]           录音分析指标（Phase 1 起使用，null=未分析）
  */
 
 /**
@@ -170,6 +186,12 @@ const DB = {
   bookMeta() { return this.get('bookMeta', {}); },
   saveBookMeta(data) { return this.set('bookMeta', data); },
 
+  /* ------------------------------------------
+     📌 反馈集合 (FeedbackItem[]) - Phase 1
+     ------------------------------------------ */
+  feedbacks() { return this.get('feedbacks', []); },
+  saveFeedbacks(data) { return this.set('feedbacks', data); },
+
   getStorageInfo() {
     let total = 0;
     for (let key in localStorage) {
@@ -182,6 +204,57 @@ const DB = {
       usedKB: (total / 1024).toFixed(2),
       usedMB: (total / 1024 / 1024).toFixed(2)
     };
+  },
+
+  /* ------------------------------------------
+     🗄️ 二进制数据 (Blob) - 走 IndexedDB
+     Phase 1 起使用：曲谱照片、家长语音、练习录音
+     ------------------------------------------ */
+
+  /**
+   * 读取 blob
+   * @param {string} id blob ID
+   * @returns {Promise<{id:string,blob:Blob,type:string,createdAt:number}|null>}
+   */
+  getBlob(id) {
+    return StorageAdapter.get(id);
+  },
+
+  /**
+   * 写入 blob
+   * @param {string} id blob ID
+   * @param {Blob} blob
+   * @param {string} [type] 类型标签 'sheet_photo'|'parent_voice'|'practice_recording'
+   * @returns {Promise<string>} id
+   */
+  saveBlob(id, blob, type) {
+    return StorageAdapter.set(id, blob, type);
+  },
+
+  /**
+   * 删除 blob
+   * @param {string} id
+   * @returns {Promise<void>}
+   */
+  removeBlob(id) {
+    return StorageAdapter.remove(id);
+  },
+
+  /**
+   * 列出指定前缀的 blob id
+   * @param {string} [prefix] 为空列出全部
+   * @returns {Promise<string[]>}
+   */
+  listBlobs(prefix) {
+    return StorageAdapter.list(prefix);
+  },
+
+  /**
+   * 查询 IndexedDB blob 存储用量
+   * @returns {Promise<{count:number, bytes:number}>}
+   */
+  getBlobUsage() {
+    return StorageAdapter.usage();
   }
 };
 

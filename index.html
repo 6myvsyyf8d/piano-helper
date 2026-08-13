@@ -83,28 +83,42 @@
 <!-- 模态框容器 -->
 <div id="modalContainer"></div>
 
+<!-- 基础设施：事件总线 + 存储适配器 + Schema 版本管理（Phase 0） -->
+<script src="js/events.js?v=20260813"></script>
+<script src="js/storage-adapter.js?v=20260813"></script>
+<script src="js/schema.js?v=20260813"></script>
+
 <!-- 数据层 + 管理层（基础依赖） -->
-<script src="js/data.js"></script>
-<script src="js/managers.js"></script>
+<script src="js/data.js?v=20260813"></script>
+<script src="js/managers.js?v=20260813"></script>
+
+<!-- Phase 1 模块（依赖 data/managers） -->
+<script src="js/feedback.js?v=20260813"></script>
+<script src="js/lesson-audio.js?v=20260813"></script>
+<script src="js/lesson-markers.js?v=20260813"></script>
+<script src="js/sheet-annotator.js?v=20260813"></script>
+<script src="js/feedback-organizer.js?v=20260813"></script>
+<script src="js/suggestions.js?v=20260813"></script>
+<script src="js/onboarding.js?v=20260813"></script>
 
 <!-- 今日练琴模块（5 个子文件，必须按此顺序） -->
-<script src="js/today/state.js"></script>
-<script src="js/today/render.js"></script>
-<script src="js/today/timer.js"></script>
-<script src="js/today/review-free.js"></script>
-<script src="js/today/submit.js"></script>
+<script src="js/today/state.js?v=20260813"></script>
+<script src="js/today/render.js?v=20260813"></script>
+<script src="js/today/timer.js?v=20260813"></script>
+<script src="js/today/review-free.js?v=20260813"></script>
+<script src="js/today/submit.js?v=20260813"></script>
 
 <!-- 课程 + 日历 -->
-<script src="js/lessons.js"></script>
-<script src="js/calendar.js"></script>
+<script src="js/lessons.js?v=20260813"></script>
+<script src="js/calendar.js?v=20260813"></script>
 
 <!-- 曲库模块（3 个子文件，必须按此顺序） -->
-<script src="js/repertoire/browser.js"></script>
-<script src="js/repertoire/editor.js"></script>
-<script src="js/repertoire/sync.js"></script>
+<script src="js/repertoire/browser.js?v=20260813"></script>
+<script src="js/repertoire/editor.js?v=20260813"></script>
+<script src="js/repertoire/sync.js?v=20260813"></script>
 
 <!-- 统计 + 应用入口 -->
-<script src="js/stats.js"></script>
-<script src="js/app.js"></script>
+<script src="js/stats.js?v=20260813"></script>
+<script src="js/app.js?v=20260813"></script>
 </body>
 </html>

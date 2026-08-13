@@ -95,6 +95,10 @@ window.showLessonForm = function(lessonId) {
     .map(bookNum => renderBookCard(bookNum, piecesByBook.get(bookNum)))
     .join('');
 
+  // 初始化课堂标记模块（Phase 1）
+  LessonMarkers.init(lesson);
+  const markersHtml = LessonMarkers.render();
+
   const modal = document.getElementById('modalContainer');
   modal.innerHTML = `
     <div class="modal-overlay modal-lesson-overlay" onclick="if(event.target===this)closeModal()">
@@ -109,6 +113,8 @@ window.showLessonForm = function(lessonId) {
               <label class="form-label">📅 上课日期</label>
               <input type="date" class="form-input" id="lessonDate" value="${lesson ? lesson.date : Utils.today()}" required>
             </div>
+
+            ${markersHtml}
 
             <div class="form-group">
               <div id="lessonBookCardsContainer">
@@ -143,6 +149,41 @@ window.showLessonForm = function(lessonId) {
       </div>
     </div>
   `;
+
+  // 课堂标记：启动计时器（仅新增模式）+ 渲染各曲目卡片内的标记
+  if (!isEdit) LessonMarkers.startTimer();
+
+  // 事件委托：曲名变化时更新标记的 pieceTitle + 刷新标记区
+  const lessonForm = document.getElementById('lessonForm');
+  if (lessonForm) {
+    // focus 时记录当前曲名（用于 change 时比较）
+    lessonForm.addEventListener('focusin', function(e) {
+      var el = e.target;
+      if (el && (el.classList.contains('piece-name-select') || el.classList.contains('piece-name-input'))) {
+        var card = el.closest('.lesson-piece-card');
+        el._prevPieceName = card ? LessonMarkers._getPieceNameFromCard(card) : '';
+      }
+    });
+    // change 时更新标记 + 刷新
+    lessonForm.addEventListener('change', function(e) {
+      var el = e.target;
+      if (el && (el.classList.contains('piece-name-select') || el.classList.contains('piece-name-input'))) {
+        var card = el.closest('.lesson-piece-card');
+        if (card) {
+          var newName = LessonMarkers._getPieceNameFromCard(card);
+          var oldName = el._prevPieceName || '';
+          if (oldName && newName && oldName !== newName) {
+            LessonMarkers._markers.forEach(function(m) {
+              if (m.pieceTitle === oldName) m.pieceTitle = newName;
+            });
+          }
+          LessonMarkers.refreshAllPieceMarkers();
+        }
+      }
+    });
+  }
+  // 初始渲染所有曲目卡片内的标记
+  LessonMarkers.refreshAllPieceMarkers();
 
   // 阻止左右滑动时画面跟随（iOS橡皮筋效果）
   var overlay = modal.querySelector('.modal-lesson-overlay');
@@ -247,9 +288,7 @@ function renderBookCard(bookNum, bookPieces) {
  * @returns {string} HTML
  */
 function lessonPieceCardHTML(piece, idx, bookNum, isDeleted) {
-  const focusOptions = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
   const scoreStars = (piece.score || '').length;
-  const pieceFocusAreas = piece.focusAreas || [];
   const isCustom = RepertoireManager.isCustomBook(bookNum);
 
   // 曲目选择器：
@@ -277,19 +316,8 @@ function lessonPieceCardHTML(piece, idx, bookNum, isDeleted) {
       </div>
 
       <div class="form-group" style="margin-bottom:8px">
-        <label class="form-label" style="font-size:0.7rem;margin-bottom:4px">🏷 本曲练习重点</label>
-        <div class="tag-row piece-focus-tags" data-piece-idx="${idx}" data-book="${bookNum}">
-          ${focusOptions.map(tag => {
-            const sel = pieceFocusAreas.includes(tag);
-            return `<span class="tag${sel ? ' selected' : ''}" onclick="this.classList.toggle('selected')">${tag}</span>`;
-          }).join('')}
-        </div>
-        <input type="text" class="form-input mt-4 piece-focus-custom" placeholder="自定义重点..." value="${Utils.escape((pieceFocusAreas.filter(t => !focusOptions.includes(t))).join('、'))}" style="font-size:0.75rem;padding:6px 8px">
-      </div>
-
-      <div class="form-group" style="margin-bottom:8px">
         <label class="form-label" style="font-size:0.7rem;margin-bottom:4px">📝 老师要求</label>
-        <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳..." style="min-height:60px;font-size:0.8rem">${Utils.escape(piece.details || '')}</textarea>
+        <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳、第二段力度变化..." style="min-height:80px;font-size:0.8rem">${Utils.escape(piece.details || '')}</textarea>
       </div>
 
       <div class="form-group" style="margin-bottom:0">
@@ -300,6 +328,8 @@ function lessonPieceCardHTML(piece, idx, bookNum, isDeleted) {
           `).join('')}
         </div>
       </div>
+
+      <div class="piece-markers-area" style="margin-top:8px"></div>
 
       <input type="hidden" class="piece-book" value="${bookNum}">
       <input type="hidden" class="piece-repid" value="${piece.repId || ''}">
@@ -503,6 +533,8 @@ window.copyPreviousLessonPieces = function() {
   });
 
   Utils.showToast('✅ 已复制上节课曲目', 'success');
+  // 刷新标记区
+  if (typeof LessonMarkers !== 'undefined') LessonMarkers.refreshAllPieceMarkers();
 };
 
 /**
@@ -548,6 +580,8 @@ window.addLessonPiece = function(bookNum) {
   const div = document.createElement('div');
   div.innerHTML = cardHtml;
   piecesContainer.appendChild(div.firstElementChild);
+  // 刷新标记区（新卡片无标记，但需确保事件绑定一致）
+  if (typeof LessonMarkers !== 'undefined') LessonMarkers.refreshAllPieceMarkers();
 };
 
 /**
@@ -559,6 +593,68 @@ window.removeLessonPiece = function(btn) {
   if (!confirm('确定删除这首曲目吗？')) return;
   const card = btn.closest('.lesson-piece-card');
   if (card) card.remove();
+};
+
+/**
+ * 从曲目卡片读取曲名
+ * @param {HTMLElement} card
+ * @returns {string}
+ */
+function getLessonPieceNameFromCard(card) {
+  if (!card) return '';
+  const nameSelect = card.querySelector('.piece-name-select');
+  const nameInput = card.querySelector('.piece-name-input');
+  if (nameSelect) {
+    const selectedOption = nameSelect.options[nameSelect.selectedIndex];
+    return selectedOption ? (selectedOption.dataset.name || '') : '';
+  } else if (nameInput) {
+    return nameInput.value.trim();
+  }
+  return '';
+}
+
+/**
+ * 点击曲子卡片上的「⏱ 标记此曲」按钮：自动关联当前曲名添加课堂标记
+ * @param {HTMLElement} btn 触发按钮
+ * @param {number} bookNum 册号
+ * @param {number} pieceIdx 曲目在该册中的索引
+ * @returns {void}
+ */
+window.markLessonPiece = function(btn, bookNum, pieceIdx) {
+  const card = btn.closest('.lesson-piece-card');
+  const pieceName = getLessonPieceNameFromCard(card);
+  if (!card) return;
+  if (!pieceName) {
+    Utils.showToast('⚠️ 请先从下拉中选择这首曲子', 'warning');
+    const ns = card.querySelector('.piece-name-select');
+    const ni = card.querySelector('.piece-name-input');
+    if (ns) ns.focus(); else if (ni) ni.focus();
+    return;
+  }
+  if (typeof LessonMarkers !== 'undefined' && typeof LessonMarkers.addMarkForPiece === 'function') {
+    LessonMarkers.addMarkForPiece(pieceName);
+  } else {
+    Utils.showToast('⚠️ 课堂标记模块未加载', 'warning');
+  }
+};
+
+/**
+ * 从曲目卡片的标记区按钮调用（没有 bookNum/pieceIdx 参数）
+ * @param {HTMLElement} btn
+ */
+window.markLessonPieceFromCard = function(btn) {
+  const card = btn.closest('.lesson-piece-card');
+  const pieceName = getLessonPieceNameFromCard(card);
+  if (!card) return;
+  if (!pieceName) {
+    Utils.showToast('⚠️ 请先选择这首曲子', 'warning');
+    return;
+  }
+  if (typeof LessonMarkers !== 'undefined' && typeof LessonMarkers.addMarkForPiece === 'function') {
+    LessonMarkers.addMarkForPiece(pieceName);
+  } else {
+    Utils.showToast('⚠️ 课堂标记模块未加载', 'warning');
+  }
 };
 
 /**
@@ -652,21 +748,10 @@ window.saveLesson = function(lessonId) {
 
       if (!name) return; // 跳过空曲目
 
-      // 收集本曲练习重点
-      const focusAreas = [];
-      const focusTagsEl = pieceCard.querySelector('.piece-focus-tags');
-      if (focusTagsEl) {
-        focusTagsEl.querySelectorAll('.tag.selected').forEach(tag => {
-          focusAreas.push(tag.textContent);
-        });
-      }
-      const customFocus = pieceCard.querySelector('.piece-focus-custom');
-      if (customFocus && customFocus.value.trim()) {
-        customFocus.value.trim().split(/[、,，]/).forEach(t => {
-          const tt = t.trim();
-          if (tt) focusAreas.push(tt);
-        });
-      }
+      // 从老师要求文本中自动提取练习重点关键词
+      const detailsText = detailsEl ? detailsEl.value.trim() : '';
+      const focusKeywords = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏'];
+      const focusAreas = focusKeywords.filter(kw => detailsText.includes(kw));
 
       pieces.push({
         name,
@@ -712,7 +797,11 @@ window.saveLesson = function(lessonId) {
     date,
     pieces,
     focusAreas: [],  // 保留向后兼容
-    notes
+    notes,
+    audioMarkers: LessonMarkers.getMarkers(), // Phase 1 课堂书签（spec v1.1：背景录音 + 时间戳书签）
+    lessonAudioId: LessonMarkers.getLessonAudioId(), // 课堂录音首段 blob ID（向后兼容）
+    audioDurationSec: LessonMarkers.getAudioDurationSec(), // 录音总时长（秒，课程时间轴）
+    lessonAudios: LessonMarkers.getLessonAudios() // 多段录音 [{id, startSec, durationSec}]
   };
 
   // 保存到数据库
@@ -723,6 +812,44 @@ window.saveLesson = function(lessonId) {
     lessons.push(lesson);
   }
   DB.saveLessons(lessons);
+
+  // 保存课程时：自动把「有备注文字 + 有曲子」的 marker 转成 FeedbackItem（new 状态）
+  // spec v1.1：marker 不再携带独立片段录音，仅作为全程背景录音的时间戳书签
+  let autoCreatedCount = 0;
+  const allFbs = DB.feedbacks();
+  lesson.audioMarkers.forEach(m => {
+    const hasNote = !!(m.label && m.label.trim() && m.pieceTitle && m.pieceTitle.trim());
+    if (!hasNote) return;
+    if (m.reviewed) return; // 已手动整理过就不自动生成
+    // 避免重复：同一个 lesson + markerId 组合不生成两次
+    const dup = allFbs.find(f => f.lessonId === lesson.id && f.markerId === m.id);
+    if (dup) return;
+    const fb = Feedback.create({
+      lessonId: lesson.id,
+      markerId: m.id,
+      pieceTitle: (m.pieceTitle || '').trim() || '其他',
+      locationLabel: '', // 位置描述：自动生成时无线位置信息，留空（课后图钉整理时再填）
+      category: 'other',
+      teacherNote: (m.label || '').trim() // 备注文字：顺手写的那句话，作为老师原话简述
+    });
+    allFbs.push(fb);
+    m.reviewed = true; // 标记为已整理，避免重复生成
+    autoCreatedCount++;
+  });
+  if (autoCreatedCount > 0) {
+    DB.saveFeedbacks(allFbs);
+    // 写回已更新的 markers（reviewed=true）
+    const updatedLessons = DB.lessons().map(l => l.id === lesson.id ? { ...l, audioMarkers: lesson.audioMarkers } : l);
+    DB.saveLessons(updatedLessons);
+  }
+
+  // 新增课程时触发事件（Phase 1 起供 feedback 模块监听）
+  if (!lessonId) {
+    Events.emit('lesson:created', { lessonId: lesson.id, date, autoCreated: autoCreatedCount });
+  }
+  if (autoCreatedCount > 0) {
+    Utils.showToast('🎙 自动整理出 ' + autoCreatedCount + ' 条老师反馈，明日练琴时可见', 'success');
+  }
 
   // 同步更新曲库状态：本课程中出现的曲目，若为 untouched 自动升为 learning
   pieces.forEach(p => {

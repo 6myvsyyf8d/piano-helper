@@ -508,6 +508,14 @@ function prefillEditUI() {
         handBtn.style.background = 'rgba(245,216,154,0.15)';
       }
     }
+    // 课程曲目：恢复统一的 看谱/合手 按钮状态
+    var modeBtn = document.querySelector('.piece-mode-btn[data-index="' + idx + '"]');
+    if (modeBtn && piece.handsTogether === true) {
+      modeBtn.textContent = '🤲 合手';
+      modeBtn.style.color = 'var(--accent-green)';
+      modeBtn.style.borderColor = 'rgba(142,212,166,0.3)';
+      modeBtn.style.background = 'rgba(142,212,166,0.15)';
+    }
   }
 }
 
