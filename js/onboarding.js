@@ -1,179 +1,219 @@
 "use strict";
 
 /* ==========================================
-   🚀 冷启动引导 - 5 步引导流程
+   🚀 冷启动引导 - 全屏沉浸式引导
    ==========================================
-   spec 5.8：新用户首次打开应用时显示 5 步引导，
-   30 秒内理解核心用法，完成后不再显示。
-
-   触发条件：
-     localStorage.piano_onboarding_done !== '1' 且
-     （repertoire 为空 或 logs 为空）—— 老用户跳过
-
-   气泡提示（spec 5.8.5）：
-     关键功能首次使用时显示，每个只显示一次
+   新用户首次打开时，显示实际应用界面 +
+   半透明遮罩 + 指向真实 UI 元素的引导卡片。
+   完成后不再显示。
    ========================================== */
 
 const Onboarding = {
   DONE_KEY: 'piano_onboarding_done',
   BUBBLE_KEY: 'piano_onboarding_bubbles',
 
-  // 5 步引导定义
   STEPS: [
     {
       title: '欢迎使用钢琴练习助手 🎹',
       body: '一站式管理孩子的钢琴练习：记录每日练习、上课标注反馈、查看曲谱提醒。',
-      anim: 'welcome',
+      tab: null,       // 不切换 tab，居中显示
+      target: null,    // 无特定目标元素
+      position: 'center',
       btn: '开始 →'
     },
     {
       title: '📋 记录每天的练习',
       body: '在「今日」页面：选曲子 → 设速度 → 开始计时 → 练完评分保存。',
-      anim: 'practice',
+      tab: 'today',
+      target: '#page-today .practice-category:first-of-type',
+      targetLabel: '在这里选择曲子开始练习',
+      position: 'top',
       btn: '下一步 →'
     },
     {
       title: '🎼 上课时记录反馈',
-      body: '在「课程」页面新建课程，点击曲子旁的「课堂记录」按钮：上传曲谱照片 → 在照片上点击放置图钉 → 填写老师反馈内容。',
-      anim: 'lesson',
+      body: '在「课程」页面新建课程，点击曲子旁的「🎼 课堂记录」按钮：上传曲谱照片 → 在照片上点击放置图钉 → 填写反馈内容。',
+      tab: 'lessons',
+      target: '#page-lessons',
+      targetLabel: '课程页面 → 点击「🎼 课堂记录」',
+      position: 'center',
       btn: '下一步 →'
     },
     {
       title: '🔍 练习时查看提醒',
-      body: '在「今日」页面点击「课堂记录」按钮查看曲谱照片，图钉标记了老师反馈的位置，点击图钉查看详情或播放录音回听。',
-      anim: 'feedback',
+      body: '在「今日」页面点击「🎼 课堂记录」按钮查看曲谱照片，点击图钉查看详情。',
+      tab: 'today',
+      target: '#page-today',
+      targetLabel: '今日页面 → 找到「🎼 课堂记录」按钮',
+      position: 'center',
       btn: '下一步 →'
     },
     {
       title: '准备好了！',
       body: '先添加一首孩子正在练的曲子，开始记录吧。',
-      anim: 'ready',
+      tab: null,
+      target: null,
+      position: 'center',
       btn: '开始使用'
     }
   ],
 
   _currentStep: 0,
   _overlay: null,
+  _card: null,
+  _spotlight: null,
 
-  /**
-   * 是否应该启动引导（按 spec 5.8：只看 piano_onboarding_done）
-   * @returns {boolean}
-   */
   shouldStart() {
     return localStorage.getItem(this.DONE_KEY) !== '1';
   },
 
-  /**
-   * 启动引导流程
-   */
   start() {
     this._currentStep = 0;
     this._render();
   },
 
-  /**
-   * 渲染当前步骤
-   */
   _render() {
-    const step = this.STEPS[this._currentStep];
-    const total = this.STEPS.length;
-    const dots = Array.from({ length: total }, (_, i) =>
-      `<span class="onboarding-dot ${i === this._currentStep ? 'active' : ''}"></span>`
-    ).join('');
+    this._cleanup();
+    var step = this.STEPS[this._currentStep];
+    var total = this.STEPS.length;
+    var self = this;
 
-    // 移除已有覆盖层（防止重复）
-    this._overlay && this._overlay.remove();
+    // 切换 tab
+    if (step.tab) {
+      this._switchTab(step.tab);
+    }
 
-    const overlay = document.createElement('div');
+    // 创建遮罩
+    var overlay = document.createElement('div');
     overlay.className = 'onboarding-overlay';
-    overlay.innerHTML = `
-      <div class="onboarding-card">
-        <div class="onboarding-anim onboarding-anim-${step.anim}">
-          ${this._renderAnim(step.anim)}
-        </div>
-        <div class="onboarding-step-indicator">步骤 ${this._currentStep + 1} / ${total}</div>
-        <h2 class="onboarding-title">${step.title}</h2>
-        <p class="onboarding-body">${step.body}</p>
-        <div class="onboarding-dots">${dots}</div>
-        <div class="onboarding-buttons">
-          ${this._currentStep > 0 ? '<button class="btn btn-secondary" onclick="Onboarding._prev()">← 上一步</button>' : '<span></span>'}
-          <button class="btn btn-primary" onclick="Onboarding._next()">${step.btn}</button>
-        </div>
-        <button class="onboarding-skip" onclick="Onboarding._skip()">跳过引导</button>
-      </div>
-    `;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;pointer-events:auto';
     document.body.appendChild(overlay);
     this._overlay = overlay;
 
-    // 阻止背景滚动
+    // 创建聚光灯层（遮罩挖洞）
+    var spotlight = document.createElement('div');
+    spotlight.id = 'onboarding-spotlight';
+    spotlight.style.cssText = 'position:fixed;inset:0;z-index:10001;pointer-events:none;transition:all 0.4s ease';
+    document.body.appendChild(spotlight);
+    this._spotlight = spotlight;
+
+    // 创建引导卡片
+    var dots = Array.from({ length: total }, function(_, i) {
+      return '<span class="onboarding-dot' + (i === self._currentStep ? ' active' : '') + '"></span>';
+    }).join('');
+
+    var card = document.createElement('div');
+    card.className = 'onboarding-guide-card';
+    card.style.cssText = 'position:fixed;z-index:10002;background:rgba(20,25,52,0.95);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:20px 24px;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.5);pointer-events:auto;transition:all 0.4s ease';
+    card.innerHTML =
+      '<div class="onboarding-step-indicator" style="font-size:0.7rem;color:var(--text-4);margin-bottom:6px">步骤 ' + (self._currentStep + 1) + ' / ' + total + '</div>' +
+      '<h2 style="font-size:1.1rem;font-weight:700;color:var(--text-1);margin:0 0 8px 0">' + step.title + '</h2>' +
+      '<p style="font-size:0.85rem;color:var(--text-2);line-height:1.5;margin:0 0 16px 0">' + step.body + '</p>' +
+      '<div class="onboarding-dots" style="display:flex;gap:6px;justify-content:center;margin-bottom:14px">' + dots + '</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        (self._currentStep > 0
+          ? '<button class="btn btn-secondary btn-sm" onclick="Onboarding._prev()" style="font-size:0.8rem">← 上一步</button>'
+          : '<span></span>') +
+        '<button class="btn btn-primary btn-sm" onclick="Onboarding._next()" style="font-size:0.8rem;min-width:80px">' + step.btn + '</button>' +
+      '</div>' +
+      '<button onclick="Onboarding._skip()" style="display:block;margin:12px auto 0;background:none;border:none;color:var(--text-4);font-size:0.72rem;cursor:pointer;padding:4px 8px">跳过引导</button>';
+    document.body.appendChild(card);
+    this._card = card;
+
+    // 定位
+    this._positionCard(step);
+
     document.body.style.overflow = 'hidden';
   },
 
-  /**
-   * 渲染步骤动画（纯 CSS + emoji，无图片资源）
-   */
-  _renderAnim(anim) {
-    switch (anim) {
-      case 'welcome':
-        return '<div class="anim-piano" style="font-size:3rem">🎹</div>';
-      case 'practice':
-        return `
-          <div class="anim-flow" style="display:flex;align-items:center;justify-content:center;gap:12px;font-size:1.5rem;padding:12px 0">
-            <span style="background:rgba(94,106,210,0.15);border:1px solid rgba(94,106,210,0.3);padding:8px 14px;border-radius:8px;font-size:0.85rem;color:#a5ade8">🎵 选曲</span>
-            <span style="color:var(--text-4)">→</span>
-            <span style="background:rgba(94,106,210,0.15);border:1px solid rgba(94,106,210,0.3);padding:8px 14px;border-radius:8px;font-size:0.85rem;color:#a5ade8">⏱ 计时</span>
-            <span style="color:var(--text-4)">→</span>
-            <span style="background:rgba(94,106,210,0.15);border:1px solid rgba(94,106,210,0.3);padding:8px 14px;border-radius:8px;font-size:0.85rem;color:#a5ade8">⭐ 评分</span>
-          </div>
-        `;
-      case 'lesson':
-        return `
-          <div class="anim-flow" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
-            <div style="background:rgba(245,160,152,0.12);border:1px solid rgba(245,160,152,0.25);padding:6px 16px;border-radius:6px;font-size:0.8rem;color:var(--accent-primary)">🎼 课堂记录</div>
-            <span style="color:var(--text-4);font-size:0.7rem">↓</span>
-            <div style="border:1px dashed rgba(255,255,255,0.12);border-radius:8px;padding:12px 20px;position:relative;min-width:120px">
-              <span style="font-size:0.75rem;color:var(--text-3)">📷 曲谱照片</span>
-              <span style="position:absolute;top:50%;left:60%;transform:translate(-50%,-50%);width:14px;height:14px;background:#5E6AD2;border:2px solid #fff;border-radius:50%;display:inline-block"></span>
-            </div>
-            <span style="color:var(--text-4);font-size:0.7rem">↓</span>
-            <div style="background:rgba(94,106,210,0.1);border:1px solid rgba(94,106,210,0.2);padding:5px 12px;border-radius:6px;font-size:0.72rem;color:#a5ade8">📝 填写反馈内容</div>
-          </div>
-        `;
-      case 'feedback':
-        return `
-          <div class="anim-flow" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
-            <div style="background:rgba(94,106,210,0.08);border:1px solid rgba(94,106,210,0.3);padding:4px 12px;border-radius:6px;font-size:0.72rem;color:#a5ade8">🎼 课堂记录 ·2</div>
-            <span style="color:var(--text-4);font-size:0.7rem">↓</span>
-            <div style="border:1px dashed rgba(255,255,255,0.12);border-radius:8px;padding:16px 24px;position:relative;min-width:140px">
-              <span style="font-size:0.7rem;color:var(--text-3)">曲谱照片</span>
-              <span style="position:absolute;top:30%;left:55%;transform:translate(-50%,-50%);width:16px;height:16px;background:#5E6AD2;border:2px solid #fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.5rem;color:#fff;font-weight:700">1</span>
-              <span style="position:absolute;top:60%;left:45%;transform:translate(-50%,-50%);width:16px;height:16px;background:#4caf7d;border:2px solid #fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.5rem;color:#fff;font-weight:700">2</span>
-            </div>
-            <span style="color:var(--text-4);font-size:0.7rem">↓</span>
-            <div style="background:rgba(255,236,165,0.3);border:1px solid rgba(120,100,30,0.2);padding:6px 12px;border-radius:6px;font-size:0.7rem;color:#0a0a0a;font-weight:700;text-align:left;max-width:200px">
-              <div style="display:flex;align-items:center;gap:4px">
-                <span style="width:12px;height:12px;border-radius:50%;border:2px solid #5E6AD2;background:rgba(94,106,210,0.2);display:inline-block"></span>
-                <span style="font-size:0.65rem">未完成</span>
-                <span style="font-size:0.65rem;margin-left:auto">🎹指法</span>
-              </div>
-              <div style="font-size:0.62rem;margin-top:2px">📍 第5小节左手</div>
-              <div style="font-size:0.62rem;color:#333;background:rgba(255,248,215,0.7);padding:2px 4px;border-radius:3px;margin-top:2px">💬 左手要轻</div>
-              <div style="margin-top:3px">
-                <span style="background:#5E6AD2;color:#fff;padding:1px 6px;border-radius:3px;font-size:0.55rem">▶️ 从00:11播</span>
-              </div>
-            </div>
-          </div>
-        `;
-      case 'ready':
-        return '<div class="anim-piano" style="font-size:3rem">🎉</div>';
-      default:
-        return '<div class="anim-piano" style="font-size:3rem">🎹</div>';
+  _switchTab(tab) {
+    // 尝试通过点击 tab 按钮切换页面
+    var tabMap = {
+      'today': 'tab-today',
+      'lessons': 'tab-lessons',
+      'calendar': 'tab-calendar',
+      'repertoire': 'tab-repertoire',
+      'stats': 'tab-stats'
+    };
+    var tabId = tabMap[tab];
+    if (tabId) {
+      var btn = document.getElementById(tabId);
+      if (btn) btn.click();
+    }
+    // 如果 app 有 switchPage 函数
+    if (typeof window.switchPage === 'function') {
+      window.switchPage(tab);
     }
   },
 
-  /**
-   * 下一步
-   */
+  _positionCard(step) {
+    var self = this;
+    // 等待一帧让 DOM 渲染
+    requestAnimationFrame(function() {
+      var card = self._card;
+      var spotlight = self._spotlight;
+      if (!card) return;
+
+      var vw = document.documentElement.clientWidth;
+      var vh = document.documentElement.clientHeight;
+      var cardRect = card.getBoundingClientRect();
+      var cardW = cardRect.width;
+      var cardH = cardRect.height;
+
+      var targetEl = null;
+      var targetRect = null;
+
+      if (step.target) {
+        targetEl = document.querySelector(step.target);
+        if (targetEl) {
+          targetRect = targetEl.getBoundingClientRect();
+        }
+      }
+
+      if (step.position === 'center' || !targetRect) {
+        // 居中显示
+        card.style.left = Math.floor((vw - cardW) / 2) + 'px';
+        card.style.top = Math.floor((vh - cardH) / 2) + 'px';
+
+        // 聚光灯：全屏半透明遮罩
+        if (spotlight) {
+          spotlight.style.background = 'rgba(0,0,0,0.6)';
+          spotlight.style.boxShadow = 'none';
+        }
+      } else {
+        // 指向目标元素
+        var pad = 16;
+        var sx = Math.max(0, targetRect.left - pad);
+        var sy = Math.max(0, targetRect.top - pad);
+        var sw = Math.min(vw - sx, targetRect.width + pad * 2);
+        var sh = Math.min(vh - sy, targetRect.height + pad * 2);
+
+        // 引导卡片放在目标下方或上方
+        var cardTop = targetRect.bottom + 20;
+        var cardLeft = Math.max(16, Math.min(vw - cardW - 16, targetRect.left + targetRect.width / 2 - cardW / 2));
+
+        if (cardTop + cardH > vh - 16) {
+          cardTop = targetRect.top - cardH - 20;
+        }
+        if (cardTop < 16) {
+          cardTop = 16;
+        }
+
+        card.style.left = Math.floor(cardLeft) + 'px';
+        card.style.top = Math.floor(cardTop) + 'px';
+
+        // 聚光灯：挖洞效果
+        if (spotlight) {
+          spotlight.style.background =
+            'radial-gradient(ellipse at ' + (sx + sw/2) + 'px ' + (sy + sh/2) + 'px, ' +
+            'transparent ' + (Math.max(sw, sh)/2) + 'px, ' +
+            'rgba(0,0,0,0.6) ' + (Math.max(sw, sh)/2 + 2) + 'px)';
+          spotlight.style.boxShadow = 'none';
+        }
+      }
+    });
+  },
+
   _next() {
     if (this._currentStep < this.STEPS.length - 1) {
       this._currentStep++;
@@ -183,9 +223,6 @@ const Onboarding = {
     }
   },
 
-  /**
-   * 上一步
-   */
   _prev() {
     if (this._currentStep > 0) {
       this._currentStep--;
@@ -193,34 +230,27 @@ const Onboarding = {
     }
   },
 
-  /**
-   * 跳过
-   */
   _skip() {
     this._finish();
   },
 
-  /**
-   * 完成引导
-   */
   _finish() {
-    if (this._overlay) {
-      this._overlay.remove();
-      this._overlay = null;
-    }
+    this._cleanup();
     document.body.style.overflow = '';
     localStorage.setItem(this.DONE_KEY, '1');
     console.log('✅ Onboarding completed');
   },
 
+  _cleanup() {
+    if (this._overlay) { this._overlay.remove(); this._overlay = null; }
+    if (this._spotlight) { this._spotlight.remove(); this._spotlight = null; }
+    if (this._card) { this._card.remove(); this._card = null; }
+  },
+
   // ──────────────────────────────────────────
-  // 气泡提示系统（spec 5.8.5）
+  // 气泡提示系统
   // ──────────────────────────────────────────
 
-  /**
-   * 读取已展示过的气泡
-   * @returns {Object} { bubbleId: true }
-   */
   _bubblesShown() {
     try {
       return JSON.parse(localStorage.getItem(this.BUBBLE_KEY) || '{}');
@@ -229,39 +259,26 @@ const Onboarding = {
     }
   },
 
-  /**
-   * 是否已展示过某气泡
-   * @param {string} id
-   * @returns {boolean}
-   */
   isBubbleShown(id) {
     return !!this._bubblesShown()[id];
   },
 
-  /**
-   * 显示气泡提示（如果未展示过）
-   * @param {string} id 唯一 ID
-   * @param {string} text 文案
-   * @param {HTMLElement} targetEl 目标元素
-   * @param {Object} [opts] { position: 'top'|'bottom'|'left'|'right', timeout: ms }
-   */
-  showBubble(id, text, targetEl, opts = {}) {
+  showBubble(id, text, targetEl, opts) {
+    opts = opts || {};
     if (!targetEl || this.isBubbleShown(id)) return;
 
-    const position = opts.position || 'bottom';
-    const rect = targetEl.getBoundingClientRect();
+    var position = opts.position || 'bottom';
+    var rect = targetEl.getBoundingClientRect();
 
-    const bubble = document.createElement('div');
-    bubble.className = `onboarding-bubble onboarding-bubble-${position}`;
-    bubble.innerHTML = `
-      <div class="onboarding-bubble-text">${Utils.escape(text)}</div>
-      <button class="onboarding-bubble-close" onclick="this.parentElement.remove()">✕</button>
-    `;
+    var bubble = document.createElement('div');
+    bubble.className = 'onboarding-bubble onboarding-bubble-' + position;
+    bubble.innerHTML =
+      '<div class="onboarding-bubble-text">' + Utils.escape(text) + '</div>' +
+      '<button class="onboarding-bubble-close" onclick="this.parentElement.remove()">✕</button>';
     document.body.appendChild(bubble);
 
-    // 定位
-    const bRect = bubble.getBoundingClientRect();
-    let top, left;
+    var bRect = bubble.getBoundingClientRect();
+    var top, left;
     switch (position) {
       case 'top':
         top = rect.top - bRect.height - 12;
@@ -280,20 +297,17 @@ const Onboarding = {
         left = rect.right + 12;
         break;
     }
-    // 边界保护
     left = Math.max(8, Math.min(left, window.innerWidth - bRect.width - 8));
     top = Math.max(8, Math.min(top, window.innerHeight - bRect.height - 8));
     bubble.style.top = top + 'px';
     bubble.style.left = left + 'px';
 
-    // 标记已展示
-    const shown = this._bubblesShown();
+    var shown = this._bubblesShown();
     shown[id] = true;
     localStorage.setItem(this.BUBBLE_KEY, JSON.stringify(shown));
 
-    // 自动消失
     if (opts.timeout) {
-      setTimeout(() => bubble.remove(), opts.timeout);
+      setTimeout(function() { bubble.remove(); }, opts.timeout);
     }
   }
 };
