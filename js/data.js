@@ -283,6 +283,15 @@ const Utils = {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   },
+
+  // 将任意日期转为本地时区的 YYYY-MM-DD 字符串
+  // 修复：多处用 Date#toISOString() 取日期，在 UTC+8（中国）等时区会差一天
+  dateStr(date) {
+    if (!date) return '';
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
   
   // 格式化日期：2024-03-15 → 3月15日
   formatDate(dateStr) {

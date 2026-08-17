@@ -11,61 +11,78 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v4.0_20260813-4',
+  VERSION: 'v4.0_20260817-0',
+
+  // 生成一首曲目的全新默认状态（未学）
+  _buildDefaultPiece(piece) {
+    return {
+      ...piece,
+      status: 'untouched',
+      memorized: false,
+      startedDate: null,
+      completedDate: null,
+      totalMinutes: 0,
+      practiceCount: 0,
+      lastPracticeDate: null,
+      handsTogether: true
+    };
+  },
 
   // 初始化曲库
   init() {
     const storedVersion = localStorage.getItem('piano_rep_version');
     const currentRep = DB.repertoire();
 
-    // 如果版本不匹配或曲库为空，重新初始化
-    if (!currentRep.length || storedVersion != this.VERSION) {
-      console.log('Initializing repertoire, version:', this.VERSION);
-
-      // 合并铃木和小曲集数据
+    // 全新安装（曲库为空）：完整初始化
+    if (!currentRep.length) {
       const allData = [...SUZUKI_DATA, ...OGATA_DATA];
-
-      const repertoire = allData.map(piece => ({
-        ...piece,
-        // 默认状态：铃木 Book 1 全部已学会，Book 2 前 4 首已学会；小曲集 Book 21-25 已学会
-        status: piece.id.startsWith('s') ? (
-          piece.book === 1 ? 'learned' :
-          (piece.book === 2 && piece.num <= 4 ? 'learned' : 'untouched')
-        ) : (
-          (piece.book >= 21 && piece.book <= 25) ? 'learned' : 'untouched'
-        ),
-        // 默认背谱：铃木 Book 1 全部可背谱，Book 2 前 4 首可背谱；其他一律不可背谱
-        memorized: piece.id.startsWith('s') ? (
-          piece.book === 1 ? true :
-          (piece.book === 2 && piece.num <= 4 ? true : false)
-        ) : false,
-        // 学习日期
-        startedDate: null,
-        completedDate: piece.id.startsWith('s') ? (
-          piece.book === 1 ? '2026-01-01' :
-          (piece.book === 2 && piece.num <= 4 ? '2026-03-01' : null)
-        ) : (
-          (piece.book >= 21 && piece.book <= 25) ? '2026-03-01' : null
-        ),
-        // 总练习时长（分钟）
-        totalMinutes: 0,
-        // 练习次数
-        practiceCount: 0,
-        // 最后练习日期
-        lastPracticeDate: null,
-        // 合手/分手
-        handsTogether: true
-      }));
-
-      DB.saveRepertoire(repertoire);
+      DB.saveRepertoire(allData.map(p => this._buildDefaultPiece(p)));
       localStorage.setItem('piano_rep_version', this.VERSION);
       Utils.showToast('✅ 曲库已初始化', 'success');
+      return;
+    }
+
+    // 版本升级：合并——保留已有曲目的学习进度，只补新增曲目与缺失字段，绝不覆盖用户进度
+    if (storedVersion != this.VERSION) {
+      const allData = [...SUZUKI_DATA, ...OGATA_DATA];
+      const staticIds = new Set(allData.map(p => p.id));
+      const merged = [];
+
+      // 1) 静态曲库：已存在的保留进度（并用静态数据补齐缺失的元数据字段），新曲目补默认状态
+      allData.forEach(staticPiece => {
+        const existing = currentRep.find(p => p.id === staticPiece.id);
+        if (existing) {
+          merged.push({ ...staticPiece, ...existing });
+        } else {
+          merged.push(this._buildDefaultPiece(staticPiece));
+        }
+      });
+
+      // 2) 自定义曲目（不在静态数据里，如用户自己添加的曲目/自定义册）：原样保留
+      currentRep.forEach(p => {
+        if (!staticIds.has(p.id)) merged.push(p);
+      });
+
+      DB.saveRepertoire(merged);
+      localStorage.setItem('piano_rep_version', this.VERSION);
+      console.log('Repertoire merged to version:', this.VERSION);
     }
   },
 
   // 根据 ID 查找曲目
   findById(id) {
     return DB.repertoire().find(p => p.id === id);
+  },
+
+  // 从曲库 ID 反推册号（兼容铃木 's{n}-' 与小曲集 'o{n}-' 两种前缀）
+  // 小曲集 bookNum = o前缀 + 20（如 o3-02 → book 23）
+  bookFromRepId(repId) {
+    if (!repId || typeof repId !== 'string') return null;
+    let m = repId.match(/^s(\d+)-/);
+    if (m) return parseInt(m[1], 10);
+    m = repId.match(/^o(\d+)-/);
+    if (m) return parseInt(m[1], 10) + 20;
+    return null;
   },
 
   // 根据名称查找曲目（模糊匹配）
@@ -316,9 +333,9 @@ const StreakManager = {
     let streak = 0;
     const today = new Date(Utils.today() + 'T00:00:00');
 
-    // 从今天开始往前数
+    // 从今天开始往前数（用本地时区日期，避免 UTC 偏移导致差一天）
     while (true) {
-      const dateStr = today.toISOString().slice(0, 10);
+      const dateStr = Utils.dateStr(today);
       if (dates.has(dateStr)) {
         streak++;
         today.setDate(today.getDate() - 1);
@@ -534,16 +551,18 @@ const SyncCode = {
   },
 
   generateCode(selected) {
-    var data = { v: 3, t: new Date().toISOString().slice(0, 10) };
+    var data = { v: 3, t: Utils.today() };
     if (selected) {
       if (selected.lessons && selected.lessons.length) data.l = selected.lessons;
       if (selected.logs && selected.logs.length) data.g = selected.logs;
       if (selected.bookMeta && Object.keys(selected.bookMeta).length) data.m = selected.bookMeta;
       if (selected.repertoire && selected.repertoire.length) data.r = selected.repertoire;
+      if (selected.feedbacks && selected.feedbacks.length) data.f = selected.feedbacks;
     } else {
       data.l = DB.lessons();
       data.g = DB.logs();
       data.m = DB.bookMeta();
+      data.f = DB.feedbacks();
     }
     return this.encode(data);
   },
@@ -674,8 +693,8 @@ const SyncCode = {
         }
         if (piece.book == null) {
           if (piece.repId) {
-            var m = piece.repId.match(/^s(\d+)-/);
-            if (m) { piece.book = parseInt(m[1]); return; }
+            var b = RepertoireManager.bookFromRepId(piece.repId);
+            if (b != null) { piece.book = b; return; }
           }
           var found2 = rep.find(function(r) {
             return r.name === piece.name || r.en === piece.name;
@@ -702,8 +721,8 @@ const SyncCode = {
       log.entries.forEach(function(entry) {
         if (entry.book == null) {
           if (entry.repId) {
-            var m = entry.repId.match(/^s(\d+)-/);
-            if (m) { entry.book = parseInt(m[1]); return; }
+            var b = RepertoireManager.bookFromRepId(entry.repId);
+            if (b != null) { entry.book = b; return; }
           }
           var found = rep.find(function(r) {
             return r.name === entry.pieceName || r.en === entry.pieceName;
@@ -847,6 +866,14 @@ const SyncCode = {
       for (var k in currentMeta) mergedMeta[k] = currentMeta[k];
       for (var k in data.m) mergedMeta[k] = data.m[k];
       DB.saveBookMeta(mergedMeta);
+    }
+
+    // 导入反馈（按 id 去重合并，新数据优先；不含二进制 blob，仅元数据）
+    if (data.f && data.f.length) {
+      var fbMap = {};
+      DB.feedbacks().forEach(function(f) { if (f && f.id) fbMap[f.id] = f; });
+      data.f.forEach(function(f) { if (f && f.id) fbMap[f.id] = f; });
+      DB.saveFeedbacks(Object.values(fbMap));
     }
 
     return { success: true, stats: stats };
@@ -1192,42 +1219,20 @@ function buildMilestonesHTML(maxStarsDay, maxDurationDay, currentStreak, title, 
     `;
   }
 
-  let html = `
+  const emptyHint = onlyAchieved ? '暂无达成的里程碑' : '开始练习后解锁成就';
+
+  const html = `
     <div class="card" style="margin-top:12px">
       <div class="card-header">
         <h3 class="card-title">🏅 ${title}</h3>
       </div>
-      ${!hasAnyAchievement ? `<div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.8rem">开始练习后解锁${title.replace('里程碑', '')}</div>` : `
-      ${sectionHtml('🌟 星星成就', starBadges)}
-      ${sectionHtml('🔥 连续成就', streakBadges)}
-      ${!onlyAchieved ? '' : sectionHtml('⏱️ 时长成就', durationBadges)}
-      ${onlyAchieved ? '' : sectionHtml('⏱️ 时长成就', durationBadges)}
-      `}
-    </div>
-  `;
-
-  // 修复：上面逻辑有误，这里直接重构
-  if (hasAnyAchievement) {
-    html = `
-      <div class="card" style="margin-top:12px">
-        <div class="card-header">
-          <h3 class="card-title">🏅 ${title}</h3>
-        </div>
+      ${hasAnyAchievement ? `
         ${sectionHtml('🌟 星星成就', starBadges)}
         ${sectionHtml('🔥 连续成就', streakBadges)}
         ${sectionHtml('⏱️ 时长成就', durationBadges)}
-      </div>
-    `;
-  } else {
-    html = `
-      <div class="card" style="margin-top:12px">
-        <div class="card-header">
-          <h3 class="card-title">🏅 ${title}</h3>
-        </div>
-        <div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.8rem">暂无达成的里程碑</div>
-      </div>
-    `;
-  }
+      ` : `<div style="text-align:center;color:var(--text-3);padding:20px;font-size:0.8rem">${emptyHint}</div>`}
+    </div>
+  `;
 
   return html;
 }

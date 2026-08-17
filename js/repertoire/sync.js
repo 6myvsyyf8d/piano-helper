@@ -18,6 +18,7 @@ window.showSyncPanel = function() {
   const logs = DB.logs().slice().sort((a, b) => b.date.localeCompare(a.date));
   const bookMeta = DB.bookMeta();
   const rep = DB.repertoire();
+  const feedbacks = DB.feedbacks().slice();
   const modal = document.getElementById('modalContainer');
 
   // 构建课程子级列表
@@ -62,16 +63,30 @@ window.showSyncPanel = function() {
       '<span>' + Utils.escape(label) + '</span></label>';
   }).join('');
 
+  // 构建反馈子级列表
+  const fbItems = feedbacks.map((f, i) => {
+    const cat = Feedback.categoryInfo(f.category);
+    const label = (f.pieceTitle || '其他') + ' · ' + cat.label + ' · ' + (f.status === 'resolved' ? '完成' : '待练');
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:0.75rem">' +
+      '<input type="checkbox" class="sync-chk-fb" data-idx="' + i + '" checked style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(label) + '</span></label>';
+  }).join('');
+
   modal.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
         <div class="modal-header">
-          <h2 class="modal-title">🔄 数据同步</h2>
+          <h2 class="modal-title">🔄 数据迁移 / 备份</h2>
           <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
         <div class="modal-body">
-          <h3 class="font-bold mb-8">📤 生成同步码</h3>
-          <p class="text-xs text-2 mb-8">选择要同步的数据，点击生成同步码</p>
+          <h3 class="font-bold mb-8">📤 生成迁移码</h3>
+          <p class="text-xs text-2 mb-8">选择要迁移到另一台设备的数据，点击生成迁移码</p>
+          <div class="p-12 mb-12" style="background:rgba(245,216,154,0.12);border:1px solid rgba(245,216,154,0.3);border-radius:8px">
+            <p class="text-xs" style="color:var(--accent-yellow);line-height:1.5">
+              ⚠️ 这不是云同步，也不会自动备份。迁移码仅含结构化数据，<strong>不含课堂录音、曲谱照片、家长语音</strong>；迁移码<strong>未加密</strong>，内含私人学习数据，请勿公开分享。
+            </p>
+          </div>
 
           <div style="margin-bottom:8px">
             <div onclick="var d=document.getElementById('syncLessonList');d.style.display=d.style.display==='none'?'block':'none'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
@@ -131,27 +146,42 @@ window.showSyncPanel = function() {
             </div>
           </div>
 
-          <button class="btn btn-primary btn-sm" id="btnGenSyncCode" style="width:100%;margin-bottom:8px">🔗 生成同步码</button>
+          <div style="margin-bottom:8px">
+            <div onclick="var d=document.getElementById('syncFbList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncFbArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+              <span>📌 老师反馈</span>
+              <span class="text-xs text-3">(${feedbacks.length}条)</span>
+              <span style="margin-left:auto" id="syncFbArrow">▶</span>
+            </div>
+            <div id="syncFbList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+              ${fbItems || '<span class="text-xs text-3">暂无反馈</span>'}
+            </div>
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('fb','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
+              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('fb','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-sm" id="btnGenSyncCode" style="width:100%;margin-bottom:8px">🔗 生成迁移码</button>
 
           <div id="syncCodeDisplay" style="display:none">
             <textarea class="form-input" id="syncCodeOutput" readonly
                       style="min-height:100px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"
                       onclick="this.select()"></textarea>
             <div class="flex-row gap-8 mb-8">
-              <button class="btn btn-primary btn-sm" onclick="copySyncCode()" style="flex:1">📋 复制同步码</button>
+              <button class="btn btn-primary btn-sm" onclick="copySyncCode()" style="flex:1">📋 复制迁移码</button>
             </div>
             <p class="text-xs text-3" id="syncCodeInfo"></p>
           </div>
 
           <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
 
-          <h3 class="font-bold mb-8">📥 粘贴同步码</h3>
-          <p class="text-xs text-2 mb-8">从另一台设备复制同步码，粘贴到下方并导入</p>
+          <h3 class="font-bold mb-8">📥 粘贴迁移码</h3>
+          <p class="text-xs text-2 mb-8">从另一台设备复制迁移码，粘贴到下方并导入</p>
           <textarea class="form-input" id="syncCodeInput"
-                    placeholder="在此粘贴同步码…"
+                    placeholder="在此粘贴迁移码…"
                     style="min-height:80px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"></textarea>
           <div class="flex-row gap-8 mb-16">
-            <button class="btn btn-success btn-sm" id="btnImportSync" style="flex:1">📥 导入同步码</button>
+            <button class="btn btn-success btn-sm" id="btnImportSync" style="flex:1">📥 导入迁移码</button>
           </div>
 
           <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
@@ -162,6 +192,10 @@ window.showSyncPanel = function() {
               <span class="text-sm">本地存储使用</span>
               <span class="font-bold text-sm">${storageInfo.usedKB} KB</span>
             </div>
+            <div class="flex-between mb-4">
+              <span class="text-sm">录音/照片/语音</span>
+              <span class="text-sm text-2" id="blobUsageInfo">统计中...</span>
+            </div>
             <div class="flex-between">
               <span class="text-sm">课程记录</span>
               <span class="text-sm text-2">${lessons.length} 条</span>
@@ -170,6 +204,18 @@ window.showSyncPanel = function() {
               <span class="text-sm">练习日志</span>
               <span class="text-sm text-2">${logs.length} 条</span>
             </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="exportFullBackup()" style="width:100%;margin-bottom:8px">
+            📦 完整备份（含录音/照片/语音）
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="importFullBackup()" style="width:100%;margin-bottom:12px">
+            📤 恢复完整备份
+          </button>
+          <div class="text-xs text-3 mb-8" style="line-height:1.5">
+            完整备份会把课程、日志、曲库、反馈，以及课堂录音、曲谱照片、家长语音全部打包成一个 JSON 文件，换设备时用「恢复完整备份」即可还原。
+          </div>
+          <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
+            <span class="text-xs text-3">仅结构化数据（不含媒体）：</span>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="exportDataAsJSON()" style="width:100%;margin-bottom:8px">
             📥 导出数据（JSON）
@@ -190,6 +236,17 @@ window.showSyncPanel = function() {
       </div>
     </div>
   `;
+
+  // 异步统计二进制数据用量（录音/照片/语音）
+  if (typeof DB.getBlobUsage === 'function') {
+    DB.getBlobUsage().then(function(u) {
+      var el = document.getElementById('blobUsageInfo');
+      if (el) el.textContent = (u.count || 0) + ' 个 · ' + ((u.bytes || 0) / 1024 / 1024).toFixed(2) + ' MB';
+    }).catch(function() {
+      var el = document.getElementById('blobUsageInfo');
+      if (el) el.textContent = '不可用';
+    });
+  }
 
   // 生成同步码按钮事件
   document.getElementById('btnGenSyncCode').addEventListener('click', () => {
@@ -222,8 +279,14 @@ window.showSyncPanel = function() {
       selected.repertoire = rep.filter(p => selectedBooks.has(p.book));
     }
 
+    // 收集选中的反馈
+    const fbChecks = document.querySelectorAll('.sync-chk-fb:checked');
+    if (fbChecks.length) {
+      selected.feedbacks = fbChecks.map(c => feedbacks[parseInt(c.dataset.idx)]).filter(Boolean);
+    }
+
     // 检查是否至少选了一项
-    if (!selected.lessons && !selected.logs && !selected.bookMeta && !selected.repertoire) {
+    if (!selected.lessons && !selected.logs && !selected.bookMeta && !selected.repertoire && !selected.feedbacks) {
       Utils.showToast('⚠️ 请至少选择一项数据', 'warning');
       return;
     }
@@ -241,23 +304,24 @@ window.showSyncPanel = function() {
     if (selected.logs) parts.push(selected.logs.length + '条练习');
     if (selected.bookMeta) parts.push(Object.keys(selected.bookMeta).length + '条册名');
     if (selected.repertoire) parts.push(selected.repertoire.length + '首曲库');
-    info.textContent = '包含：' + parts.join(' · ') + ' · 同步码长度 ' + syncCode.length + ' 字符';
+    if (selected.feedbacks) parts.push(selected.feedbacks.length + '条反馈');
+    info.textContent = '包含：' + parts.join(' · ') + ' · 迁移码长度 ' + syncCode.length + ' 字符（不含录音/照片等媒体文件）';
 
-    Utils.showToast('✅ 同步码已生成（' + syncCode.length + '字符）', 'success');
+    Utils.showToast('✅ 迁移码已生成（' + syncCode.length + '字符）', 'success');
   });
 
   // 导入同步码按钮事件
   document.getElementById('btnImportSync').addEventListener('click', () => {
     const code = document.getElementById('syncCodeInput').value.trim();
     if (!code) {
-      Utils.showToast('⚠️ 请粘贴同步码', 'warning');
+      Utils.showToast('⚠️ 请粘贴迁移码', 'warning');
       return;
     }
     const result = SyncCode.importCode(code);
     if (result.success) {
       closeModal();
       renderAll();
-      Utils.showToast('✅ 同步完成！' + result.stats.lessons + '课程 ' + result.stats.logs + '练习', 'success', 2500);
+      Utils.showToast('✅ 迁移完成！' + result.stats.lessons + '课程 ' + result.stats.logs + '练习', 'success', 2500);
     } else {
       Utils.showToast('❌ ' + result.error, 'error');
     }
@@ -274,6 +338,7 @@ window.syncQuickSelect = function(type, value) {
   if (type === 'lesson') selector = '.sync-chk-lesson';
   else if (type === 'log') selector = '.sync-chk-log';
   else if (type === 'rep') selector = '.sync-chk-rep';
+  else if (type === 'fb') selector = '.sync-chk-fb';
   else return;
 
   const checks = document.querySelectorAll(selector);
@@ -310,7 +375,7 @@ function updateSyncButtonState() {
   const label = btn.querySelector('span:last-child');
   btn.classList.add('synced');
   if (icon) icon.textContent = '🔄';
-  if (label) label.textContent = '同步';
+  if (label) label.textContent = '迁移';
 }
 
 /* ==========================================
@@ -471,6 +536,9 @@ window.exportDataAsJSON = function() {
     }
     if (includeConfig) data.config = DB.config();
 
+    // 始终导出老师反馈（纯文本元数据，体积小，是完整备份的一部分）
+    data.feedbacks = DB.feedbacks();
+
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -611,8 +679,9 @@ async function handleImport(mode) {
     const newRep = data.repertoire || data.piano_repertoire || [];
     const newConfig = data.config || data.piano_config || {};
     const newBookMeta = data.bookMeta || {};
+    const newFeedbacks = Array.isArray(data.feedbacks) ? data.feedbacks : [];
 
-    if (!newLessons.length && !newLogs.length && !newRep.length && !Object.keys(newBookMeta).length && !Object.keys(newConfig).length) {
+    if (!newLessons.length && !newLogs.length && !newRep.length && !newFeedbacks.length && !Object.keys(newBookMeta).length && !Object.keys(newConfig).length) {
       Utils.showToast('❌ 数据格式不正确，未找到任何可导入的数据', 'error');
       return;
     }
@@ -647,6 +716,12 @@ async function handleImport(mode) {
       // 合并配置
       const mergedConfig = { ...DB.config(), ...newConfig };
 
+      // 合并反馈：按 id 去重，新数据优先
+      const fbMap = {};
+      DB.feedbacks().forEach(f => { fbMap[f.id] = f; });
+      newFeedbacks.forEach(f => { fbMap[f.id] = f; });
+      const mergedFeedbacks = Object.values(fbMap);
+
       // 统计变化
       const addedLessons = newLessons.filter(l => !existingLessons.some(el => el.id === l.id)).length;
       const updatedLessons = newLessons.filter(l => existingLessons.some(el => el.id === l.id)).length;
@@ -664,6 +739,7 @@ async function handleImport(mode) {
       DB.saveRepertoire(mergedRep);
       DB.saveBookMeta(mergedBookMeta);
       DB.saveConfig(mergedConfig);
+      DB.saveFeedbacks(mergedFeedbacks);
 
       closeModal();
       renderAll();
@@ -672,11 +748,15 @@ async function handleImport(mode) {
       // ── 覆盖模式 ──
       if (!confirm('确定要覆盖现有数据吗？\n\n这将完全替换当前数据，建议先导出备份。')) return;
 
-      if (newLessons.length) DB.saveLessons(newLessons);
-      if (newLogs.length) DB.saveLogs(newLogs);
-      if (newRep.length) DB.saveRepertoire(newRep);
-      if (Object.keys(newBookMeta).length) DB.saveBookMeta(newBookMeta);
-      if (Object.keys(newConfig).length) DB.saveConfig(newConfig);
+      // 修复：真正“覆盖”——即使导入文件里某类数据为空，也要清空对应旧数据，
+      // 而不是只替换非空部分（否则旧数据残留，与“完全替换”承诺不符）
+      DB.saveLessons(newLessons);
+      DB.saveLogs(newLogs);
+      DB.saveRepertoire(newRep);
+      DB.saveBookMeta(newBookMeta);
+      DB.saveConfig(newConfig);
+      // 反馈：仅当导入文件确实包含 feedbacks 字段时才覆盖（兼容旧导出文件）
+      if (Array.isArray(data.feedbacks)) DB.saveFeedbacks(newFeedbacks);
 
       closeModal();
       renderAll();
@@ -699,7 +779,9 @@ window.clearAllData = function() {
     '这将删除：\n' +
     `- ${DB.lessons().length} 条课程记录\n` +
     `- ${DB.logs().length} 条练习日志\n` +
+    `- ${DB.feedbacks().length} 条老师反馈\n` +
     '- 所有曲库学习进度\n' +
+    '- 课堂录音、曲谱照片、家长语音\n' +
     '- 同步配置\n\n' +
     '此操作不可恢复！'
   );
@@ -711,19 +793,208 @@ window.clearAllData = function() {
     return;
   }
 
-  // 清空所有数据
+  // 清空所有结构化数据
   DB.saveLessons([]);
   DB.saveLogs([]);
   DB.saveConfig({});
+  DB.saveFeedbacks([]);
+  DB.saveBookMeta({});
   localStorage.removeItem('piano_logo');
   localStorage.removeItem('piano_rep_version');
+  localStorage.removeItem('piano_review_range');
+  // 清理按日期存的翻卡跳过次数（key 前缀 piano_review_skip_count_）
+  for (let k in localStorage) {
+    if (k.indexOf('piano_review_skip_count_') === 0) localStorage.removeItem(k);
+  }
+
+  // 清空 IndexedDB 中的全部二进制数据（课堂录音、曲谱照片、家长语音）
+  if (typeof StorageAdapter !== 'undefined' && typeof StorageAdapter.list === 'function') {
+    StorageAdapter.list().then(function(keys) {
+      (keys || []).forEach(function(id) {
+        StorageAdapter.remove(id).catch(function() {});
+      });
+    }).catch(function() {});
+  }
 
   // 重新初始化曲库
   RepertoireManager.init();
 
   closeModal();
   renderAll();
-  Utils.showToast('✅ 所有数据已清空', 'success');
+  Utils.showToast('✅ 所有数据已清空（含录音/照片/语音）', 'success');
 };
+
+/* ==========================================
+   📦 完整备份 / 恢复（含录音/照片/语音二进制数据）
+   ========================================== */
+
+/**
+ * ArrayBuffer → base64（分块，避免大文件栈溢出）
+ */
+function _arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/**
+ * base64 → ArrayBuffer
+ */
+function _base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+/**
+ * 导出完整备份：结构化数据 + 全部二进制（录音/照片/语音）打包成一个 JSON 文件
+ */
+window.exportFullBackup = async function() {
+  Utils.showToast('📦 正在打包备份...', 'info', 6000);
+  try {
+    const data = {
+      format: 'piano-full-backup-v1',
+      exportDate: new Date().toISOString(),
+      version: RepertoireManager.VERSION,
+      lessons: DB.lessons(),
+      logs: DB.logs(),
+      bookMeta: DB.bookMeta(),
+      repertoire: DB.repertoire(),
+      config: DB.config(),
+      feedbacks: DB.feedbacks(),
+      blobs: []
+    };
+
+    // 收集所有二进制数据
+    const blobIds = await StorageAdapter.list();
+    for (const id of blobIds) {
+      try {
+        const rec = await StorageAdapter.get(id);
+        if (!rec || !rec.blob) continue;
+        const buf = await rec.blob.arrayBuffer();
+        data.blobs.push({
+          id: rec.id,
+          kind: rec.type || '',
+          mime: rec.blob.type || '',
+          data: _arrayBufferToBase64(buf)
+        });
+      } catch (e) {
+        console.warn('导出媒体失败:', id, e);
+      }
+    }
+
+    // 下载
+    const json = JSON.stringify(data);
+    const fileBlob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(fileBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'piano-full-backup-' + Utils.today() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+
+    const totalMB = (fileBlob.size / 1024 / 1024).toFixed(2);
+    Utils.showToast('✅ 完整备份已导出（' + data.blobs.length + ' 个媒体，' + totalMB + ' MB）', 'success', 5000);
+  } catch (e) {
+    console.error('完整备份导出失败:', e);
+    Utils.showToast('❌ 备份导出失败：' + (e && e.message ? e.message : e), 'error', 4000);
+  }
+};
+
+/**
+ * 触发完整备份恢复：弹出文件选择器
+ */
+window.importFullBackup = function() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(input);
+  input.onchange = async function() {
+    const file = input.files && input.files[0];
+    input.remove();
+    if (!file) return;
+    try {
+      const text = await new Promise(function(resolve, reject) {
+        const r = new FileReader();
+        r.onload = function() { resolve(r.result); };
+        r.onerror = function() { reject(new Error('文件读取失败')); };
+        r.readAsText(file, 'UTF-8');
+      });
+      const data = JSON.parse(text);
+      await _restoreFullBackup(data);
+    } catch (e) {
+      console.error('恢复完整备份失败:', e);
+      Utils.showToast('❌ 恢复失败：' + (e && e.message ? e.message : e), 'error', 5000);
+    }
+  };
+  input.click();
+};
+
+/**
+ * 执行完整备份恢复（覆盖）
+ * @param {Object} data 备份数据
+ */
+async function _restoreFullBackup(data) {
+  if (!data || data.format !== 'piano-full-backup-v1') {
+    Utils.showToast('❌ 这不是有效的完整备份文件', 'error');
+    return;
+  }
+
+  const blobCount = (data.blobs || []).length;
+  const msg = '确定要恢复这个完整备份吗？\n\n' +
+    '当前所有数据将被替换为备份内容：\n' +
+    '- ' + (data.lessons || []).length + ' 条课程\n' +
+    '- ' + (data.logs || []).length + ' 条练习日志\n' +
+    '- ' + (data.feedbacks || []).length + ' 条反馈\n' +
+    '- ' + blobCount + ' 个录音/照片/语音\n\n' +
+    '此操作不可恢复，建议先导出当前数据备份。';
+  if (!confirm(msg)) return;
+
+  Utils.showToast('📦 正在恢复...', 'info', 6000);
+
+  try {
+    // 1. 恢复结构化数据（覆盖）
+    DB.saveLessons(data.lessons || []);
+    DB.saveLogs(data.logs || []);
+    DB.saveRepertoire(data.repertoire || []);
+    DB.saveBookMeta(data.bookMeta || {});
+    DB.saveConfig(data.config || {});
+    DB.saveFeedbacks(data.feedbacks || []);
+
+    // 2. 同步曲库版本号，避免下次启动触发重新初始化
+    localStorage.setItem('piano_rep_version', RepertoireManager.VERSION);
+
+    // 3. 清空现有二进制，再恢复备份中的
+    const existingIds = await StorageAdapter.list();
+    for (const id of existingIds) {
+      try { await StorageAdapter.remove(id); } catch (e) { /* ignore */ }
+    }
+    for (const b of (data.blobs || [])) {
+      if (!b.id || !b.data) continue;
+      const buf = _base64ToArrayBuffer(b.data);
+      const blob = new Blob([buf], { type: b.mime || '' });
+      try {
+        await StorageAdapter.set(b.id, blob, b.kind || '');
+      } catch (e) {
+        console.warn('恢复媒体失败:', b.id, e);
+      }
+    }
+
+    closeModal();
+    renderAll();
+    Utils.showToast('✅ 完整备份已恢复（' + blobCount + ' 个媒体文件）', 'success', 5000);
+  } catch (e) {
+    console.error('恢复完整备份失败:', e);
+    Utils.showToast('❌ 恢复失败：' + (e && e.message ? e.message : e), 'error', 5000);
+  }
+}
 
 console.log('✅ Lessons, Calendar, Repertoire modules loaded');

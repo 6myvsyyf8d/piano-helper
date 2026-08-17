@@ -395,6 +395,7 @@ const FeedbackOrganizer = {
 
   async _startVoiceRecording() {
     if (this._recordingVoice) return;
+    if (typeof window.ensureRecordingConsent === 'function' && !window.ensureRecordingConsent()) return;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       Utils.showToast('⚠️ 浏览器不支持录音', 'warning');
       return;

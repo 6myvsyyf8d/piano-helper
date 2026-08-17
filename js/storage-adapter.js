@@ -71,7 +71,7 @@ const StorageAdapter = {
         resolve(this._db);
       };
 
-      req.onerror = () => reject(req.error);
+      req.onerror = () => reject(req.error || new Error('IndexedDB 打开失败'));
       req.onblocked = () => reject(new Error('IndexedDB open blocked'));
     });
   },
@@ -87,11 +87,35 @@ const StorageAdapter = {
     return this._open().then(db => new Promise((resolve, reject) => {
       const tx = db.transaction(storeName, mode);
       const store = tx.objectStore(storeName);
-      const req = fn(store);
-      tx.oncomplete = () => resolve(req.result);
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
+      let req;
+      try {
+        req = fn(store);
+      } catch (e) {
+        reject(e || new Error('IndexedDB 操作失败'));
+        return;
+      }
+      tx.oncomplete = () => resolve(req && req.result);
+      tx.onerror = () => reject(tx.error || req.error || new Error('IndexedDB 事务失败'));
+      tx.onabort = () => reject(tx.error || req.error || new Error('IndexedDB 事务被中止'));
     }));
+  },
+
+  /**
+   * Blob → ArrayBuffer（Safari 的 IndexedDB 无法直接存 Blob，需转 ArrayBuffer 存储）
+   * @param {Blob} blob
+   * @returns {Promise<ArrayBuffer>}
+   */
+  _blobToArrayBuffer(blob) {
+    return new Promise((resolve, reject) => {
+      if (blob && typeof blob.arrayBuffer === 'function') {
+        blob.arrayBuffer().then(resolve, reject);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('读取文件数据失败'));
+      reader.readAsArrayBuffer(blob);
+    });
   },
 
   /**
@@ -101,20 +125,41 @@ const StorageAdapter = {
    */
   get(id) {
     return this._tx(this.STORE_BLOBS, 'readonly', store => store.get(id))
-      .then(result => result || null);
+      .then(result => {
+        if (!result) return null;
+        // 新格式：存的是 ArrayBuffer（data）+ mime，读取时重建 Blob
+        if (result.data) {
+          return {
+            id: result.id,
+            blob: new Blob([result.data], { type: result.mime || '' }),
+            type: result.type,
+            createdAt: result.createdAt
+          };
+        }
+        // 旧格式：直接存的是 Blob
+        return result;
+      });
   },
 
   /**
-   * 写入 blob
+   * 写入 blob（内部转 ArrayBuffer 存储，兼容 Safari）
    * @param {string} id
    * @param {Blob} blob
    * @param {string} [type=''] 类型标签（如 'sheet_photo'/'parent_voice'/'practice_recording'）
    * @returns {Promise<string>} id
    */
   set(id, blob, type = '') {
-    const record = { id, blob, type, createdAt: Date.now() };
-    return this._tx(this.STORE_BLOBS, 'readwrite', store => store.put(record))
-      .then(() => id);
+    return this._blobToArrayBuffer(blob).then(data => {
+      const record = {
+        id,
+        data,
+        mime: (blob && blob.type) || '',
+        type,
+        createdAt: Date.now()
+      };
+      return this._tx(this.STORE_BLOBS, 'readwrite', store => store.put(record))
+        .then(() => id);
+    });
   },
 
   /**
@@ -145,7 +190,8 @@ const StorageAdapter = {
       .then(records => {
         let bytes = 0;
         for (const r of records || []) {
-          bytes += (r.blob && r.blob.size) || 0;
+          if (r.blob && r.blob.size) bytes += r.blob.size;
+          else if (r.data && r.data.byteLength) bytes += r.data.byteLength;
         }
         return { count: (records || []).length, bytes };
       });

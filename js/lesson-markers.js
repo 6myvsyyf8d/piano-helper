@@ -223,6 +223,9 @@ const LessonMarkers = {
   async startRecording() {
     if (this._lessonId !== null) return; // 编辑模式禁用
 
+    // 首次录音前知情确认（隐私说明，只弹一次）
+    if (typeof window.ensureRecordingConsent === 'function' && !window.ensureRecordingConsent()) return;
+
     // 计算新段的 startSec = 当前课程已用时
     var segmentStartSec = this._elapsedSec();
 

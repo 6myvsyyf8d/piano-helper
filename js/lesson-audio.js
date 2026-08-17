@@ -385,4 +385,27 @@ const LessonAudio = {
   isPlaying(id) { return this._playingId === id; }
 };
 
+/**
+ * 首次录音前的知情确认（隐私说明）
+ * 只弹一次；确认后写入 localStorage。课堂录音与家长语音共用此确认。
+ * @returns {boolean} 是否已同意
+ */
+window.ensureRecordingConsent = function() {
+  try {
+    if (localStorage.getItem('piano_recording_consent') === '1') return true;
+  } catch (e) { /* ignore */ }
+
+  var ok = confirm(
+    '🎙 开始录音前请确认：\n\n' +
+    '· 录音仅用于家庭复习，保存在本设备，不会上传。\n' +
+    '· 请确认已获得授课老师及相关人员同意。\n' +
+    '· 请勿录制与学习无关的私人内容。\n\n' +
+    '继续即表示你已知晓并同意上述说明。'
+  );
+  if (ok) {
+    try { localStorage.setItem('piano_recording_consent', '1'); } catch (e) { /* ignore */ }
+  }
+  return ok;
+};
+
 window.LessonAudio = LessonAudio;

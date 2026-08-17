@@ -181,16 +181,56 @@ window.togglePieceHands = function(index, btn) {
 };
 
 /**
+ * 将曲目的背谱/合手按钮 UI 同步到 TodayState（预填曲库状态后调用）
+ * @param {string} index 曲目索引
+ * @returns {void}
+ */
+window.syncPieceModeButtons = function(index) {
+  const p = TodayState.pieces[index];
+  if (!p) return;
+  const memBtn = document.querySelector('.piece-mem-btn[data-index="' + index + '"]');
+  if (memBtn) {
+    if (p.memorized) {
+      memBtn.textContent = '🧠 背谱';
+      memBtn.style.color = 'var(--accent-primary)';
+      memBtn.style.borderColor = 'rgba(245,160,152,0.3)';
+      memBtn.style.background = 'rgba(245,160,152,0.15)';
+    } else {
+      memBtn.textContent = '📖 看谱';
+      memBtn.style.color = '';
+      memBtn.style.borderColor = '';
+      memBtn.style.background = '';
+    }
+  }
+  const handBtn = document.querySelector('.piece-hand-btn[data-index="' + index + '"]');
+  if (handBtn) {
+    if (p.handsTogether === false) {
+      handBtn.textContent = '🤚 分手';
+      handBtn.style.color = 'var(--accent-yellow)';
+      handBtn.style.borderColor = 'rgba(245,216,154,0.3)';
+      handBtn.style.background = 'rgba(245,216,154,0.15)';
+    } else {
+      handBtn.textContent = '🤲 合手';
+      handBtn.style.color = '';
+      handBtn.style.borderColor = '';
+      handBtn.style.background = '';
+    }
+  }
+};
+
+/**
  * 切换复习曲目背谱状态（同步到曲库）
  * @param {string} index 曲目索引（如 "r0"）
  * @param {string} repId 曲库 ID
  * @returns {void}
  */
-window.toggleReviewMemorized = function(index, repId) {
+window.toggleReviewMemorized = function(index, repId, btn) {
   if (!TodayState.pieces[index]) return;
   TodayState.pieces[index].reviewMem = !TodayState.pieces[index].reviewMem;
   RepertoireManager.toggleMemorized(repId);
-  const btn = event.target;
+  // 显式传入按钮元素，避免依赖 window.event（Firefox 不支持）
+  btn = btn || window.event.target;
+  if (!btn) return;
   if (TodayState.pieces[index].reviewMem) {
     btn.textContent = '🧠 背谱';
     btn.className = 'btn btn-sm btn-primary';
@@ -210,20 +250,8 @@ window.toggleReviewMemorized = function(index, repId) {
  * @returns {Promise<void>}
  */
 async function handleCompletePractice() {
-  const completed = TodayState.getCompleted();
   const totalTimerMin = getTotalTimerMinutes();
-
-  if (completed.length === 0 && totalTimerMin === 0) {
-    Utils.showToast('⚠️ 请至少完成一项练习', 'warning');
-    return;
-  }
-
   const isEdit = !!TodayState.existingLog;
-  const confirmMsg = isEdit
-    ? '确认保存修改？\n\n已完成 ' + completed.length + ' 首曲目\n总时长 ' + totalTimerMin + ' 分钟'
-    : '确认提交今日练习？\n\n已完成 ' + completed.length + ' 首曲目\n总时长 ' + totalTimerMin + ' 分钟';
-
-  if (!confirm(confirmMsg)) return;
 
   // 收集自由练习曲目的名称和备注（来自 DOM 输入）
   document.querySelectorAll('.free-piece-name').forEach(input => {
@@ -240,32 +268,120 @@ async function handleCompletePractice() {
     }
   });
 
-  const totalDurationMin = getTotalTimerMinutes();
-  const completedCount = completed.length || 1;
-  const perPieceDuration = Math.ceil(totalDurationMin / completedCount);
+  // 只有「真正练过」（有评分或时长）的曲目才进入日志，避免 0 星 0 分钟的空条目污染统计
+  const practiced = Object.entries(TodayState.pieces)
+    .filter(([, p]) => p.rating > 0 || p.durationMin > 0)
+    .map(([index, p]) => Object.assign({ index: index }, p));
 
-  const entries = Object.values(TodayState.pieces).map(piece => ({
-    pieceName: piece.pieceName,
-    category: piece.category,
-    book: piece.book || null,
-    durationMin: piece.rating > 0 ? perPieceDuration : 0,
-    notes: piece.notes || '',
-    focusAreas: piece.focusAreas || [],
-    details: piece.details || '',
-    rating: piece.rating || 0,
-    repId: piece.repId || '',
-    speed: piece.speed || 0,
-    memorized: !!piece.memorized,
-    handsTogether: piece.handsTogether !== false
-  }));
+  if (practiced.length === 0 && totalTimerMin === 0) {
+    Utils.showToast('⚠️ 请至少完成一项练习', 'warning');
+    return;
+  }
 
-  const totalMin = totalDurationMin;
+  // 构建日志条目（每首曲目时长来自家长的分配结果，不再平均伪造）
+  function buildEntries(minutesByIndex) {
+    return practiced.map(p => ({
+      pieceName: p.pieceName || '',
+      category: p.category || 'pieces',
+      book: p.book || null,
+      durationMin: (minutesByIndex && minutesByIndex[p.index]) || 0,
+      notes: p.notes || '',
+      focusAreas: p.focusAreas || [],
+      details: p.details || '',
+      rating: p.rating || 0,
+      repId: p.repId || '',
+      speed: p.speed || 0,
+      memorized: !!p.memorized,
+      handsTogether: p.handsTogether !== false
+    }));
+  }
 
-  // 家长笔记
+  if (practiced.length === 0) {
+    // 只计时、未对任何曲目评分：保存一条“仅总时长”的日志
+    submitPracticeLog([], totalTimerMin, isEdit);
+    return;
+  }
+
+  // 弹窗：为每首曲目分配练习时长（预填均分，家长可调整）
+  showDurationSplitDialog(practiced, totalTimerMin, function(minutesByIndex) {
+    submitPracticeLog(buildEntries(minutesByIndex), totalTimerMin, isEdit);
+  });
+}
+
+/**
+ * 弹窗：分配每首曲目的练习时长
+ * @param {Array} pieces 已练曲目（含 index 字段）
+ * @param {number} totalMin 总计时分钟
+ * @param {Function} onConfirm (minutesByIndex: Object<string, number>) => void
+ */
+function showDurationSplitDialog(pieces, totalMin, onConfirm) {
+  const n = pieces.length;
+  const base = Math.floor(totalMin / n);
+  const remainder = totalMin % n;
+
+  const rows = pieces.map((p, i) => {
+    const splitDefault = i < remainder ? base + 1 : base;
+    const defaultMin = (p.durationMin > 0) ? p.durationMin : splitDefault;
+    const name = p.pieceName || '未命名';
+    return (
+      '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-2)">' +
+        '<div style="flex:1;min-width:0;font-size:0.85rem;color:var(--text-1)">' +
+          Utils.escape(name) +
+          (p.rating ? ' <span style="color:var(--accent-yellow);font-size:0.75rem">' + p.rating + '⭐</span>' : '') +
+        '</div>' +
+        '<input type="number" class="split-min-input" data-index="' + p.index + '" value="' + defaultMin + '" min="0" max="999" inputmode="numeric" style="width:64px;padding:6px 8px;text-align:center;border:1px solid var(--border-1);border-radius:8px;background:var(--surface-1);color:var(--text-1);font-size:0.85rem">' +
+        '<span style="font-size:0.72rem;color:var(--text-3)">分钟</span>' +
+      '</div>'
+    );
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'durationSplitOverlay';
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:14px';
+  overlay.innerHTML =
+    '<div class="modal" style="max-width:440px">' +
+      '<div class="modal-header"><h2 class="modal-title">⏱ 分配练习时长</h2><button class="modal-close" onclick="window._closeDurationSplit()">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<p class="text-xs text-2" style="margin-bottom:12px;line-height:1.5">本次总时长 <strong>' + totalMin + '</strong> 分钟。请确认或调整每首曲目的实际练习时长（影响曲目累计时长与排名）。</p>' +
+        rows +
+        '<div style="margin-top:10px;font-size:0.75rem;color:var(--text-3);text-align:right">合计：<span id="splitTotal" style="font-weight:700;color:var(--text-1)">' + totalMin + '</span> 分钟</div>' +
+      '</div>' +
+      '<div class="modal-footer">' +
+        '<button class="btn btn-primary" id="btnDurationSplitOk" style="width:100%">✅ 保存练习</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  window._closeDurationSplit = function() { overlay.remove(); };
+
+  const inputs = overlay.querySelectorAll('.split-min-input');
+  function updateTotal() {
+    let sum = 0;
+    inputs.forEach(function(x) { sum += (parseInt(x.value, 10) || 0); });
+    const el = document.getElementById('splitTotal');
+    if (el) el.textContent = sum;
+  }
+  inputs.forEach(function(inp) { inp.addEventListener('input', updateTotal); });
+
+  document.getElementById('btnDurationSplitOk').addEventListener('click', function() {
+    const minutesByIndex = {};
+    inputs.forEach(function(inp) { minutesByIndex[inp.getAttribute('data-index')] = parseInt(inp.value, 10) || 0; });
+    overlay.remove();
+    onConfirm(minutesByIndex);
+  });
+}
+
+/**
+ * 写入练习日志 + 更新曲库 + 检测新纪录 + 刷新页面
+ * @param {Array} entries
+ * @param {number} totalMin
+ * @param {boolean} isEdit
+ */
+function submitPracticeLog(entries, totalMin, isEdit) {
   const parentNotes = document.getElementById('parentNotes');
   const notesVal = parentNotes ? parentNotes.value.trim() : '';
 
-  // 构建日志对象
   const todayStr = Utils.today();
   const log = {
     id: TodayState.existingLog ? TodayState.existingLog.id : Utils.uid(),
@@ -277,32 +393,23 @@ async function handleCompletePractice() {
     sticker: TodayState.sticker || ''
   };
 
-  // 写入 DB
   const logs = DB.logs().filter(l => l.date !== todayStr);
   logs.push(log);
   DB.saveLogs(logs);
 
-  // 更新曲库练习记录
   entries.forEach(e => {
     if (e.repId) {
       RepertoireManager.recordPractice(e.repId, e.durationMin || 0);
-    }
-    if (e.memorized !== undefined && e.repId) {
       RepertoireManager.setMemorized(e.repId, e.memorized);
-    }
-    if (e.handsTogether !== undefined && e.repId) {
       RepertoireManager.setHandsTogether(e.repId, e.handsTogether);
     }
   });
 
-  // 检测新纪录（使用新变量名避免冲突）
+  // 检测新纪录
   const newRecords = [];
   const allLogs = DB.logs();
-
-  // 计算今日星星数
   const todayStars = entries.reduce((sum, e) => sum + (e.rating || 0), 0);
 
-  // 获取历史最高记录（排除今日）
   let maxStars = 0;
   let maxDuration = 0;
   for (const l of allLogs) {
@@ -313,7 +420,6 @@ async function handleCompletePractice() {
     if (prevDuration > maxDuration) maxDuration = prevDuration;
   }
 
-  // 检测今日是否打破记录
   if (todayStars > maxStars) {
     newRecords.push({ type: 'stars', value: todayStars, oldValue: maxStars });
   }
@@ -343,7 +449,6 @@ async function handleCompletePractice() {
       }
     }).join('');
 
-    // 添加徽章动画样式
     const style = document.createElement('style');
     style.textContent = '@keyframes badgePop{0%{transform:scale(0.5);opacity:0}100%{transform:scale(1);opacity:1}}';
     document.head.appendChild(style);

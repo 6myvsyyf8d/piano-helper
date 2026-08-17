@@ -17,8 +17,8 @@
 function inferBookFromPiece(piece) {
   if (piece.book) return piece.book;
   if (piece.repId) {
-    const m = piece.repId.match(/^s(\d+)-/);
-    if (m) return parseInt(m[1]);
+    const b = RepertoireManager.bookFromRepId(piece.repId);
+    if (b != null) return b;
   }
   return null;
 }
@@ -288,7 +288,7 @@ window.flipReviewCard = function(idx) {
           '<div class="piece-extra-row" style="margin-top:8px">' +
             '<button class="btn btn-sm ' + (piece.memorized ? 'btn-primary' : 'btn-secondary') + ' piece-mem-btn"' +
                     ' data-index="' + index + '"' +
-                    ' onclick="toggleReviewMemorized(\'' + index + '\', \'' + piece.id + '\')"' +
+                    ' onclick="toggleReviewMemorized(\'' + index + '\', \'' + piece.id + '\', this)"' +
                     ' style="font-size:0.7rem;padding:5px 10px">' +
               (piece.memorized ? '🧠 背谱' : '📖 看谱') +
             '</button>' +
@@ -372,7 +372,7 @@ function bindTodayEvents(lesson, existingLog) {
   // 初始化曲目状态（仅新建模式，编辑模式由 existingLog 填充）
   if (lesson && lesson.pieces) {
     lesson.pieces.forEach(function(piece, i) {
-      var repPiece = RepertoireManager.findByName(piece.name);
+      var repPiece = (piece.repId && RepertoireManager.findById(piece.repId)) || RepertoireManager.findByName(piece.name);
       TodayState.initPiece(i, piece.name, piece.focusAreas, piece.details);
       TodayState.pieces[i].category = piece.category || 'pieces';
       TodayState.pieces[i].repId = piece.repId || (repPiece ? repPiece.id : null);
@@ -380,6 +380,12 @@ function bindTodayEvents(lesson, existingLog) {
         book: piece.book,
         repId: TodayState.pieces[i].repId
       });
+      // 预填曲库中已有的背谱/合手状态，避免提交时被默认值覆盖（丢失已背谱/合手状态）
+      if (repPiece) {
+        TodayState.pieces[i].memorized = !!repPiece.memorized;
+        TodayState.pieces[i].handsTogether = repPiece.handsTogether !== false;
+      }
+      if (typeof window.syncPieceModeButtons === 'function') window.syncPieceModeButtons(i);
     });
   }
 

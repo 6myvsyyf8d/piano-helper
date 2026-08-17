@@ -85,7 +85,7 @@ function renderStats() {
       checkDate.setDate(checkDate.getDate() - 1);
     }
     for (let i = 0; i < 365; i++) {
-      const dateStr = checkDate.toISOString().split('T')[0];
+      const dateStr = Utils.dateStr(checkDate);
       if (logsByDate.has(dateStr)) {
         currentStreak++;
         checkDate.setDate(checkDate.getDate() - 1);

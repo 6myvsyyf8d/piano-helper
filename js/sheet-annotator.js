@@ -99,8 +99,7 @@ const SheetAnnotator = {
             photosHtml +
           '</div>' +
           '<div class="sheet-photo-actions" style="margin-top:10px;display:flex;gap:8px;justify-content:center">' +
-            '<button type="button" class="btn btn-primary btn-sm" onclick="SheetAnnotator._pickPhoto()">📷 添加照片</button>' +
-            '<input type="file" id="sheetPhotoInput" accept="image/*" style="display:none" onchange="SheetAnnotator._onFilePicked(event)">' +
+            this._filePickerLabel('📷 添加照片', false) +
           '</div>' +
         '</div>'
       );
@@ -110,10 +109,30 @@ const SheetAnnotator = {
         '<div class="sheet-photo-empty" id="sheetPhotoEmpty">' +
           '<div class="sheet-photo-empty-icon">📷</div>' +
           '<p class="sheet-photo-empty-text">上传曲谱照片<br><span class="text-xs" style="color:var(--text-4)">点击照片上老师画圈/写字的位置放图钉</span></p>' +
-          '<button type="button" class="btn btn-primary btn-sm" onclick="SheetAnnotator._pickPhoto()">拍照 / 选图</button>' +
-          '<input type="file" id="sheetPhotoInput" accept="image/*" style="display:none" onchange="SheetAnnotator._onFilePicked(event)">' +
+          '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">' +
+            this._filePickerLabel('📷 拍照', true) +
+            this._filePickerLabel('🖼 相册选图', false) +
+          '</div>' +
         '</div>' +
       '</div>'
+    );
+  },
+
+  /**
+   * 生成「拍照 / 选图」按钮（label 包裹 input）。
+   * 用原生 label 激活文件输入，比 JS 手动 input.click() 在 iOS/Android 上更可靠。
+   * 注意：input 不能 display:none（部分 iOS 版本 label 无法激活），改用视觉隐藏但保留在文档流中。
+   * @param {string} label 按钮文案
+   * @param {boolean} [capture] 是否直接用摄像头（capture="environment"）
+   * @returns {string} HTML
+   */
+  _filePickerLabel(label, capture) {
+    const captureAttr = capture ? ' capture="environment"' : '';
+    const hiddenStyle = 'position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;padding:0';
+    return (
+      '<label class="btn ' + (capture ? 'btn-primary' : 'btn-secondary') + ' btn-sm" style="cursor:pointer;margin-top:14px">' + label +
+        '<input type="file" class="sheet-photo-input" accept="image/*"' + captureAttr + ' style="' + hiddenStyle + '" onchange="SheetAnnotator._onFilePicked(event)">' +
+      '</label>'
     );
   },
 
@@ -285,10 +304,10 @@ const SheetAnnotator = {
   },
 
   /**
-   * 选图按钮
+   * 选图按钮（"换一张"复用；取第一个文件输入）
    */
   _pickPhoto() {
-    var input = document.getElementById('sheetPhotoInput');
+    var input = document.querySelector('.sheet-photo-input');
     if (input) input.click();
   },
 
@@ -335,7 +354,8 @@ const SheetAnnotator = {
     var file = event.target.files && event.target.files[0];
     event.target.value = '';  // 允许重复选同一文件
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    // 部分手机摄像头/文件管理器返回空 type，此时不拦截，交给解码阶段判断
+    if (file.type && !file.type.startsWith('image/')) {
       Utils.showToast('⚠️ 请选择图片文件', 'warning');
       return;
     }
@@ -377,8 +397,37 @@ const SheetAnnotator = {
       }
     } catch (e) {
       console.error('照片处理失败:', e);
-      Utils.showToast('❌ 照片处理失败：' + (e.message || e), 'error');
+      var msg = SheetAnnotator._photoErrorText(e);
+      Utils.showToast('❌ 照片处理失败：' + msg, 'error', 5000);
     }
+  },
+
+  /**
+   * 把处理失败的错误对象转成可读中文（DOMException 的 message 常为空，用 name 兜底）
+   * @param {*} e
+   * @returns {string}
+   */
+  _photoErrorText(e) {
+    if (!e) return '可能是存储空间不足或浏览器不支持，请重试';
+    if (e.message) {
+      if (e.message.indexOf('图片加载失败') === 0) return '图片格式不受支持（可尝试用相册选择 JPG/PNG，或更换浏览器）';
+      return e.message;
+    }
+    // message 为空时，用 DOMException.name 判断
+    var nameMap = {
+      'QuotaExceededError': '本地存储空间不足，请删除部分旧照片/录音后重试',
+      'DataCloneError': '图片无法写入本地存储',
+      'DataError': '图片数据异常',
+      'NotSupportedError': '浏览器不支持该图片操作',
+      'InvalidStateError': '浏览器状态异常，请重试',
+      'SecurityError': '浏览器安全限制，请检查权限',
+      'NotAllowedError': '权限被拒绝，请检查相册/文件权限',
+      'NotFoundError': '找不到所选文件，请重试'
+    };
+    if (e.name && nameMap[e.name]) return nameMap[e.name];
+    // 最后兜底：带上原始错误名，便于定位（DOMException 的 message 在 iOS 上常为空）
+    if (e.name) return '浏览器错误(' + e.name + ')，请重试';
+    return '可能是存储空间不足或浏览器不支持，请重试';
   },
 
   /**
@@ -392,39 +441,71 @@ const SheetAnnotator = {
     return new Promise(function(resolve, reject) {
       var img = new Image();
       var url = URL.createObjectURL(file);
+      var settled = false;
+      // 兜底超时，避免 Safari 上图片加载/转码静默卡死
+      var timeout = setTimeout(function() {
+        if (settled) return;
+        settled = true;
+        URL.revokeObjectURL(url);
+        reject(new Error('图片处理超时，请重试'));
+      }, 20000);
+
       img.onload = function() {
         try {
-          URL.revokeObjectURL(url);
           var w = img.naturalWidth;
           var h = img.naturalHeight;
-          if (w > maxWidth) {
-            h = Math.round(h * (maxWidth / w));
-            w = maxWidth;
+          if (!w || !h) { throw new Error('图片尺寸无效'); }
+          // 长边超过 maxWidth 时等比缩小（此前只限制宽度，竖长图可能产生超大 canvas）
+          if (w > maxWidth || h > maxWidth) {
+            var scale = Math.min(maxWidth / w, maxWidth / h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
           }
           var canvas = document.createElement('canvas');
           canvas.width = w;
           canvas.height = h;
           var ctx = canvas.getContext('2d');
+          if (!ctx) { throw new Error('无法创建画布'); }
           ctx.drawImage(img, 0, 0, w, h);
-          canvas.toBlob(
-            function(blob) {
-              if (blob) resolve(blob);
-              else reject(new Error('canvas.toBlob 返回 null'));
-            },
-            'image/jpeg',
-            quality
-          );
-        } catch (e) {
+
+          // 直接用 canvas.toDataURL（iOS Safari 上比 toBlob 更可靠，避免 Blob 转存失败）
+          var dataURL = canvas.toDataURL('image/jpeg', quality);
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
           URL.revokeObjectURL(url);
-          reject(e);
+          resolve(SheetAnnotator._dataURLToBlob(dataURL));
+        } catch (e) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          URL.revokeObjectURL(url);
+          reject(e && e.message ? e : new Error('图片处理异常'));
         }
       };
       img.onerror = function() {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
         URL.revokeObjectURL(url);
-        reject(new Error('图片加载失败'));
+        reject(new Error('图片加载失败（格式可能不受支持）'));
       };
       img.src = url;
     });
+  },
+
+  /**
+   * dataURL → Blob（canvas.toBlob 不可用或返回 null 时的降级方案）
+   * @param {string} dataURL
+   * @returns {Blob}
+   */
+  _dataURLToBlob(dataURL) {
+    var parts = dataURL.split(',');
+    var mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+    var bin = atob(parts[1]);
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
   },
 
   /**

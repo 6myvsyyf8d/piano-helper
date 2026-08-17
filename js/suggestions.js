@@ -102,54 +102,37 @@ const Suggestions = {
   // P1：某曲子 3 天没练
   // ──────────────────────────────────────────
   _ruleNotPracticedRecently() {
-    const logs = DB.logs();
     const today = Utils.today();
     const rep = DB.repertoire().filter(r => r.status === 'learning' || r.status === 'learned');
     if (rep.length === 0) return null;
 
-    // 计算每首 learning/learned 曲子的最后练习日期
-    const lastPracticed = {};
-    logs.forEach(log => {
-      (log.entries || []).forEach(e => {
-        if (!e.pieceName) return;
-        if (!lastPracticed[e.pieceName] || log.date > lastPracticed[e.pieceName]) {
-          lastPracticed[e.pieceName] = log.date;
-        }
-      });
-    });
-
+    // 曲目对象字段为 name / lastPracticeDate（此前误用 title / addedAt，导致该规则永不触发）
     const stale = [];
     for (const r of rep) {
-      const last = lastPracticed[r.title];
-      if (!last) {
-        // 从未练习过——如果加入曲库超过 3 天才算
-        if (r.addedAt && (Date.now() - r.addedAt) > 3 * 86400000) {
-          stale.push({ title: r.title, days: 'never' });
-        }
-        continue;
+      let days;
+      if (!r.lastPracticeDate) {
+        // 从未练习过：以开始学习日期为基准，超过 3 天才提示
+        if (!r.startedDate) continue;
+        days = Math.floor((new Date(today + 'T00:00:00') - new Date(r.startedDate + 'T00:00:00')) / 86400000);
+      } else {
+        days = Math.floor((new Date(today + 'T00:00:00') - new Date(r.lastPracticeDate + 'T00:00:00')) / 86400000);
       }
-      const days = Math.floor((new Date(today + 'T00:00:00') - new Date(last + 'T00:00:00')) / 86400000);
       if (days >= 3) {
-        stale.push({ title: r.title, days });
+        stale.push({ name: r.name, days });
       }
     }
 
     if (stale.length === 0) return null;
-    stale.sort((a, b) => {
-      if (a.days === 'never') return -1;
-      if (b.days === 'never') return 1;
-      return b.days - a.days;
-    });
+    stale.sort((a, b) => b.days - a.days);
     const top = stale[0];
-    const daysText = top.days === 'never' ? '从未练习' : `${top.days} 天没练`;
     return {
       priority: 1,
       type: 'reminder',
       tone: 'blue',
       icon: '📅',
-      title: `${top.title} 已经 ${daysText}`,
+      title: `${top.name} 已经 ${top.days} 天没练`,
       detail: stale.length > 1 ? `还有 ${stale.length - 1} 首也需要回顾` : '',
-      action: { label: '练这首', target: 'today', pieceName: top.title }
+      action: { label: '练这首', target: 'today', pieceName: top.name }
     };
   },
 
@@ -159,22 +142,10 @@ const Suggestions = {
   _ruleConsecutiveDays() {
     const FIVE_DAYS = 5;
     const today = Utils.today();
-    const dateSet = new Set(DB.logs().map(l => l.date));
 
-    // 统计每首曲子最近连续练习天数
-    const pieceStreaks = {};
-    const logs = DB.logs().sort((a, b) => a.date < b.date ? -1 : 1);
-    logs.forEach(log => {
-      (log.entries || []).forEach(e => {
-        if (!e.pieceName) return;
-        if (!pieceStreaks[e.pieceName]) pieceStreaks[e.pieceName] = { count: 0, lastDate: null };
-        // 简化：只要这首曲子在过去 5 天内练习过 5 次就触发
-      });
-    });
-
-    // 更准确的算法：从今天往回数，统计每首曲子连续练习天数
+    // 从今天往回数，统计每首曲子连续练习天数
     const pieceDayMap = {}; // piece -> Set(date)
-    logs.forEach(log => {
+    DB.logs().forEach(log => {
       (log.entries || []).forEach(e => {
         if (!e.pieceName) return;
         if (!pieceDayMap[e.pieceName]) pieceDayMap[e.pieceName] = new Set();
@@ -186,7 +157,8 @@ const Suggestions = {
     for (const [piece, days] of Object.entries(pieceDayMap)) {
       let streak = 0;
       const cursor = new Date(today + 'T00:00:00');
-      while (days.has(cursor.toISOString().slice(0, 10))) {
+      // 用本地时区日期做 key，避免 toISOString() 在 UTC+8 等时区差一天
+      while (days.has(Utils.dateStr(cursor))) {
         streak++;
         cursor.setDate(cursor.getDate() - 1);
       }
@@ -256,9 +228,9 @@ const Suggestions = {
       type: 'challenge',
       tone: 'purple',
       icon: '🧠',
-      title: `${top.title} 练了 ${top.practiceCount} 次了`,
+      title: `${top.name} 练了 ${top.practiceCount} 次了`,
       detail: '试试背谱？',
-      action: { label: '接受挑战', target: 'today', pieceName: top.title }
+      action: { label: '接受挑战', target: 'today', pieceName: top.name }
     };
   },
 

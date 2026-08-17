@@ -211,10 +211,10 @@ function groupLessonPiecesByBook(pieces) {
   pieces.forEach(piece => {
     let bookNum = piece.book;
 
-    // 老数据兼容：从 repId 反推（如 "s2-01" → 2）
+    // 老数据兼容：从 repId 反推（如 "s2-01" → 2、"o3-02" → 23）
     if (!bookNum && piece.repId) {
-      const m = piece.repId.match(/^s(\d+)-/);
-      if (m) bookNum = parseInt(m[1]);
+      const b = RepertoireManager.bookFromRepId(piece.repId);
+      if (b != null) bookNum = b;
     }
 
     // 还是没有就归到 book=1（避免数据丢失，Rule 12）
@@ -813,6 +813,22 @@ window.saveLesson = function(lessonId) {
   }
   DB.saveLessons(lessons);
 
+  // 修复：新建课程期间通过「整理曲谱」创建的图钉反馈，此时 lesson 尚未生成 id，
+  // FeedbackOrganizer 以空 lessonId 创建了它们。保存后需要回填真正的 lesson.id，
+  // 否则这些反馈在今日页无法与课程关联（永远不显示），成为孤儿数据。
+  if (!lessonId) {
+    const pieceTitles = new Set(pieces.map(p => p.name));
+    const orphanFbs = DB.feedbacks();
+    let orphanChanged = false;
+    orphanFbs.forEach(f => {
+      if (!f.lessonId && pieceTitles.has(f.pieceTitle)) {
+        f.lessonId = lesson.id;
+        orphanChanged = true;
+      }
+    });
+    if (orphanChanged) DB.saveFeedbacks(orphanFbs);
+  }
+
   // 保存课程时：自动把「有备注文字 + 有曲子」的 marker 转成 FeedbackItem（new 状态）
   // spec v1.1：marker 不再携带独立片段录音，仅作为全程背景录音的时间戳书签
   let autoCreatedCount = 0;
@@ -867,19 +883,62 @@ window.saveLesson = function(lessonId) {
 };
 
 /**
- * 删除课程（带二次确认）
+ * 级联删除课程关联的媒体数据（课堂录音、曲谱照片、家长语音）+ 关联反馈
+ * @param {Lesson} lesson 课程对象
+ * @returns {Promise<void>}
+ */
+async function cleanupLessonMedia(lesson) {
+  if (!lesson || typeof StorageAdapter === 'undefined') return;
+
+  // 1. 收集课堂录音 blob（多段 + 旧单段字段）
+  const blobIds = new Set();
+  (lesson.lessonAudios || []).forEach(s => { if (s && s.id) blobIds.add(s.id); });
+  if (lesson.lessonAudioId) blobIds.add(lesson.lessonAudioId);
+
+  // 2. 收集本课程所有反馈的曲谱照片 / 家长语音 blob
+  const fbs = Feedback.byLesson(lesson.id);
+  const fbIds = new Set(fbs.map(f => f.id));
+  fbs.forEach(f => {
+    if (f.parentVoiceId) blobIds.add(f.parentVoiceId);
+    if (f.sheetPhotoId) blobIds.add(f.sheetPhotoId);
+  });
+
+  // 3. 删除本课程的反馈
+  if (fbs.length) {
+    DB.saveFeedbacks(DB.feedbacks().filter(f => !fbIds.has(f.id)));
+  }
+
+  // 4. 曲谱照片可能被其它反馈共享，仅在无任何剩余引用时才删
+  const referenced = new Set();
+  DB.feedbacks().forEach(f => {
+    if (f.sheetPhotoId) referenced.add(f.sheetPhotoId);
+    if (f.parentVoiceId) referenced.add(f.parentVoiceId);
+  });
+
+  for (const id of blobIds) {
+    if (!referenced.has(id)) {
+      try { await StorageAdapter.remove(id); } catch (e) { /* ignore */ }
+    }
+  }
+}
+
+/**
+ * 删除课程（带二次确认 + 级联删除关联媒体）
  * @param {string} lessonId 课程 ID
  * @returns {void}
  */
 window.deleteLesson = function(lessonId) {
-  if (!confirm('确定要删除这条课程记录吗？\n\n此操作不可恢复！')) return;
+  if (!confirm('确定要删除这条课程记录吗？\n\n将同时删除关联的课堂录音、曲谱照片和反馈。\n此操作不可恢复！')) return;
 
+  const lesson = DB.lessons().find(l => l.id === lessonId);
   const lessons = DB.lessons().filter(l => l.id !== lessonId);
   DB.saveLessons(lessons);
 
-  closeModal();
-  renderAll();
-  Utils.showToast('✅ 课程已删除', 'success');
+  cleanupLessonMedia(lesson).then(function() {
+    closeModal();
+    renderAll();
+    Utils.showToast('✅ 课程已删除（含关联录音/照片/反馈）', 'success');
+  });
 };
 
 console.log('✅ Lessons module (book-grouped version) loaded');

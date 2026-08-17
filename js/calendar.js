@@ -334,7 +334,7 @@ function showDayDetail(date) {
       <div class="p-12 mb-8" style="background:rgba(255,255,255,0.04);border-radius:12px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
           <span class="font-bold">${Utils.escape(entry.pieceName)}</span>
-          ${entry.rating ? '<span style="white-space:nowrap;flex-shrink:0">' + '⭐'.repeat(entry.rating) + '</span>' : ''}
+          ${entry.rating ? '<span style="white-space:nowrap;flex-shrink:0">' + starDisplayHTML(entry.rating) + '</span>' : ''}
         </div>
         ${entry.durationMin ? '<div class="text-xs text-3 mt-4">⏱ ' + entry.durationMin + '分钟</div>' : ''}
       </div>
