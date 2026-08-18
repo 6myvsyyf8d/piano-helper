@@ -80,149 +80,181 @@ window.showSyncPanel = function() {
           <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
         <div class="modal-body">
-          <h3 class="font-bold mb-8">📤 生成迁移码</h3>
-          <p class="text-xs text-2 mb-8">选择要迁移到另一台设备的数据，点击生成迁移码</p>
+
           <div class="p-12 mb-12" style="background:rgba(245,216,154,0.12);border:1px solid rgba(245,216,154,0.3);border-radius:8px">
             <p class="text-xs" style="color:var(--accent-yellow);line-height:1.5">
               ⚠️ 这不是云同步，也不会自动备份。迁移码仅含结构化数据，<strong>不含课堂录音、曲谱照片、家长语音</strong>；迁移码<strong>未加密</strong>，内含私人学习数据，请勿公开分享。
             </p>
           </div>
 
-          <div style="margin-bottom:8px">
-            <div onclick="var d=document.getElementById('syncLessonList');d.style.display=d.style.display==='none'?'block':'none'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
-              <span>📚 课程记录</span>
-              <span class="text-xs text-3">(${lessons.length}条)</span>
-              <span style="margin-left:auto" id="syncLessonArrow">▼</span>
+          <!-- ─── 卡片 1：搬到新设备 ─── -->
+          <div class="sync-card" style="margin-bottom:12px;background:rgba(94,106,210,0.06);border:1px solid rgba(94,106,210,0.2);border-radius:12px;overflow:hidden">
+            <div class="sync-card-header" onclick="toggleSyncCard('cardMigrate')" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px">
+              <span style="font-size:1.3rem">📱</span>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:0.9rem;color:var(--text-1)">搬到新设备</div>
+                <div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">换手机/平板了？扫码或复制迁移码，在新设备上导入</div>
+              </div>
+              <span style="font-size:0.65rem;background:var(--accent-primary);color:#fff;padding:2px 8px;border-radius:10px;font-weight:600">推荐</span>
+              <span id="syncArrowMigrate" style="color:var(--text-3);font-size:0.8rem">▶</span>
             </div>
-            <div id="syncLessonList" style="max-height:160px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
-              ${lessonItems || '<span class="text-xs text-3">暂无课程</span>'}
-            </div>
-            <div style="display:flex;gap:4px;margin-top:4px">
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson',1)" style="font-size:0.7rem;padding:2px 8px">仅最近1次</button>
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson',3)" style="font-size:0.7rem;padding:2px 8px">最近3次</button>
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+            <div id="cardMigrate" style="display:none;padding:0 16px 16px">
+              <p class="text-xs text-2 mb-8">当前设备生成迁移码 → 另一台设备扫码或粘贴导入</p>
+
+              <div style="margin-bottom:8px">
+                <div onclick="var d=document.getElementById('syncLessonList');d.style.display=d.style.display==='none'?'block':'none'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+                  <span>📚 课程记录</span>
+                  <span class="text-xs text-3">(${lessons.length}条)</span>
+                  <span style="margin-left:auto" id="syncLessonArrow">▼</span>
+                </div>
+                <div id="syncLessonList" style="max-height:160px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+                  ${lessonItems || '<span class="text-xs text-3">暂无课程</span>'}
+                </div>
+                <div style="display:flex;gap:4px;margin-top:4px">
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson',1)" style="font-size:0.7rem;padding:2px 8px">仅最近1次</button>
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson',3)" style="font-size:0.7rem;padding:2px 8px">最近3次</button>
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('lesson','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+                </div>
+              </div>
+
+              <div style="margin-bottom:8px">
+                <div onclick="var d=document.getElementById('syncLogList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncLogArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+                  <span>📝 练习日志</span>
+                  <span class="text-xs text-3">(${logs.length}条)</span>
+                  <span style="margin-left:auto" id="syncLogArrow">▶</span>
+                </div>
+                <div id="syncLogList" style="display:none;max-height:160px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+                  ${logItems || '<span class="text-xs text-3">暂无日志</span>'}
+                </div>
+                <div style="display:flex;gap:4px;margin-top:4px">
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('log','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('log','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+                </div>
+              </div>
+
+              <div style="margin-bottom:8px">
+                <div onclick="var d=document.getElementById('syncMetaList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncMetaArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+                  <span>🏷️ 自定义册名</span>
+                  <span class="text-xs text-3">(${metaKeys.length}条)</span>
+                  <span style="margin-left:auto" id="syncMetaArrow">▶</span>
+                </div>
+                <div id="syncMetaList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+                  ${metaItems || '<span class="text-xs text-3">暂无自定义册名</span>'}
+                </div>
+              </div>
+
+              <div style="margin-bottom:8px">
+                <div onclick="var d=document.getElementById('syncRepList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncRepArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+                  <span>🎼 曲库进度</span>
+                  <span class="text-xs text-3">(${rep.length}首)</span>
+                  <span style="margin-left:auto" id="syncRepArrow">▶</span>
+                </div>
+                <div id="syncRepList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+                  ${repItems || '<span class="text-xs text-3">暂无曲目</span>'}
+                </div>
+                <div style="display:flex;gap:4px;margin-top:4px">
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('rep','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('rep','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+                </div>
+              </div>
+
+              <div style="margin-bottom:8px">
+                <div onclick="var d=document.getElementById('syncFbList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncFbArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
+                  <span>📌 老师反馈</span>
+                  <span class="text-xs text-3">(${feedbacks.length}条)</span>
+                  <span style="margin-left:auto" id="syncFbArrow">▶</span>
+                </div>
+                <div id="syncFbList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
+                  ${fbItems || '<span class="text-xs text-3">暂无反馈</span>'}
+                </div>
+                <div style="display:flex;gap:4px;margin-top:4px">
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('fb','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
+                  <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('fb','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-sm" id="btnGenSyncCode" style="width:100%;margin-bottom:8px">🔗 生成迁移码</button>
+
+              <div id="syncCodeDisplay" style="display:none">
+                <textarea class="form-input" id="syncCodeOutput" readonly
+                          style="min-height:100px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"
+                          onclick="this.select()"></textarea>
+                <div class="flex-row gap-8 mb-8">
+                  <button class="btn btn-primary btn-sm" onclick="copySyncCode()" style="flex:1">📋 复制迁移码</button>
+                </div>
+                <div id="syncQRCode" style="text-align:center;margin:12px 0;display:none">
+                  <p class="text-xs text-2 mb-8">📱 用另一台设备扫描二维码</p>
+                  <canvas id="syncQRCanvas" style="max-width:200px;border-radius:8px"></canvas>
+                </div>
+                <p class="text-xs text-3" id="syncCodeInfo"></p>
+              </div>
             </div>
           </div>
 
-          <div style="margin-bottom:8px">
-            <div onclick="var d=document.getElementById('syncLogList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncLogArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
-              <span>📝 练习日志</span>
-              <span class="text-xs text-3">(${logs.length}条)</span>
-              <span style="margin-left:auto" id="syncLogArrow">▶</span>
+          <!-- ─── 卡片 2：备份数据 ─── -->
+          <div class="sync-card" style="margin-bottom:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-1);border-radius:12px;overflow:hidden">
+            <div class="sync-card-header" onclick="toggleSyncCard('cardBackup')" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px">
+              <span style="font-size:1.3rem">💾</span>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:0.9rem;color:var(--text-1)">备份数据</div>
+                <div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">下载完整备份文件，含录音、曲谱照片，建议定期备份</div>
+              </div>
+              <span id="syncArrowBackup" style="color:var(--text-3);font-size:0.8rem">▶</span>
             </div>
-            <div id="syncLogList" style="display:none;max-height:160px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
-              ${logItems || '<span class="text-xs text-3">暂无日志</span>'}
-            </div>
-            <div style="display:flex;gap:4px;margin-top:4px">
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('log','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('log','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
-            </div>
-          </div>
-
-          <div style="margin-bottom:8px">
-            <div onclick="var d=document.getElementById('syncMetaList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncMetaArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
-              <span>🏷️ 自定义册名</span>
-              <span class="text-xs text-3">(${metaKeys.length}条)</span>
-              <span style="margin-left:auto" id="syncMetaArrow">▶</span>
-            </div>
-            <div id="syncMetaList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
-              ${metaItems || '<span class="text-xs text-3">暂无自定义册名</span>'}
-            </div>
-          </div>
-
-          <div style="margin-bottom:8px">
-            <div onclick="var d=document.getElementById('syncRepList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncRepArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
-              <span>🎼 曲库进度</span>
-              <span class="text-xs text-3">(${rep.length}首)</span>
-              <span style="margin-left:auto" id="syncRepArrow">▶</span>
-            </div>
-            <div id="syncRepList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
-              ${repItems || '<span class="text-xs text-3">暂无曲目</span>'}
-            </div>
-            <div style="display:flex;gap:4px;margin-top:4px">
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('rep','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('rep','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
+            <div id="cardBackup" style="display:none;padding:0 16px 16px">
+              <p class="text-xs text-2 mb-8">存储用量：${storageInfo.usedKB} KB<span id="blobUsageInfo2" style="margin-left:8px"></span></p>
+              <button class="btn btn-primary btn-sm" onclick="exportFullBackup()" style="width:100%;margin-bottom:8px">
+                📦 完整备份（含录音/照片/语音）
+              </button>
+              <div class="text-xs text-3 mb-12" style="line-height:1.5">
+                打包所有数据（课程、日志、曲库、反馈、录音、照片、语音）为一个 JSON 文件，换设备时可恢复。
+              </div>
+              <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
+                <span class="text-xs text-3">仅结构化数据（不含媒体，文件更小）：</span>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="exportDataAsJSON()" style="width:100%">
+                📥 导出数据（JSON）
+              </button>
             </div>
           </div>
 
-          <div style="margin-bottom:8px">
-            <div onclick="var d=document.getElementById('syncFbList');d.style.display=d.style.display==='none'?'block':'none';var a=document.getElementById('syncFbArrow');a.textContent=d.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;font-size:0.85rem;font-weight:600">
-              <span>📌 老师反馈</span>
-              <span class="text-xs text-3">(${feedbacks.length}条)</span>
-              <span style="margin-left:auto" id="syncFbArrow">▶</span>
+          <!-- ─── 卡片 3：恢复数据 ─── -->
+          <div class="sync-card" style="margin-bottom:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-1);border-radius:12px;overflow:hidden">
+            <div class="sync-card-header" onclick="toggleSyncCard('cardRestore')" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:10px">
+              <span style="font-size:1.3rem">📥</span>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:0.9rem;color:var(--text-1)">恢复数据</div>
+                <div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">从备份文件恢复，或粘贴迁移码导入</div>
+              </div>
+              <span id="syncArrowRestore" style="color:var(--text-3);font-size:0.8rem">▶</span>
             </div>
-            <div id="syncFbList" style="display:none;max-height:120px;overflow-y:auto;padding-left:12px;border-left:2px solid var(--border-1);margin-left:4px">
-              ${fbItems || '<span class="text-xs text-3">暂无反馈</span>'}
-            </div>
-            <div style="display:flex;gap:4px;margin-top:4px">
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('fb','all')" style="font-size:0.7rem;padding:2px 8px">全选</button>
-              <button class="btn btn-sm btn-secondary" onclick="syncQuickSelect('fb','none')" style="font-size:0.7rem;padding:2px 8px">清空</button>
-            </div>
-          </div>
-
-          <button class="btn btn-primary btn-sm" id="btnGenSyncCode" style="width:100%;margin-bottom:8px">🔗 生成迁移码</button>
-
-          <div id="syncCodeDisplay" style="display:none">
-            <textarea class="form-input" id="syncCodeOutput" readonly
-                      style="min-height:100px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"
-                      onclick="this.select()"></textarea>
-            <div class="flex-row gap-8 mb-8">
-              <button class="btn btn-primary btn-sm" onclick="copySyncCode()" style="flex:1">📋 复制迁移码</button>
-            </div>
-            <p class="text-xs text-3" id="syncCodeInfo"></p>
-          </div>
-
-          <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
-
-          <h3 class="font-bold mb-8">📥 粘贴迁移码</h3>
-          <p class="text-xs text-2 mb-8">从另一台设备复制迁移码，粘贴到下方并导入</p>
-          <textarea class="form-input" id="syncCodeInput"
-                    placeholder="在此粘贴迁移码…"
-                    style="min-height:80px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"></textarea>
-          <div class="flex-row gap-8 mb-16">
-            <button class="btn btn-success btn-sm" id="btnImportSync" style="flex:1">📥 导入迁移码</button>
-          </div>
-
-          <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
-
-          <h3 class="font-bold mb-8">📦 数据管理</h3>
-          <div class="p-12 mb-8" style="background:rgba(255,255,255,0.04);border-radius:var(--r-md);border:1px solid var(--border-1)">
-            <div class="flex-between mb-4">
-              <span class="text-sm">本地存储使用</span>
-              <span class="font-bold text-sm">${storageInfo.usedKB} KB</span>
-            </div>
-            <div class="flex-between mb-4">
-              <span class="text-sm">录音/照片/语音</span>
-              <span class="text-sm text-2" id="blobUsageInfo">统计中...</span>
-            </div>
-            <div class="flex-between">
-              <span class="text-sm">课程记录</span>
-              <span class="text-sm text-2">${lessons.length} 条</span>
-            </div>
-            <div class="flex-between">
-              <span class="text-sm">练习日志</span>
-              <span class="text-sm text-2">${logs.length} 条</span>
+            <div id="cardRestore" style="display:none;padding:0 16px 16px">
+              <button class="btn btn-primary btn-sm" onclick="importFullBackup()" style="width:100%;margin-bottom:12px">
+                📤 恢复完整备份
+              </button>
+              <div class="text-xs text-3 mb-12" style="line-height:1.5">
+                选择之前导出的完整备份 JSON 文件，恢复所有数据（含录音、照片）。
+              </div>
+              <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
+                <span class="text-xs text-3">或粘贴迁移码 / 扫码导入：</span>
+              </div>
+              <textarea class="form-input" id="syncCodeInput"
+                        placeholder="在此粘贴迁移码…"
+                        style="min-height:80px;font-family:monospace;font-size:0.7rem;word-break:break-all;resize:none"></textarea>
+              <div class="flex-row gap-8 mb-16">
+                <button class="btn btn-success btn-sm" id="btnImportSync" style="flex:1">📥 导入迁移码</button>
+                <button class="btn btn-secondary btn-sm" id="btnScanQR" style="flex:1">📷 扫码导入</button>
+              </div>
+              <div id="scanQRContainer" style="display:none;margin-bottom:16px"></div>
+              <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
+                <span class="text-xs text-3">或导入结构化数据 JSON：</span>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="showImportPanel()" style="width:100%">
+                📤 导入数据（JSON）
+              </button>
             </div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="exportFullBackup()" style="width:100%;margin-bottom:8px">
-            📦 完整备份（含录音/照片/语音）
-          </button>
-          <button class="btn btn-primary btn-sm" onclick="importFullBackup()" style="width:100%;margin-bottom:12px">
-            📤 恢复完整备份
-          </button>
-          <div class="text-xs text-3 mb-8" style="line-height:1.5">
-            完整备份会把课程、日志、曲库、反馈，以及课堂录音、曲谱照片、家长语音全部打包成一个 JSON 文件，换设备时用「恢复完整备份」即可还原。
-          </div>
-          <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
-            <span class="text-xs text-3">仅结构化数据（不含媒体）：</span>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="exportDataAsJSON()" style="width:100%;margin-bottom:8px">
-            📥 导出数据（JSON）
-          </button>
-          <button class="btn btn-secondary btn-sm" onclick="showImportPanel()" style="width:100%;margin-bottom:8px">
-            📤 导入数据（JSON）
-          </button>
 
           <hr style="border:none;border-top:1px solid var(--border-1);margin:20px 0">
 
@@ -240,28 +272,28 @@ window.showSyncPanel = function() {
   // 异步统计二进制数据用量（录音/照片/语音）
   if (typeof DB.getBlobUsage === 'function') {
     DB.getBlobUsage().then(function(u) {
-      var el = document.getElementById('blobUsageInfo');
-      if (el) el.textContent = (u.count || 0) + ' 个 · ' + ((u.bytes || 0) / 1024 / 1024).toFixed(2) + ' MB';
+      var el = document.getElementById('blobUsageInfo2');
+      if (el) el.textContent = '· ' + (u.count || 0) + ' 个媒体 · ' + ((u.bytes || 0) / 1024 / 1024).toFixed(2) + ' MB';
     }).catch(function() {
-      var el = document.getElementById('blobUsageInfo');
-      if (el) el.textContent = '不可用';
+      var el = document.getElementById('blobUsageInfo2');
+      if (el) el.textContent = '';
     });
   }
 
   // 生成同步码按钮事件
-  document.getElementById('btnGenSyncCode').addEventListener('click', () => {
+  document.getElementById('btnGenSyncCode').addEventListener('click', async () => {
     const selected = {};
 
     // 收集选中的课程
     const lessonChecks = document.querySelectorAll('.sync-chk-lesson:checked');
     if (lessonChecks.length) {
-      selected.lessons = lessonChecks.map(c => lessons[parseInt(c.dataset.idx)]).filter(Boolean);
+      selected.lessons = Array.from(lessonChecks).map(c => lessons[parseInt(c.dataset.idx)]).filter(Boolean);
     }
 
     // 收集选中的日志
     const logChecks = document.querySelectorAll('.sync-chk-log:checked');
     if (logChecks.length) {
-      selected.logs = logChecks.map(c => logs[parseInt(c.dataset.idx)]).filter(Boolean);
+      selected.logs = Array.from(logChecks).map(c => logs[parseInt(c.dataset.idx)]).filter(Boolean);
     }
 
     // 收集选中的册名
@@ -275,14 +307,14 @@ window.showSyncPanel = function() {
     // 收集选中的曲库
     const repChecks = document.querySelectorAll('.sync-chk-rep:checked');
     if (repChecks.length) {
-      const selectedBooks = new Set(repChecks.map(c => Number(c.dataset.book)));
+      const selectedBooks = new Set(Array.from(repChecks).map(c => Number(c.dataset.book)));
       selected.repertoire = rep.filter(p => selectedBooks.has(p.book));
     }
 
     // 收集选中的反馈
     const fbChecks = document.querySelectorAll('.sync-chk-fb:checked');
     if (fbChecks.length) {
-      selected.feedbacks = fbChecks.map(c => feedbacks[parseInt(c.dataset.idx)]).filter(Boolean);
+      selected.feedbacks = Array.from(fbChecks).map(c => feedbacks[parseInt(c.dataset.idx)]).filter(Boolean);
     }
 
     // 检查是否至少选了一项
@@ -291,7 +323,7 @@ window.showSyncPanel = function() {
       return;
     }
 
-    const syncCode = SyncCode.generateCode(selected);
+    const syncCode = await SyncCode.generateCode(selected);
     const display = document.getElementById('syncCodeDisplay');
     const output = document.getElementById('syncCodeOutput');
     const info = document.getElementById('syncCodeInfo');
@@ -307,17 +339,41 @@ window.showSyncPanel = function() {
     if (selected.feedbacks) parts.push(selected.feedbacks.length + '条反馈');
     info.textContent = '包含：' + parts.join(' · ') + ' · 迁移码长度 ' + syncCode.length + ' 字符（不含录音/照片等媒体文件）';
 
+    // 生成二维码
+    try {
+      var qrContainer = document.getElementById('syncQRCode');
+      var qrCanvas = document.getElementById('syncQRCanvas');
+      if (qrContainer && qrCanvas && typeof qrcode !== 'undefined') {
+        var qr = qrcode(0, 'L');
+        qr.addData(syncCode);
+        qr.make();
+        qrCanvas.width = qr.getModuleCount() * 4;
+        qrCanvas.height = qr.getModuleCount() * 4;
+        var ctx = qrCanvas.getContext('2d');
+        var size = qr.getModuleCount();
+        for (var row = 0; row < size; row++) {
+          for (var col = 0; col < size; col++) {
+            ctx.fillStyle = qr.isDark(row, col) ? '#1A1D35' : '#ffffff';
+            ctx.fillRect(col * 4, row * 4, 4, 4);
+          }
+        }
+        qrContainer.style.display = 'block';
+      }
+    } catch (e) {
+      console.warn('QR code generation failed:', e);
+    }
+
     Utils.showToast('✅ 迁移码已生成（' + syncCode.length + '字符）', 'success');
   });
 
   // 导入同步码按钮事件
-  document.getElementById('btnImportSync').addEventListener('click', () => {
+  document.getElementById('btnImportSync').addEventListener('click', async () => {
     const code = document.getElementById('syncCodeInput').value.trim();
     if (!code) {
       Utils.showToast('⚠️ 请粘贴迁移码', 'warning');
       return;
     }
-    const result = SyncCode.importCode(code);
+    const result = await SyncCode.importCodeAsync(code);
     if (result.success) {
       closeModal();
       renderAll();
@@ -326,6 +382,100 @@ window.showSyncPanel = function() {
       Utils.showToast('❌ ' + result.error, 'error');
     }
   });
+
+  // 扫码导入按钮事件
+  var scanBtn = document.getElementById('btnScanQR');
+  if (scanBtn) {
+    scanBtn.addEventListener('click', function() {
+      var container = document.getElementById('scanQRContainer');
+      if (!container) return;
+
+      // 如果已在扫码，停止
+      if (container.style.display === 'block') {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        if (window._html5QrCode) {
+          window._html5QrCode.stop().catch(function() {});
+          window._html5QrCode = null;
+        }
+        return;
+      }
+
+      container.style.display = 'block';
+      container.innerHTML = '<div id="qrReader" style="max-width:300px;margin:0 auto"></div>' +
+        '<button class="btn btn-sm btn-secondary" id="btnStopScan" style="width:100%;margin-top:8px">取消扫码</button>';
+
+      // 绑定取消按钮
+      setTimeout(function() {
+        var stopBtn = document.getElementById('btnStopScan');
+        if (stopBtn) {
+          stopBtn.addEventListener('click', function() {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            if (window._html5QrCode) {
+              window._html5QrCode.stop().catch(function() {});
+              window._html5QrCode = null;
+            }
+          });
+        }
+      }, 100);
+
+      // 启动扫码
+      try {
+        if (typeof Html5Qrcode === 'undefined') {
+          Utils.showToast('⚠️ 扫码库未加载，请刷新页面', 'warning');
+          return;
+        }
+        var html5QrCode = new Html5Qrcode('qrReader');
+        window._html5QrCode = html5QrCode;
+        html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          function(decodedText) {
+            // 扫码成功
+            document.getElementById('syncCodeInput').value = decodedText;
+            container.style.display = 'none';
+            container.innerHTML = '';
+            html5QrCode.stop().catch(function() {});
+            window._html5QrCode = null;
+            Utils.showToast('✅ 已识别，点击「导入迁移码」完成导入', 'success');
+          },
+          function() { /* 扫描中，忽略 */ }
+        ).catch(function(err) {
+          console.error('QR scan error:', err);
+          Utils.showToast('⚠️ 无法打开摄像头，请检查权限', 'warning');
+          container.style.display = 'none';
+          container.innerHTML = '';
+        });
+      } catch (e) {
+        console.error('QR scan init error:', e);
+        Utils.showToast('⚠️ 扫码功能不可用', 'warning');
+      }
+    });
+  }
+};
+
+/**
+ * 同步面板卡片展开/折叠
+ * @param {string} cardId - 'cardMigrate' | 'cardBackup' | 'cardRestore'
+ */
+window.toggleSyncCard = function(cardId) {
+  var card = document.getElementById(cardId);
+  if (!card) return;
+  var isOpen = card.style.display === 'block';
+  // 关闭所有卡片
+  ['cardMigrate', 'cardBackup', 'cardRestore'].forEach(function(id) {
+    var c = document.getElementById(id);
+    if (c) c.style.display = 'none';
+    var arrow = document.getElementById('syncArrow' + id.replace('card', ''));
+    if (arrow) arrow.textContent = '▶';
+  });
+  // 打开当前卡片
+  if (!isOpen) {
+    card.style.display = 'block';
+    var arrow = document.getElementById('syncArrow' + cardId.replace('card', ''));
+    if (arrow) arrow.textContent = '▼';
+  }
 };
 
 /**
@@ -517,11 +667,11 @@ window.exportDataAsJSON = function() {
 
     if (includeLessons) {
       const checked = document.querySelectorAll('.export-chk-lesson:checked');
-      data.lessons = checked.map(c => lessons[parseInt(c.dataset.idx)]).filter(Boolean);
+      data.lessons = Array.from(checked).map(c => lessons[parseInt(c.dataset.idx)]).filter(Boolean);
     }
     if (includeLogs) {
       const checked = document.querySelectorAll('.export-chk-log:checked');
-      data.logs = checked.map(c => logs[parseInt(c.dataset.idx)]).filter(Boolean);
+      data.logs = Array.from(checked).map(c => logs[parseInt(c.dataset.idx)]).filter(Boolean);
     }
     if (includeBookMeta) {
       const checked = document.querySelectorAll('.export-chk-meta:checked');

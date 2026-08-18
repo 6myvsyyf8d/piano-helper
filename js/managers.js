@@ -11,7 +11,7 @@
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v4.0_20260818-0',
+  VERSION: 'v4.0_20260818-3',
 
   // 生成一首曲目的全新默认状态（未学）
   _buildDefaultPiece(piece) {
@@ -550,7 +550,40 @@ const SyncCode = {
     }
   },
 
-  generateCode(selected) {
+  /** gzip 压缩 + base64 编码 */
+  async compress(data) {
+    var json = JSON.stringify(data);
+    var blob = new Blob([json]);
+    var compressedStream = blob.stream().pipeThrough(new CompressionStream('gzip'));
+    var compressedBlob = await new Response(compressedStream).blob();
+    var bytes = new Uint8Array(await compressedBlob.arrayBuffer());
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  },
+
+  /** base64 解码 + gzip 解压 */
+  async decompress(hash) {
+    try {
+      hash = hash.replace(/-/g, '+').replace(/_/g, '/');
+      while (hash.length % 4) hash += '=';
+      var binary = atob(hash);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      var decompressedStream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      var decompressedBlob = await new Response(decompressedStream).blob();
+      var json = await decompressedBlob.text();
+      return JSON.parse(json);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async generateCode(selected) {
     var data = { v: 3, t: Utils.today() };
     if (selected) {
       if (selected.lessons && selected.lessons.length) data.l = selected.lessons;
@@ -564,7 +597,7 @@ const SyncCode = {
       data.m = DB.bookMeta();
       data.f = DB.feedbacks();
     }
-    return this.encode(data);
+    return await this.compress(data);
   },
 
   /**
@@ -770,6 +803,18 @@ const SyncCode = {
 
   importCode(codeStr) {
     var data = this.decode(codeStr);
+    // 旧版无压缩码先用 decode，失败则尝试 decompress
+    if (!data || !data.v) {
+      // 可能是新版压缩码，先不管，让调用方用 tryDecompress
+    }
+    return data;
+  },
+
+  async importCodeAsync(codeStr) {
+    var data = this.decode(codeStr);
+    if (!data || !data.v) {
+      data = await this.decompress(codeStr);
+    }
     if (!data || !data.v) return { success: false, error: '无效的同步码' };
 
     // 检测兼容性

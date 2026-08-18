@@ -8,12 +8,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="钢琴练习助手">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20260818f">
 <title>🎹 钢琴练习助手</title>
 </head>
 
@@ -84,41 +87,45 @@
 <div id="modalContainer"></div>
 
 <!-- 基础设施：事件总线 + 存储适配器 + Schema 版本管理（Phase 0） -->
-<script src="js/events.js?v=20260818c"></script>
-<script src="js/storage-adapter.js?v=20260818c"></script>
-<script src="js/schema.js?v=20260818c"></script>
+<script src="js/events.js?v=20260818f"></script>
+<script src="js/storage-adapter.js?v=20260818f"></script>
+<script src="js/schema.js?v=20260818f"></script>
 
 <!-- 数据层 + 管理层（基础依赖） -->
-<script src="js/data.js?v=20260818c"></script>
-<script src="js/managers.js?v=20260818c"></script>
+<script src="js/data.js?v=20260818f"></script>
+<script src="js/managers.js?v=20260818f"></script>
 
 <!-- Phase 1 模块（依赖 data/managers） -->
-<script src="js/feedback.js?v=20260818c"></script>
-<script src="js/lesson-audio.js?v=20260818c"></script>
-<script src="js/lesson-markers.js?v=20260818c"></script>
-<script src="js/sheet-annotator.js?v=20260818c"></script>
-<script src="js/feedback-organizer.js?v=20260818c"></script>
-<script src="js/suggestions.js?v=20260818c"></script>
-<script src="js/onboarding.js?v=20260818c"></script>
+<script src="js/feedback.js?v=20260818f"></script>
+<script src="js/lesson-audio.js?v=20260818f"></script>
+<script src="js/lesson-markers.js?v=20260818f"></script>
+<script src="js/sheet-annotator.js?v=20260818f"></script>
+<script src="js/feedback-organizer.js?v=20260818f"></script>
+<script src="js/suggestions.js?v=20260818f"></script>
+<script src="js/onboarding.js?v=20260818f"></script>
 
 <!-- 今日练琴模块（5 个子文件，必须按此顺序） -->
-<script src="js/today/state.js?v=20260818c"></script>
-<script src="js/today/render.js?v=20260818c"></script>
-<script src="js/today/timer.js?v=20260818c"></script>
-<script src="js/today/review-free.js?v=20260818c"></script>
-<script src="js/today/submit.js?v=20260818c"></script>
+<script src="js/today/state.js?v=20260818f"></script>
+<script src="js/today/render.js?v=20260818f"></script>
+<script src="js/today/timer.js?v=20260818f"></script>
+<script src="js/today/review-free.js?v=20260818f"></script>
+<script src="js/today/submit.js?v=20260818f"></script>
 
 <!-- 课程 + 日历 -->
-<script src="js/lessons.js?v=20260818c"></script>
-<script src="js/calendar.js?v=20260818c"></script>
+<script src="js/lessons.js?v=20260818f"></script>
+<script src="js/calendar.js?v=20260818f"></script>
 
 <!-- 曲库模块（3 个子文件，必须按此顺序） -->
-<script src="js/repertoire/browser.js?v=20260818c"></script>
-<script src="js/repertoire/editor.js?v=20260818c"></script>
-<script src="js/repertoire/sync.js?v=20260818c"></script>
+<script src="js/repertoire/browser.js?v=20260818f"></script>
+<script src="js/repertoire/editor.js?v=20260818f"></script>
+<script src="js/repertoire/sync.js?v=20260818f"></script>
+
+<!-- QR 码库（生成 + 扫码） -->
+<script src="js/qrcode-generator.min.js?v=20260818f"></script>
+<script src="js/html5-qrcode.min.js?v=20260818f"></script>
 
 <!-- 统计 + 应用入口 -->
-<script src="js/stats.js?v=20260818c"></script>
-<script src="js/app.js?v=20260818c"></script>
+<script src="js/stats.js?v=20260818f"></script>
+<script src="js/app.js?v=20260818f"></script>
 </body>
 </html>
