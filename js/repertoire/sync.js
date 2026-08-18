@@ -541,15 +541,11 @@ window.exportDataAsJSON = function() {
 
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `piano-data-${Utils.today()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    closeModal();
-    Utils.showToast('✅ 数据已导出', 'success');
+    // 用 _saveFile（iOS 用分享面板，桌面/Android 用 <a download>）
+    _saveFile(blob, 'piano-data-' + Utils.today() + '.json').then(function(r) {
+      closeModal();
+      Utils.showToast(r.ok ? '✅ 数据已导出' : '已取消导出', r.ok ? 'success' : 'info');
+    });
   });
 };
 
@@ -852,6 +848,37 @@ function _base64ToArrayBuffer(base64) {
 }
 
 /**
+ * 保存/分享一个 Blob 文件。
+ * iOS Safari 用系统分享面板（可存到"文件"），桌面/Android 用 <a download>。
+ * @param {Blob} blob
+ * @param {string} filename
+ * @returns {Promise<{ok:boolean, cancelled?:boolean}>}
+ */
+async function _saveFile(blob, filename) {
+  const file = new File([blob], filename, { type: blob.type || 'application/json' });
+  // 优先用系统分享（iOS 15+，可"存储到文件"）
+  try {
+    if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: filename });
+      return { ok: true };
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return { ok: false, cancelled: true };
+    // 其它分享错误 → 继续尝试 <a download>
+  }
+  // 桌面 / Android：<a download>
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+  return { ok: true };
+}
+
+/**
  * 导出完整备份：结构化数据 + 全部二进制（录音/照片/语音）打包成一个 JSON 文件
  */
 window.exportFullBackup = async function() {
@@ -888,25 +915,54 @@ window.exportFullBackup = async function() {
       }
     }
 
-    // 下载
+    // 打包完成后，弹窗让用户再点一次「保存文件」（保证 iOS 分享/下载在用户手势内）
     const json = JSON.stringify(data);
     const fileBlob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(fileBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'piano-full-backup-' + Utils.today() + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
-
+    const filename = 'piano-full-backup-' + Utils.today() + '.json';
     const totalMB = (fileBlob.size / 1024 / 1024).toFixed(2);
-    Utils.showToast('✅ 完整备份已导出（' + data.blobs.length + ' 个媒体，' + totalMB + ' MB）', 'success', 5000);
+    _showBackupSaveDialog(fileBlob, filename, data.blobs.length, totalMB);
   } catch (e) {
     console.error('完整备份导出失败:', e);
     Utils.showToast('❌ 备份导出失败：' + (e && e.message ? e.message : e), 'error', 4000);
   }
 };
+
+/**
+ * 备份生成后的保存弹窗（iOS 上点击「保存文件」是新的用户手势，分享面板能正常弹出）
+ * @param {Blob} fileBlob
+ * @param {string} filename
+ * @param {number} blobCount
+ * @param {string} totalMB
+ */
+function _showBackupSaveDialog(fileBlob, filename, blobCount, totalMB) {
+  const overlay = document.createElement('div');
+  overlay.id = 'backupSaveOverlay';
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10060;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:14px';
+  overlay.innerHTML =
+    '<div class="modal" style="max-width:440px">' +
+      '<div class="modal-header"><h2 class="modal-title">📦 备份已生成</h2><button class="modal-close" onclick="window._closeBackupSave()">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<p class="text-sm text-2" style="margin-bottom:8px">备份包含 <strong>' + blobCount + '</strong> 个媒体文件，共 <strong>' + totalMB + '</strong> MB。</p>' +
+        '<p class="text-xs text-3" style="margin-bottom:16px;line-height:1.5">点击下方「保存文件」下载。在 iPhone 上会弹出分享面板，请选择「存储到文件」。</p>' +
+        '<button class="btn btn-primary" id="btnSaveBackup" style="width:100%">💾 保存文件</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  window._closeBackupSave = function() {
+    const el = document.getElementById('backupSaveOverlay');
+    if (el) el.remove();
+  };
+
+  document.getElementById('btnSaveBackup').addEventListener('click', async function() {
+    const r = await _saveFile(fileBlob, filename);
+    if (r.ok) {
+      overlay.remove();
+      Utils.showToast('✅ 完整备份已保存（' + blobCount + ' 个媒体，' + totalMB + ' MB）', 'success', 5000);
+    }
+  });
+}
 
 /**
  * 触发完整备份恢复：弹出文件选择器
