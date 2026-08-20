@@ -20,7 +20,7 @@ const PIECE_STAGES = [
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v4.0_20260820-0',
+  VERSION: 'v4.0_20260820-1',
 
   // 生成一首曲目的全新默认状态（未学）
   _buildDefaultPiece(piece) {
@@ -74,7 +74,7 @@ const RepertoireManager = {
         if (!staticIds.has(p.id)) merged.push(p);
       });
 
-      DB.saveRepertoire(this.migrateRepertoire(merged));
+      DB.saveRepertoire(SyncCode.migrateRepertoire(merged));
       localStorage.setItem('piano_rep_version', this.VERSION);
       console.log('Repertoire merged to version:', this.VERSION);
     }
