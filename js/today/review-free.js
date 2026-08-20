@@ -47,14 +47,55 @@ function incrementSkipCount() {
   return count;
 }
 
+/* ------------------------------------------
+   遗忘曲线复习：间隔表 + 状态计算
+   ------------------------------------------ */
+
+// 复习间隔表（按练习次数递增）：练 N 次后，下一次复习应在 interval 天后
+const REVIEW_INTERVALS = [1, 3, 7, 14, 30];
+
 /**
- * 构建复习候选池（按优先级降序）
- * priority = (memorized===false ? +50 : 0) + daysSinceLastPractice
+ * 根据练习次数取复习间隔（天）
+ * 练 1 次 → 1 天，2 次 → 3 天，3 次 → 7 天，4 次 → 14 天，5+ 次 → 30 天
+ */
+function getReviewInterval(piece) {
+  const n = piece.practiceCount || 0;
+  const idx = Math.max(0, Math.min(n - 1, REVIEW_INTERVALS.length - 1));
+  return REVIEW_INTERVALS[idx];
+}
+
+/**
+ * 计算一首曲目的遗忘曲线复习状态
+ * score = 距上次练习天数 ÷ 复习间隔；score ≥ 1 即已到期
+ * @returns {{interval:number, daysSince:number|null, score:number, overdue:boolean, label:string}}
+ */
+function computeReviewStatus(piece) {
+  const interval = getReviewInterval(piece);
+  if (!piece.lastPracticeDate) {
+    return { interval, daysSince: null, score: Infinity, overdue: true, label: '🔴 从未练习' };
+  }
+  const today = new Date(Utils.today() + 'T00:00:00');
+  const lastDate = new Date(piece.lastPracticeDate + 'T00:00:00');
+  const daysSince = Math.floor((today - lastDate) / 86400000);
+  const score = daysSince / interval;
+  let label;
+  if (daysSince > interval) {
+    label = '🟠 已逾期 ' + (daysSince - interval) + ' 天';
+  } else if (daysSince === interval) {
+    label = '🟢 该复习';
+  } else {
+    label = '⚪ ' + (interval - daysSince) + ' 天后复习';
+  }
+  return { interval, daysSince, score, overdue: daysSince >= interval, label };
+}
+
+/**
+ * 构建复习候选池（按遗忘曲线优先级降序）
+ * 已到期（score ≥ 1）排前，组内按 score + 未背谱 0.5 加权 降序
  * @param {string[]} excludeNames 要排除的曲名列表（当日课程曲目）
- * @returns {Array<{piece: Repertoire, priority: number}>}
+ * @returns {Array<{piece: Repertoire, priority: number, overdue: boolean}>}
  */
 function buildReviewCandidates(excludeNames) {
-  const today = new Date(Utils.today() + 'T00:00:00');
   const rep = DB.repertoire();
 
   // 读取翻卡范围设定
@@ -77,6 +118,8 @@ function buildReviewCandidates(excludeNames) {
   for (const piece of rep) {
     // 必须是已学会
     if (piece.status !== 'learned') continue;
+    // 从未练习的曲子不参与复习（复习前提是练过）
+    if (!piece.lastPracticeDate) continue;
     // 范围筛选
     if (rangeIds && !rangeIds.has(piece.id)) continue;
     // 排除当日课程曲目
@@ -84,20 +127,19 @@ function buildReviewCandidates(excludeNames) {
     // 排除当日已练
     if (todayPracticedIds.has(piece.id)) continue;
 
-    // 计算距上次练习天数
-    let daysSince = 999;
-    if (piece.lastPracticeDate) {
-      const lastDate = new Date(piece.lastPracticeDate + 'T00:00:00');
-      daysSince = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-    }
+    const st = computeReviewStatus(piece);
+    // 未到「背谱」阶段的曲子优先复习（背谱由 stage 推导，不再依赖手动状态）
+    const notMemorized = (piece.stage !== 'memorize' && piece.stage !== 'proficient');
+    const priority = st.score + (notMemorized ? 0.5 : 0);
 
-    const priority = (piece.memorized === false ? 50 : 0) + daysSince;
-
-    candidates.push({ piece, priority });
+    candidates.push({ piece, priority, overdue: st.overdue });
   }
 
-  // 按 priority 降序
-  candidates.sort((a, b) => b.priority - a.priority);
+  // 已到期整体排前，组内按加权分数降序
+  candidates.sort((a, b) => {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    return b.priority - a.priority;
+  });
   return candidates;
 }
 
@@ -164,10 +206,7 @@ function renderFlipCards(container, selected) {
   html += '<div class="flip-cards-container" style="display:flex;flex-direction:column;gap:12px;margin-top:8px">';
 
   selected.forEach((item, i) => {
-    const daysSince = item.piece.lastPracticeDate
-      ? Math.floor((new Date(Utils.today() + 'T00:00:00') - new Date(item.piece.lastPracticeDate + 'T00:00:00')) / 86400000)
-      : 999;
-    const daysLabel = daysSince >= 999 ? '从未练习' : daysSince + '天未练';
+    const daysLabel = computeReviewStatus(item.piece).label;
 
     html +=
       '<div class="flip-card" data-flip-idx="' + i + '" id="flipCard' + i + '"' +
@@ -237,7 +276,7 @@ window.flipReviewCard = function(idx) {
   TodayState.pieces[index].category = 'review';
   TodayState.pieces[index].repId = piece.id;
   TodayState.pieces[index].book = piece.book || null;
-  TodayState.pieces[index].reviewMem = piece.memorized;
+  TodayState.pieces[index].reviewMem = RepertoireManager.isMemorized(piece);
 
   // 禁止重复点击
   back.style.pointerEvents = 'none';
@@ -285,14 +324,6 @@ window.flipReviewCard = function(idx) {
         '</div>' +
         '<div class="piece-card-body" style="padding:0 12px 12px 12px">' +
           starRatingHTML(index) +
-          '<div class="piece-extra-row" style="margin-top:8px">' +
-            '<button class="btn btn-sm ' + (piece.memorized ? 'btn-primary' : 'btn-secondary') + ' piece-mem-btn"' +
-                    ' data-index="' + index + '"' +
-                    ' onclick="toggleReviewMemorized(\'' + index + '\', \'' + piece.id + '\', this)"' +
-                    ' style="font-size:0.7rem;padding:5px 10px">' +
-              (piece.memorized ? '🧠 背谱' : '📖 看谱') +
-            '</button>' +
-          '</div>' +
         '</div>' +
       '</div>';
 
@@ -380,13 +411,17 @@ function bindTodayEvents(lesson, existingLog) {
         book: piece.book,
         repId: TodayState.pieces[i].repId
       });
-      // 预填曲库中已有的背谱/合手状态，避免提交时被默认值覆盖（丢失已背谱/合手状态）
+      // 背谱/合手由 stage 推导（今日页不再手动设置，仅保留到日志字段）
       if (repPiece) {
-        TodayState.pieces[i].memorized = !!repPiece.memorized;
-        TodayState.pieces[i].handsTogether = repPiece.handsTogether !== false;
+        TodayState.pieces[i].memorized = RepertoireManager.isMemorized(repPiece);
+        TodayState.pieces[i].handsTogether = true;
       }
-      if (typeof window.syncPieceModeButtons === 'function') window.syncPieceModeButtons(i);
     });
+  }
+
+  // 时刻③：同步阶段按钮显示（基于曲库 stage）
+  if (typeof window.syncStageButtons === 'function') {
+    setTimeout(function() { window.syncStageButtons(); }, 50);
   }
 
   // 编辑模式：预填已有数据
@@ -401,8 +436,6 @@ function bindTodayEvents(lesson, existingLog) {
           piece.durationMin = entry.durationMin || 0;
           if (entry.repId) piece.repId = entry.repId;
           piece.speed = entry.speed || 0;
-          piece.memorized = !!entry.memorized;
-          piece.handsTogether = entry.handsTogether !== false;
           // 任务 2：编辑模式下用 entry.book 优先，否则从 entry.repId 反推
           var inferred = inferBookFromPiece({ book: entry.book, repId: entry.repId });
           if (inferred) piece.book = inferred;
@@ -496,32 +529,6 @@ function prefillEditUI() {
       var speedInput = document.querySelector('.piece-speed[data-index="' + idx + '"]');
       if (speedInput) speedInput.value = piece.speed;
     }
-    if (piece.memorized) {
-      var memBtn = document.querySelector('.piece-mem-btn[data-index="' + idx + '"]');
-      if (memBtn) {
-        memBtn.textContent = '🧠 背谱';
-        memBtn.style.color = 'var(--accent-primary)';
-        memBtn.style.borderColor = 'rgba(245,160,152,0.3)';
-        memBtn.style.background = 'rgba(245,160,152,0.15)';
-      }
-    }
-    if (piece.handsTogether === false) {
-      var handBtn = document.querySelector('.piece-hand-btn[data-index="' + idx + '"]');
-      if (handBtn) {
-        handBtn.textContent = '🤚 分手';
-        handBtn.style.color = 'var(--accent-yellow)';
-        handBtn.style.borderColor = 'rgba(245,216,154,0.3)';
-        handBtn.style.background = 'rgba(245,216,154,0.15)';
-      }
-    }
-    // 课程曲目：恢复统一的 看谱/合手 按钮状态
-    var modeBtn = document.querySelector('.piece-mode-btn[data-index="' + idx + '"]');
-    if (modeBtn && piece.handsTogether === true) {
-      modeBtn.textContent = '🤲 合手';
-      modeBtn.style.color = 'var(--accent-green)';
-      modeBtn.style.borderColor = 'rgba(142,212,166,0.3)';
-      modeBtn.style.background = 'rgba(142,212,166,0.15)';
-    }
   }
 }
 
@@ -540,24 +547,6 @@ function prefillFreeUI() {
     if (piece.speed) {
       var speedInput = document.querySelector('.piece-speed[data-index="' + idx + '"]');
       if (speedInput) speedInput.value = piece.speed;
-    }
-    if (piece.memorized) {
-      var memBtn = document.querySelector('.piece-mem-btn[data-index="' + idx + '"]');
-      if (memBtn) {
-        memBtn.textContent = '🧠 背谱';
-        memBtn.style.color = 'var(--accent-primary)';
-        memBtn.style.borderColor = 'rgba(245,160,152,0.3)';
-        memBtn.style.background = 'rgba(245,160,152,0.15)';
-      }
-    }
-    if (piece.handsTogether === false) {
-      var handBtn = document.querySelector('.piece-hand-btn[data-index="' + idx + '"]');
-      if (handBtn) {
-        handBtn.textContent = '🤚 分手';
-        handBtn.style.color = 'var(--accent-yellow)';
-        handBtn.style.borderColor = 'rgba(245,216,154,0.3)';
-        handBtn.style.background = 'rgba(245,216,154,0.15)';
-      }
     }
   }
 }
@@ -595,7 +584,6 @@ function restoreReviewPieces(existingLog) {
     var repPiece = RepertoireManager.findById(entry.repId);
     var pieceEn = repPiece ? repPiece.en : (entry.pieceName || '');
     var pieceName = repPiece ? repPiece.name : '';
-    var memorized = repPiece ? repPiece.memorized : false;
     var repId = entry.repId || (repPiece ? repPiece.id : '');
 
     TodayState.initPiece(index, entry.pieceName || pieceEn || '复习');
@@ -605,7 +593,7 @@ function restoreReviewPieces(existingLog) {
       book: entry.book,
       repId: repId
     }) || (repPiece ? repPiece.book : null);
-    TodayState.pieces[index].reviewMem = memorized;
+    TodayState.pieces[index].reviewMem = repPiece ? RepertoireManager.isMemorized(repPiece) : false;
     TodayState.pieces[index].rating = entry.rating || 0;
     TodayState.pieces[index].durationMin = entry.durationMin || 0;
 

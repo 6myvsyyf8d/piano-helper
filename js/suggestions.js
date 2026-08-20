@@ -219,7 +219,9 @@ const Suggestions = {
   // ──────────────────────────────────────────
   _ruleMemorizationChallenge() {
     const candidates = DB.repertoire()
-      .filter(r => r.status === 'learned' && !r.memorized && (r.practiceCount || 0) >= 10);
+      .filter(r => r.status === 'learned'
+        && r.stage !== 'memorize' && r.stage !== 'proficient'
+        && (r.practiceCount || 0) >= 10);
     if (candidates.length === 0) return null;
     candidates.sort((a, b) => (b.practiceCount || 0) - (a.practiceCount || 0));
     const top = candidates[0];

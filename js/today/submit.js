@@ -101,6 +101,21 @@ window.setStarRating = function(index, star) {
 
   TodayState.pieces[index].rating = newRating;
   updateStarDisplay(index);
+
+  var starEl = document.querySelector('.star-rating[data-index="' + index + '"]');
+
+  // 时刻「每完成一首后」：首次评分（0 → >0），完成一首曲目，给正向反馈
+  if (current === 0 && newRating > 0 && typeof window.showPieceComplete === 'function') {
+    var p = TodayState.pieces[index];
+    var card = document.getElementById('piece' + index);
+    var name = (card && card.dataset.pieceName) || (p && p.pieceName) || '';
+    window.showPieceComplete(name, starEl);
+  }
+
+  // 时刻②：打星评分（已有评分基础上提高且为整星），触发星星飘散微动画
+  if (current > 0 && newRating > current && newRating % 1 === 0 && typeof burstStars === 'function') {
+    if (starEl) burstStars(starEl);
+  }
 };
 
 /**
@@ -132,112 +147,6 @@ function updateStarDisplay(index) {
 window.onPieceSpeedChange = function(index, val) {
   TodayState.initPiece(index, '');
   TodayState.pieces[index].speed = parseInt(val) || 0;
-};
-
-/**
- * 切换背谱/看谱状态
- * @param {string} index 曲目索引
- * @param {HTMLElement} btn 按钮 DOM
- * @returns {void}
- */
-window.togglePieceMemorized = function(index, btn) {
-  TodayState.initPiece(index, '');
-  const cur = TodayState.pieces[index].memorized;
-  TodayState.pieces[index].memorized = !cur;
-  if (!cur) {
-    btn.textContent = '🧠 背谱';
-    btn.style.color = 'var(--accent-primary)';
-    btn.style.borderColor = 'rgba(245,160,152,0.3)';
-    btn.style.background = 'rgba(245,160,152,0.15)';
-  } else {
-    btn.textContent = '📖 看谱';
-    btn.style.color = 'var(--text-3)';
-    btn.style.borderColor = 'var(--border-2)';
-    btn.style.background = 'rgba(255,255,255,0.06)';
-  }
-};
-
-/**
- * 切换合手/分手状态
- * @param {string} index 曲目索引
- * @param {HTMLElement} btn 按钮 DOM
- * @returns {void}
- */
-window.togglePieceHands = function(index, btn) {
-  TodayState.initPiece(index, '');
-  const cur = TodayState.pieces[index].handsTogether !== false;
-  TodayState.pieces[index].handsTogether = !cur;
-  if (!cur) {
-    btn.textContent = '🤲 合手';
-    btn.style.color = 'var(--accent-green)';
-    btn.style.borderColor = 'rgba(142,212,166,0.3)';
-    btn.style.background = 'rgba(142,212,166,0.15)';
-  } else {
-    btn.textContent = '🤚 分手';
-    btn.style.color = 'var(--accent-yellow)';
-    btn.style.borderColor = 'rgba(245,216,154,0.3)';
-    btn.style.background = 'rgba(245,216,154,0.15)';
-  }
-};
-
-/**
- * 将曲目的背谱/合手按钮 UI 同步到 TodayState（预填曲库状态后调用）
- * @param {string} index 曲目索引
- * @returns {void}
- */
-window.syncPieceModeButtons = function(index) {
-  const p = TodayState.pieces[index];
-  if (!p) return;
-  const memBtn = document.querySelector('.piece-mem-btn[data-index="' + index + '"]');
-  if (memBtn) {
-    if (p.memorized) {
-      memBtn.textContent = '🧠 背谱';
-      memBtn.style.color = 'var(--accent-primary)';
-      memBtn.style.borderColor = 'rgba(245,160,152,0.3)';
-      memBtn.style.background = 'rgba(245,160,152,0.15)';
-    } else {
-      memBtn.textContent = '📖 看谱';
-      memBtn.style.color = '';
-      memBtn.style.borderColor = '';
-      memBtn.style.background = '';
-    }
-  }
-  const handBtn = document.querySelector('.piece-hand-btn[data-index="' + index + '"]');
-  if (handBtn) {
-    if (p.handsTogether === false) {
-      handBtn.textContent = '🤚 分手';
-      handBtn.style.color = 'var(--accent-yellow)';
-      handBtn.style.borderColor = 'rgba(245,216,154,0.3)';
-      handBtn.style.background = 'rgba(245,216,154,0.15)';
-    } else {
-      handBtn.textContent = '🤲 合手';
-      handBtn.style.color = '';
-      handBtn.style.borderColor = '';
-      handBtn.style.background = '';
-    }
-  }
-};
-
-/**
- * 切换复习曲目背谱状态（同步到曲库）
- * @param {string} index 曲目索引（如 "r0"）
- * @param {string} repId 曲库 ID
- * @returns {void}
- */
-window.toggleReviewMemorized = function(index, repId, btn) {
-  if (!TodayState.pieces[index]) return;
-  TodayState.pieces[index].reviewMem = !TodayState.pieces[index].reviewMem;
-  RepertoireManager.toggleMemorized(repId);
-  // 显式传入按钮元素，避免依赖 window.event（Firefox 不支持）
-  btn = btn || window.event.target;
-  if (!btn) return;
-  if (TodayState.pieces[index].reviewMem) {
-    btn.textContent = '🧠 背谱';
-    btn.className = 'btn btn-sm btn-primary';
-  } else {
-    btn.textContent = '📖 看谱';
-    btn.className = 'btn btn-sm btn-secondary';
-  }
 };
 
 /* ------------------------------------------
@@ -400,8 +309,7 @@ function submitPracticeLog(entries, totalMin, isEdit) {
   entries.forEach(e => {
     if (e.repId) {
       RepertoireManager.recordPractice(e.repId, e.durationMin || 0);
-      RepertoireManager.setMemorized(e.repId, e.memorized);
-      RepertoireManager.setHandsTogether(e.repId, e.handsTogether);
+      // 背谱/合手不再手动覆盖曲库（由 stage 推导），避免与曲库阶段冲突
     }
   });
 

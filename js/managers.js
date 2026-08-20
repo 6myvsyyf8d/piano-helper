@@ -9,15 +9,26 @@
    ========================================== */
 "use strict";
 
+// 5 级学习阶段体系（作品档案 + 阶段细分共用）
+const PIECE_STAGES = [
+  { key: 'untouched',  label: '未学', icon: '💤' },
+  { key: 'separate',   label: '分手', icon: '🖐️' },
+  { key: 'together',   label: '合手', icon: '🤝' },
+  { key: 'memorize',   label: '背谱', icon: '🧠' },
+  { key: 'proficient', label: '熟练', icon: '🌟' }
+];
+
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v4.0_20260818-3',
+  VERSION: 'v4.0_20260820-0',
 
   // 生成一首曲目的全新默认状态（未学）
   _buildDefaultPiece(piece) {
     return {
       ...piece,
       status: 'untouched',
+      stage: 'untouched',
+      stageHistory: [],       // [{ stage, date }] 学习历程时间线
       memorized: false,
       startedDate: null,
       completedDate: null,
@@ -63,7 +74,7 @@ const RepertoireManager = {
         if (!staticIds.has(p.id)) merged.push(p);
       });
 
-      DB.saveRepertoire(merged);
+      DB.saveRepertoire(this.migrateRepertoire(merged));
       localStorage.setItem('piano_rep_version', this.VERSION);
       console.log('Repertoire merged to version:', this.VERSION);
     }
@@ -116,7 +127,7 @@ const RepertoireManager = {
     return DB.repertoire().filter(p => p.status === 'learning');
   },
 
-  // 更新曲目状态
+  // 更新曲目状态（同时对齐 stage 字段，保持派生一致性）
   updateStatus(id, status) {
     const rep = DB.repertoire();
     const piece = rep.find(p => p.id === id);
@@ -135,36 +146,70 @@ const RepertoireManager = {
       piece.memorized = false;
     }
 
+    // 对齐 stage（旧三态 → 新五级，避免 stage 脱节）
+    if (status === 'untouched') {
+      piece.stage = 'untouched';
+    } else if (status === 'learned') {
+      piece.stage = 'proficient';
+    } else if (piece.stage === 'untouched' || piece.stage === undefined) {
+      piece.stage = 'separate';
+    }
+
     DB.saveRepertoire(rep);
     return true;
   },
 
-  // 切换背谱状态
+  // 推进曲目阶段到下一级（5 级），记录时间线到 stageHistory
+  // 返回 { ok, stage }，已到顶时返回 ok:false
+  advanceStage(id) {
+    const rep = DB.repertoire();
+    const piece = rep.find(p => p.id === id);
+    if (!piece) return { ok: false };
+
+    if (!piece.stage) {
+      // 老数据无 stage：从 status 推断
+      piece.stage = (piece.status === 'learned') ? 'proficient'
+        : (piece.status === 'learning') ? 'separate' : 'untouched';
+    }
+    if (!Array.isArray(piece.stageHistory)) piece.stageHistory = [];
+
+    const idx = PIECE_STAGES.findIndex(s => s.key === piece.stage);
+    if (idx < 0 || idx >= PIECE_STAGES.length - 1) {
+      return { ok: false, stage: piece.stage }; // 已是最顶端「熟练」
+    }
+
+    const next = PIECE_STAGES[idx + 1];
+    const today = Utils.today();
+    piece.stage = next.key;
+    piece.stageHistory.push({ stage: next.key, date: today });
+
+    // 同步派生 status 与日期
+    if (next.key === 'proficient') {
+      piece.status = 'learned';
+      if (!piece.completedDate) piece.completedDate = today;
+      piece.memorized = true;
+    } else {
+      piece.status = 'learning';
+      if (!piece.startedDate) piece.startedDate = today;
+    }
+
+    DB.saveRepertoire(rep);
+    return { ok: true, stage: next.key };
+  },
+
+  // 是否已能背谱：由 stage 推导（背谱 / 熟练 才算可背谱），不再手动设置
+  isMemorized(piece) {
+    const stage = (piece && piece.stage) || 'untouched';
+    return stage === 'memorize' || stage === 'proficient';
+  },
+
+  // 切换背谱状态（已废弃：背谱由 stage 推导，保留方法避免旧代码调用报错）
   toggleMemorized(id) {
     const rep = DB.repertoire();
     const piece = rep.find(p => p.id === id);
     if (!piece) return false;
-    piece.memorized = !piece.memorized;
     DB.saveRepertoire(rep);
-    return piece.memorized;
-  },
-
-  setMemorized(id, value) {
-    const rep = DB.repertoire();
-    const piece = rep.find(p => p.id === id);
-    if (!piece) return false;
-    piece.memorized = value;
-    DB.saveRepertoire(rep);
-    return true;
-  },
-
-  setHandsTogether(id, value) {
-    const rep = DB.repertoire();
-    const piece = rep.find(p => p.id === id);
-    if (!piece) return false;
-    piece.handsTogether = value;
-    DB.saveRepertoire(rep);
-    return true;
+    return this.isMemorized(piece);
   },
 
   // 记录练习（自动从 untouched 升级为 learning）
@@ -202,7 +247,7 @@ const RepertoireManager = {
       learned: rep.filter(p => p.status === 'learned').length,
       learning: rep.filter(p => p.status === 'learning').length,
       untouched: rep.filter(p => p.status === 'untouched').length,
-      memorized: rep.filter(p => p.memorized).length,
+      memorized: rep.filter(p => this.isMemorized(p)).length,
       totalMinutes: rep.reduce((sum, p) => sum + (p.totalMinutes || 0), 0)
     };
   },
@@ -238,6 +283,14 @@ const RepertoireManager = {
   addPiece(pieceData) {
     const rep = DB.repertoire();
     const id = 's' + pieceData.book + '-' + String(pieceData.num).padStart(2, '0');
+    // 导入数据自带 stage/status 则保留（同步/恢复时阶段进度不丢失），否则默认「未学」
+    const hasStage = PIECE_STAGES.some(s => s.key === pieceData.stage);
+    const status = ['untouched', 'learning', 'learned'].includes(pieceData.status)
+      ? pieceData.status
+      : 'untouched';
+    const stage = hasStage ? pieceData.stage
+      : (status === 'learned') ? 'proficient'
+      : (status === 'learning') ? 'separate' : 'untouched';
     rep.push({
       id,
       book: pieceData.book,
@@ -248,13 +301,15 @@ const RepertoireManager = {
       composer: pieceData.composer || '',
       difficulty: pieceData.difficulty || 1,
       duration: pieceData.duration || 1,
-      status: 'untouched',
-      memorized: false,
-      startedDate: null,
-      completedDate: null,
-      totalMinutes: 0,
-      practiceCount: 0,
-      lastPracticeDate: null,
+      status,
+      stage,
+      stageHistory: Array.isArray(pieceData.stageHistory) ? pieceData.stageHistory : [],
+      memorized: this.isMemorized({ stage }),
+      startedDate: pieceData.startedDate || null,
+      completedDate: pieceData.completedDate || null,
+      totalMinutes: pieceData.totalMinutes || 0,
+      practiceCount: pieceData.practiceCount || 0,
+      lastPracticeDate: pieceData.lastPracticeDate || null,
       handsTogether: true
     });
     DB.saveRepertoire(rep);
@@ -797,6 +852,12 @@ const SyncCode = {
       if (piece.status === undefined) piece.status = 'untouched';
       if (piece.startedDate === undefined) piece.startedDate = null;
       if (piece.completedDate === undefined) piece.completedDate = null;
+      // 5 级阶段字段迁移
+      if (piece.stage === undefined) {
+        piece.stage = (piece.status === 'learned') ? 'proficient'
+          : (piece.status === 'learning') ? 'separate' : 'untouched';
+      }
+      if (!Array.isArray(piece.stageHistory)) piece.stageHistory = [];
     });
     return repData;
   },

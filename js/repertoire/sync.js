@@ -344,17 +344,18 @@ window.showSyncPanel = function() {
       var qrContainer = document.getElementById('syncQRCode');
       var qrCanvas = document.getElementById('syncQRCanvas');
       if (qrContainer && qrCanvas && typeof qrcode !== 'undefined') {
-        var qr = qrcode(0, 'L');
+        var qr = qrcode(0, 'M');  // M 级纠错，更易扫描
         qr.addData(syncCode);
         qr.make();
-        qrCanvas.width = qr.getModuleCount() * 4;
-        qrCanvas.height = qr.getModuleCount() * 4;
+        var moduleSize = 6;  // 每格 6px，比 4px 更清晰
+        qrCanvas.width = qr.getModuleCount() * moduleSize;
+        qrCanvas.height = qr.getModuleCount() * moduleSize;
         var ctx = qrCanvas.getContext('2d');
         var size = qr.getModuleCount();
         for (var row = 0; row < size; row++) {
           for (var col = 0; col < size; col++) {
-            ctx.fillStyle = qr.isDark(row, col) ? '#1A1D35' : '#ffffff';
-            ctx.fillRect(col * 4, row * 4, 4, 4);
+            ctx.fillStyle = qr.isDark(row, col) ? '#000000' : '#ffffff';
+            ctx.fillRect(col * moduleSize, row * moduleSize, moduleSize, moduleSize);
           }
         }
         qrContainer.style.display = 'block';
@@ -681,7 +682,7 @@ window.exportDataAsJSON = function() {
     }
     if (includeRepertoire) {
       const checked = document.querySelectorAll('.export-chk-rep:checked');
-      const selectedBooks = new Set(checked.map(c => Number(c.dataset.book)));
+      const selectedBooks = new Set(Array.from(checked).map(c => Number(c.dataset.book)));
       data.repertoire = rep.filter(p => selectedBooks.has(p.book));
     }
     if (includeConfig) data.config = DB.config();

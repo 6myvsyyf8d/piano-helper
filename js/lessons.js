@@ -880,6 +880,9 @@ window.saveLesson = function(lessonId) {
   closeModal();
   renderAll();
   Utils.showToast('✅ 课程已保存', 'success');
+
+  // 课后整理：弹出课程小结
+  showLessonSummary(lesson);
 };
 
 /**
@@ -942,3 +945,117 @@ window.deleteLesson = function(lessonId) {
 };
 
 console.log('✅ Lessons module (book-grouped version) loaded');
+
+/* ==========================================
+   📋 课后整理：课程小结
+   ========================================== */
+
+/**
+ * 保存课程后弹出课程小结，自动整理本节课的曲目和练习要点
+ * @param {Lesson} lesson
+ */
+function showLessonSummary(lesson) {
+  var pieces = lesson.pieces || [];
+  var feedbacks = Feedback.byLesson(lesson.id);
+
+  // 按册分组曲目
+  var bookGroups = {};
+  pieces.forEach(function(p) {
+    var bookNum = p.book || 1;
+    if (!bookGroups[bookNum]) bookGroups[bookNum] = [];
+    bookGroups[bookNum].push(p);
+  });
+
+  // 生成曲目列表 HTML
+  var piecesHtml = '';
+  Object.keys(bookGroups).sort(function(a, b) { return a - b; }).forEach(function(bookNum) {
+    var bookName = RepertoireManager.getBookDisplayName(Number(bookNum));
+    piecesHtml += '<div style="margin-bottom:8px;font-size:0.8rem;color:var(--text-3);font-weight:600">📖 ' + Utils.escape(bookName) + '</div>';
+    bookGroups[bookNum].forEach(function(p) {
+      var stars = (p.score || '').length;
+      var starStr = stars ? '⭐'.repeat(stars) : '未评分';
+      var details = p.details ? '<div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">📝 ' + Utils.escape(p.details) + '</div>' : '';
+      piecesHtml += '<div style="padding:8px 12px;margin-bottom:4px;background:rgba(255,255,255,0.03);border-radius:8px;border-left:2px solid var(--accent-primary)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-weight:600;font-size:0.85rem;color:var(--text-1)">' + Utils.escape(p.name) + '</span>' +
+          '<span style="font-size:0.7rem;color:var(--accent-yellow)">' + starStr + '</span>' +
+        '</div>' +
+        details +
+        '</div>';
+    });
+  });
+
+  // 反馈摘要
+  var fbHtml = '';
+  if (feedbacks.length) {
+    var statusMap = { 'new': '🔵 待练习', 'resolved': '✅ 已完成' };
+    fbHtml = '<div style="margin-top:12px;border-top:1px dashed var(--border-2);padding-top:8px">' +
+      '<div style="font-size:0.75rem;color:var(--text-3);margin-bottom:6px">📌 课堂反馈（' + feedbacks.length + ' 条）</div>';
+    feedbacks.forEach(function(f) {
+      var s = statusMap[f.status] || statusMap['new'];
+      var note = f.teacherNote || f.locationLabel || '';
+      fbHtml += '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.75rem">' +
+        '<span>' + s + '</span>' +
+        '<span style="color:var(--text-2)">' + Utils.escape(note).slice(0, 40) + (note.length > 40 ? '...' : '') + '</span>' +
+        '</div>';
+    });
+    fbHtml += '</div>';
+  }
+
+  // 练习重点关键词提取
+  var focusTags = {};
+  pieces.forEach(function(p) {
+    if (p.focusAreas) {
+      p.focusAreas.forEach(function(tag) {
+        focusTags[tag] = (focusTags[tag] || 0) + 1;
+      });
+    }
+  });
+  var focusTagsHtml = '';
+  var tagKeys = Object.keys(focusTags);
+  if (tagKeys.length) {
+    focusTagsHtml = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">' +
+      tagKeys.map(function(tag) {
+        return '<span style="font-size:0.65rem;padding:2px 8px;border-radius:10px;background:rgba(94,106,210,0.15);color:#a5ade8">' + Utils.escape(tag) + '</span>';
+      }).join('') +
+      '</div>';
+  }
+
+  var modal = document.getElementById('modalContainer');
+  modal.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+    '<div class="modal" style="max-width:420px">' +
+      '<div class="modal-header">' +
+        '<h2 class="modal-title">📋 课程小结</h2>' +
+        '<button class="modal-close" onclick="closeModal()">✕</button>' +
+      '</div>' +
+      '<div class="modal-body">' +
+        '<div style="padding:12px;background:rgba(94,106,210,0.08);border-radius:10px;margin-bottom:12px">' +
+          '<div style="display:flex;justify-content:space-between;font-size:0.8rem">' +
+            '<span style="color:var(--text-3)">📅 ' + Utils.formatDate(lesson.date) + '</span>' +
+            '<span style="color:var(--text-3)">🎵 ' + pieces.length + ' 首曲目</span>' +
+          '</div>' +
+          (lesson.notes ? '<div style="margin-top:6px;font-size:0.78rem;color:var(--text-2)">💬 ' + Utils.escape(lesson.notes) + '</div>' : '') +
+        '</div>' +
+
+        '<div style="margin-bottom:12px">' +
+          '<div style="font-size:0.8rem;color:var(--text-2);font-weight:600;margin-bottom:8px">🎼 本节课曲目</div>' +
+          piecesHtml +
+        '</div>' +
+
+        focusTagsHtml +
+        fbHtml +
+
+        '<div style="margin-top:16px;padding:12px;background:rgba(142,212,166,0.08);border-radius:10px;border:1px solid rgba(142,212,166,0.2)">' +
+          '<div style="font-size:0.75rem;color:var(--accent-green);font-weight:600;margin-bottom:4px">💡 练习建议</div>' +
+          '<div style="font-size:0.72rem;color:var(--text-2);line-height:1.6">' +
+            '复习今日曲目时，重点关注上方标注的练习要点。' +
+            (feedbacks.length ? '课堂反馈中的问题已加入「今日」页面的练习提醒。' : '可以在「今日」页面查看每首曲子的老师要求。') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-footer">' +
+        '<button class="btn btn-primary" onclick="closeModal();renderAll()" style="width:100%">✅ 确认</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}

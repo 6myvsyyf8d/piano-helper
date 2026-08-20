@@ -5,7 +5,7 @@
  * Service Worker — 自动更新 + 离线基础支持
  */
 
-const SW_VERSION = 'v4.0_20260818';
+const SW_VERSION = 'v4.0_20260820';
 const CACHE_NAME = 'piano-v4-' + SW_VERSION;
 
 // 需要预缓存的静态资源
@@ -35,6 +35,7 @@ const PRECACHE = [
   'js/today/timer.js',
   'js/today/review-free.js',
   'js/today/submit.js',
+  'js/today/celebrate.js',
   'js/repertoire/browser.js',
   'js/repertoire/editor.js',
   'js/repertoire/sync.js'

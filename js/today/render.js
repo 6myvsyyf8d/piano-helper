@@ -358,12 +358,9 @@ function pieceCardHTML(index, pieceName, num, focusAreas, details, lessonId) {
                    ' oninput="onPieceSpeedChange(\'' + index + '\', this.value)"' +
                    ' style="width:56px;padding:4px 8px;font-size:0.7rem;text-align:center;border:1px solid var(--border-1);border-radius:8px;background:var(--surface-1);color:var(--text-2);font-family:inherit">' +
           '</label>' +
-          '<button class="btn btn-sm btn-secondary piece-mem-btn" data-index="' + index + '"' +
-                  ' onclick="togglePieceMemorized(\'' + index + '\', this)"' +
-                  ' style="font-size:0.7rem;padding:4px 10px">📖 看谱</button>' +
-          '<button class="btn btn-sm btn-secondary piece-hand-btn" data-index="' + index + '"' +
-                  ' onclick="togglePieceHands(\'' + index + '\', this)"' +
-                  ' style="font-size:0.7rem;padding:4px 10px">🤲 合手</button>' +
+          '<button class="btn btn-sm piece-stage-btn" data-index="' + index + '"' +
+                  ' onclick="advancePieceStage(\'' + index + '\')"' +
+                  ' style="font-size:0.7rem;padding:4px 10px;background:rgba(245,216,154,0.12);color:var(--accent-yellow);border:1px solid rgba(245,216,154,0.3)">🎓 阶段</button>' +
         '</div>' +
       '</div>' +
     '</div>'
@@ -462,7 +459,7 @@ function renderTodayCompletedHTML(log) {
   let html = '';
 
   // 汇总卡片
-  html += '<div style="padding:12px 16px;margin-bottom:12px;background:rgba(255,255,255,0.04);border-radius:12px;display:flex;justify-content:space-around;align-items:center">';
+  html += '<div style="padding:12px 16px;margin-bottom:12px;background:var(--surface-1);border-radius:12px;display:flex;justify-content:space-around;align-items:center">';
   html += '<div style="text-align:center"><div style="font-size:1.4rem;font-weight:700;color:var(--text-1)">' + totalPieces + '</div><div style="font-size:0.7rem;color:var(--text-3)">首曲目</div></div>';
   html += '<div style="text-align:center"><div style="font-size:1.4rem;font-weight:700;color:var(--text-1)">' + totalMin + '</div><div style="font-size:0.7rem;color:var(--text-3)">分钟</div></div>';
   html += '<div style="text-align:center"><div style="font-size:1.4rem;font-weight:700;color:var(--accent-yellow)">' + totalStars + '</div><div style="font-size:0.7rem;color:var(--text-3)">总星星</div></div>';
@@ -504,6 +501,80 @@ function renderTodayCompletedHTML(log) {
 }
 
 /* ------------------------------------------
+   今日页：顶部组件（时钟 + 环状图 + 星星卡）
+   ------------------------------------------ */
+
+/**
+ * 生成「练习计时」时钟 HTML（圆形表盘）
+ * 保留 totalTimerDisplay / totalTimerStart/Pause/Stop 的 id 供 timer.js 绑定
+ * @returns {string}
+ */
+function totalTimerHTML() {
+  var ticks = '';
+  for (var i = 0; i < 12; i++) {
+    ticks += '<span class="today-clock-tick" style="transform:rotate(' + (i * 30) + 'deg)"></span>';
+  }
+  return '<div class="total-timer today-clock">' +
+    '<div class="today-clock-face">' +
+      '<div class="today-clock-ticks">' + ticks + '</div>' +
+      '<div class="today-clock-center">' +
+        '<span class="today-clock-label">练习计时</span>' +
+        '<span class="total-timer-display" id="totalTimerDisplay">00:00</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="total-timer-controls today-clock-controls">' +
+      '<button id="totalTimerStart" class="btn today-clock-btn start" title="开始">▶</button>' +
+      '<button id="totalTimerPause" class="btn today-clock-btn pause" style="display:none" title="暂停">⏸</button>' +
+      '<button id="totalTimerStop" class="btn today-clock-btn stop" style="display:none" title="停止">⏹</button>' +
+    '</div>' +
+  '</div>';
+}
+
+/**
+ * 生成「老师反馈完成率」环状图 HTML
+ * 无反馈时显示 0% 占位
+ * @returns {string}
+ */
+function feedbackRateBarHTML() {
+  const all = Feedback.all();
+  const resolved = Feedback.byStatus(Feedback.STATUS_RESOLVED).length;
+  const pct = all.length ? Math.round(resolved / all.length * 100) : 0;
+  const R = 40;
+  const C = 2 * Math.PI * R;
+  const dash = (pct / 100) * C;
+  const sub = all.length ? (resolved + '/' + all.length) : '暂无';
+  return '<div class="today-ring-wrap">' +
+    '<svg class="today-ring" viewBox="0 0 100 100">' +
+      '<circle class="today-ring-bg" cx="50" cy="50" r="' + R + '"></circle>' +
+      '<circle class="today-ring-fill" cx="50" cy="50" r="' + R + '" style="stroke-dasharray:' + dash.toFixed(1) + ' ' + C.toFixed(1) + '"></circle>' +
+    '</svg>' +
+    '<div class="today-ring-center">' +
+      '<span class="today-ring-num">' + pct + '%</span>' +
+      '<span class="today-ring-label">反馈完成</span>' +
+      '<span class="today-ring-sub">' + sub + '</span>' +
+    '</div>' +
+  '</div>';
+}
+
+/**
+ * 生成「本周星星」卡片 HTML
+ * @param {{stars:number, pieces:number}} encourage 本周激励数据
+ * @returns {string}
+ */
+function todayEncourageHTML(encourage) {
+  var stars = encourage.stars || 0;
+  var pieces = encourage.pieces || 0;
+  return '<div class="today-stat today-star-card">' +
+    '<span class="today-stat-icon">⭐</span>' +
+    '<div class="today-stat-body">' +
+      '<span class="today-stat-title">本周已点亮</span>' +
+      '<span class="today-stat-num">' + stars + '<em>颗</em></span>' +
+      '<span class="today-stat-sub">练了 ' + pieces + ' 首</span>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ------------------------------------------
    今日页顶层入口（直接写入 page-today）
    ------------------------------------------ */
 
@@ -519,21 +590,40 @@ function renderTodayPage() {
 
   const todayStr = Utils.today();
   const log = DB.logs().find(l => l.date === todayStr) || null;
-  console.log('[renderTodayPage] 今日日志:', !!log);
 
-  // Phase 1：顶部建议卡片 + 使用方法入口
-  const suggestionHTML = buildSuggestionCardHTML();
-  const helpBtnHTML = '<div style="text-align:right;padding:0 12px 4px">' +
-    '<button onclick="Onboarding.start()" style="font-size:0.75rem;color:var(--text-4);background:none;border:none;cursor:pointer;text-decoration:underline">📖 使用方法</button>' +
+  // 使用方法入口
+  const helpBtnHTML = '<div class="today-help">' +
+    '<button onclick="Onboarding.start()" class="today-help-btn">📖 使用方法</button>' +
+  '</div>';
+
+  // 本周激励 + 反馈环状图（统计区）
+  const encourage = (typeof computeWeeklyEncourage === 'function') ? computeWeeklyEncourage() : { stars: 0, pieces: 0 };
+  const statsHTML = '<div class="today-stats">' +
+    todayEncourageHTML(encourage) +
+    feedbackRateBarHTML() +
+  '</div>';
+  // 侧边竖排卡片（星星卡 + 反馈环）
+  const sideHTML = '<div class="today-side">' +
+    todayEncourageHTML(encourage) +
+    feedbackRateBarHTML() +
+  '</div>';
+  // 练习模式顶部：时钟 + 侧边卡片 组合成一行
+  const topHTML = '<div class="today-top">' +
+    totalTimerHTML() +
+    sideHTML +
   '</div>';
 
   // 已有今日日志 → 显示已完成记录
-    if (log) {
+  if (log) {
     const msStats = computeMilestoneStatsForRange('day');
     const milestonesHTML = buildMilestonesHTML(msStats.maxStars, msStats.maxDuration, msStats.streak, msStats.title, true);
-    page.innerHTML = helpBtnHTML + suggestionHTML + '<div id="sectionCompleted">' +
-      renderTodayCompletedHTML(log) +
-      milestonesHTML +
+    page.innerHTML = '<div class="today-bright">' +
+      helpBtnHTML +
+      statsHTML +
+      '<div id="sectionCompleted">' +
+        renderTodayCompletedHTML(log) +
+        milestonesHTML +
+      '</div>' +
     '</div>';
     // 绑定修改按钮
     const btnEdit = document.getElementById('btnEditToday');
@@ -544,29 +634,21 @@ function renderTodayPage() {
         const lesson = lessons.length
           ? lessons.sort((a, b) => b.date.localeCompare(a.date))[0]
           : null;
-        page.innerHTML =
-          helpBtnHTML + buildSuggestionCardHTML() +
+        page.innerHTML = '<div class="today-bright">' +
+          helpBtnHTML +
+          topHTML +
           '<div id="sectionPracticeForm">' +
-            '<div class="total-timer">' +
-              '<span class="total-timer-label">⏱ 练习计时</span>' +
-              '<span class="total-timer-display" id="totalTimerDisplay">00:00</span>' +
-              '<div class="total-timer-controls">' +
-                '<button id="totalTimerStart" class="btn btn-sm btn-success">▶ 开始</button>' +
-                '<button id="totalTimerPause" class="btn btn-sm btn-secondary" style="display:none">⏸ 暂停</button>' +
-                '<button id="totalTimerStop" class="btn btn-sm btn-danger" style="display:none">⏹ 停止</button>' +
-              '</div>' +
-            '</div>' +
             '<div id="todayPracticeForm">' +
               buildPracticeFormHTML(lesson) +
             '</div>' +
-            '<div style="margin-top:16px;padding:12px">' +
-              '<textarea id="parentNotes" class="form-input" placeholder="家长笔记（可选）" rows="2" style="font-size:0.85rem"></textarea>' +
+            '<div class="today-notes">' +
+              '<textarea id="parentNotes" class="form-input" placeholder="家长笔记（可选）" rows="2"></textarea>' +
             '</div>' +
-            '<div style="padding:12px">' +
-              '<button id="btnCompletePractice" class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem;font-weight:700">✅ 保存修改</button>' +
+            '<div class="today-submit">' +
+              '<button id="btnCompletePractice" class="btn btn-primary today-submit-btn">✅ 保存修改</button>' +
             '</div>' +
-          '</div>';
-        bindSuggestionCard();
+          '</div>' +
+        '</div>';
         // 注意：即使没有课程，也要绑定事件（计时器、自由练习等仍需工作）
         bindTodayEvents(lesson, log);
       });
@@ -581,155 +663,28 @@ function renderTodayPage() {
     ? lessons.sort((a, b) => b.date.localeCompare(a.date))[0]
     : null;
 
-  page.innerHTML =
-    helpBtnHTML + suggestionHTML +
+  page.innerHTML = '<div class="today-bright">' +
+    helpBtnHTML +
+    topHTML +
     '<div id="sectionPracticeForm">' +
-      '<div class="total-timer">' +
-        '<span class="total-timer-label">⏱ 练习计时</span>' +
-        '<span class="total-timer-display" id="totalTimerDisplay">00:00</span>' +
-        '<div class="total-timer-controls">' +
-          '<button id="totalTimerStart" class="btn btn-sm btn-success">▶ 开始</button>' +
-          '<button id="totalTimerPause" class="btn btn-sm btn-secondary" style="display:none">⏸ 暂停</button>' +
-          '<button id="totalTimerStop" class="btn btn-sm btn-danger" style="display:none">⏹ 停止</button>' +
-        '</div>' +
-      '</div>' +
       '<div id="todayPracticeForm">' +
         buildPracticeFormHTML(lesson) +
       '</div>' +
-      '<div style="margin-top:16px;padding:12px">' +
-        '<textarea id="parentNotes" class="form-input" placeholder="家长笔记（可选）" rows="2" style="font-size:0.85rem"></textarea>' +
+      '<div class="today-notes">' +
+        '<textarea id="parentNotes" class="form-input" placeholder="家长笔记（可选）" rows="2"></textarea>' +
       '</div>' +
-      '<div style="padding:12px">' +
-        '<button id="btnCompletePractice" class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem;font-weight:700">✅ 完成今日练习</button>' +
+      '<div class="today-submit">' +
+        '<button id="btnCompletePractice" class="btn btn-primary today-submit-btn">✅ 完成今日练习</button>' +
       '</div>' +
-    '</div>';
+    '</div>' +
+  '</div>';
 
-  // 绑定建议卡片按钮（如果有）
-  bindSuggestionCard();
   // 绑定事件（即使没有课程也要绑定，确保计时器、自由练习等功能正常）
   bindTodayEvents(lesson, null);
 }
 
 // app.js 兼容别名
 const renderToday = renderTodayPage;
-
-/* ==========================================
-   💡 Phase 1：每日建议卡片
-   ========================================== */
-
-/**
- * 构建建议卡片 HTML
- * @returns {string} 无建议时返回空字符串
- */
-function buildSuggestionCardHTML() {
-  let suggestion = null;
-  try {
-    suggestion = Suggestions.generate();
-  } catch (e) {
-    console.error('[Suggestions] generate error:', e);
-    return '';
-  }
-  if (!suggestion) return '';
-
-  const toneClass = Suggestions.toneClass(suggestion.tone);
-  const detail = suggestion.detail ? `<div class="suggestion-detail">${Utils.escape(suggestion.detail)}</div>` : '';
-  const actionLabel = (suggestion.action && suggestion.action.label) || '去查看';
-  const actionTarget = (suggestion.action && suggestion.action.target) || '';
-  const pieceName = (suggestion.action && suggestion.action.pieceName) || '';
-
-  return `
-    <div class="suggestion-card ${toneClass}" id="suggestionCard"
-         data-target="${Utils.escape(actionTarget)}"
-         data-piece="${Utils.escape(pieceName)}">
-      <div class="suggestion-icon">${suggestion.icon || '💡'}</div>
-      <div class="suggestion-content">
-        <div class="suggestion-title">${Utils.escape(suggestion.title)}</div>
-        ${detail}
-      </div>
-      <button type="button" class="suggestion-action" onclick="handleSuggestionClick()">
-        ${Utils.escape(actionLabel)} <span class="suggestion-arrow">→</span>
-      </button>
-    </div>
-  `;
-}
-
-/**
- * 绑定建议卡片按钮（render 后调用一次即可，按钮已用 onclick 绑定，此函数留作扩展）
- */
-function bindSuggestionCard() {
-  // 当前用 onclick="handleSuggestionClick()" 直接绑定，无需额外逻辑
-  // 留作未来改成事件委托的扩展点
-}
-
-/**
- * 建议卡片点击处理
- */
-window.handleSuggestionClick = function() {
-  const card = document.getElementById('suggestionCard');
-  if (!card) return;
-  const target = card.dataset.target;
-  const pieceName = card.dataset.piece;
-
-  if (target === 'today') {
-    // 练习类建议：留在今日页，如果有指定曲子，滚动+高亮到对应卡片
-    if (pieceName) {
-      Utils.showToast(`🎵 准备练习：${pieceName}`, 'info');
-      scrollToPieceCard(pieceName);
-    } else {
-      const form = document.getElementById('todayPracticeForm');
-      if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  } else if (target === 'feedback') {
-    // 反馈类建议：留在今日页，找到第一条有未完成反馈的曲目卡片并滚动+高亮
-    const allUnresolved = Feedback.byStatus(Feedback.STATUS_NEW);
-    if (allUnresolved.length === 0) {
-      Utils.showToast('📌 暂无待练反馈', 'info');
-      return;
-    }
-    // 找到第一条在今日页有卡片的反馈
-    let found = false;
-    for (const fb of allUnresolved) {
-      if (fb.pieceTitle && scrollToPieceCard(fb.pieceTitle)) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      Utils.showToast(`📌 ${allUnresolved.length} 个反馈待练（对应曲目不在今日练习中）`, 'info');
-    }
-  } else {
-    Utils.showToast('💡 点击了建议', 'info');
-  }
-};
-
-/**
- * 滚动+高亮到指定曲名的曲目卡片
- * @param {string} pieceName 曲子名称
- * @returns {boolean} 是否找到并滚动成功
- */
-function scrollToPieceCard(pieceName) {
-  if (!pieceName) return false;
-  const cards = document.querySelectorAll('.piece-card[data-piece-name]');
-  for (const card of cards) {
-    if (card.dataset.pieceName === pieceName) {
-      // 展开卡片（如果折叠了）
-      const body = card.querySelector('.piece-card-body');
-      if (body && body.style.display === 'none') {
-        body.style.display = '';
-      }
-      // 滚动到卡片
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // 高亮闪烁
-      card.style.transition = 'box-shadow 0.3s ease';
-      card.style.boxShadow = '0 0 0 2px rgba(94,106,210,0.6), 0 0 20px rgba(94,106,210,0.3)';
-      setTimeout(() => {
-        card.style.boxShadow = '';
-      }, 2000);
-      return true;
-    }
-  }
-  return false;
-}
 
 /**
  * 方案 D：点击反馈整行切换状态（new ↔ resolved）

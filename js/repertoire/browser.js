@@ -55,17 +55,19 @@ function renderRepertoire() {
 
     const piecesHtml = book.pieces.map(piece => {
       const isCardExpanded = repertoireState.expandedPieces[piece.id];
-      let statusBtn = '';
-      if (piece.status === 'learned') {
-        statusBtn = '<button class="btn btn-sm btn-success" style="font-size:0.7rem;padding:5px 10px" onclick="cycleRepStatus(\'' + piece.id + '\')">✅ 已学会</button>';
-      } else if (piece.status === 'learning') {
-        statusBtn = '<button class="btn btn-sm" style="font-size:0.7rem;padding:5px 10px;background:var(--accent-yellow-soft);color:var(--accent-yellow);border:1px solid var(--accent-yellow)" onclick="cycleRepStatus(\'' + piece.id + '\')">🌱 学习中</button>';
-      } else {
-        statusBtn = '<button class="btn btn-sm btn-secondary" style="font-size:0.7rem;padding:5px 10px" onclick="cycleRepStatus(\'' + piece.id + '\')">💤 未学</button>';
-      }
+      // 5 级阶段按钮：显示当前阶段，点击推进到下一级
+      const curStage = piece.stage || 'untouched';
+      const stageIdx = PIECE_STAGES.findIndex(s => s.key === curStage);
+      const stageInfo = PIECE_STAGES[stageIdx >= 0 ? stageIdx : 0];
+      const isTop = stageIdx >= PIECE_STAGES.length - 1;
+      const stageBtn = '<button class="btn btn-sm stage-advance-btn" style="font-size:0.7rem;padding:5px 10px" onclick="advanceRepStage(\'' + piece.id + '\')">' +
+          stageInfo.icon + ' ' + stageInfo.label +
+          (isTop ? ' ✓' : '<span style="opacity:0.6"> → ' + PIECE_STAGES[stageIdx + 1].icon + '</span>') +
+        '</button>';
 
-      const memBtn = piece.status === 'learned'
-        ? `<button class="btn btn-sm ${piece.memorized ? 'btn-primary' : 'btn-secondary'}" style="font-size:0.7rem;padding:5px 10px" onclick="toggleRepMemorized('${piece.id}')">${piece.memorized ? '🧠 可背谱' : '📖 不能背谱'}</button>`
+      // 背谱由 stage 推导（背谱/熟练 = 已能背谱），不再手动设置
+      const memBadge = (curStage === 'memorize' || curStage === 'proficient')
+        ? '<span class="btn btn-sm" style="font-size:0.7rem;padding:5px 10px;background:rgba(142,212,166,0.12);color:var(--accent-green);border:1px solid rgba(142,212,166,0.3);pointer-events:none">🧠 已能背谱</span>'
         : '';
 
       return `
@@ -76,15 +78,13 @@ function renderRepertoire() {
               <div class="text-xs text-3">${Utils.escape(piece.name)} · ${Utils.escape(piece.composer || '')}</div>
             </span>
             <span class="flex-row gap-4" onclick="event.stopPropagation()">
-              ${statusBtn}
-              ${memBtn}
+              ${stageBtn}
+              ${memBadge}
             </span>
           </div>
           ${isCardExpanded && (piece.status === 'learned' || piece.status === 'learning') ? `
             <div class="text-xs text-2 mt-8" style="padding-top:8px;border-top:1px solid var(--border-2)">
-              ${piece.startedDate ? `📅 开始：${Utils.formatDate(piece.startedDate)}` : ''}
-              ${piece.completedDate ? `· ✅ 完成：${Utils.formatDate(piece.completedDate)}` : ''}
-              ${piece.totalMinutes ? `· ⏱ ${piece.totalMinutes}分钟` : ''}
+              ${renderStageTimeline(piece)}
             </div>
           ` : ''}
         </div>
@@ -113,9 +113,10 @@ function renderRepertoire() {
   page.innerHTML = `
     <div class="flex-between mb-16">
       <span class="text-lg font-bold">🎵 曲库</span>
-      <button class="btn btn-primary btn-sm" onclick="showRepertoireEditor()">
-        🔧 编辑曲库
-      </button>
+      <span class="flex-row gap-8">
+        <button class="btn btn-secondary btn-sm" onclick="showPortfolio()">🎓 作品档案</button>
+        <button class="btn btn-primary btn-sm" onclick="showRepertoireEditor()">🔧 编辑曲库</button>
+      </span>
     </div>
     ${booksHtml}
   `;
@@ -146,34 +147,90 @@ window.toggleRepCard = function(pieceId) {
 };
 
 /**
- * 循环切换曲目状态：未学 → 学习中 → 已学会 → 未学
+ * 推进曲目阶段到下一级（曲库侧手动调整）
  * @param {string} pieceId 曲目 ID
  * @returns {void}
  */
-window.cycleRepStatus = function(pieceId) {
-  const piece = RepertoireManager.findById(pieceId);
-  if (!piece) return;
-
-  if (piece.status === 'untouched') {
-    RepertoireManager.updateStatus(pieceId, 'learning');
-    Utils.showToast('📚 开始学习', 'info');
-  } else if (piece.status === 'learning') {
-    RepertoireManager.updateStatus(pieceId, 'learned');
-    Utils.showToast('🎉 恭喜学会！', 'success');
+window.advanceRepStage = function(pieceId) {
+  const res = RepertoireManager.advanceStage(pieceId);
+  if (!res.ok) {
+    Utils.showToast('🌟 已到最高阶段「熟练」', 'info');
+    return;
+  }
+  const stage = PIECE_STAGES.find(s => s.key === res.stage);
+  if (res.stage === 'proficient') {
+    Utils.showToast('🎉 恭喜！已熟练掌握', 'success');
   } else {
-    RepertoireManager.updateStatus(pieceId, 'untouched');
-    Utils.showToast('🔄 状态已重置', 'info');
+    Utils.showToast((stage ? stage.icon + ' ' : '') + '进入「' + (stage ? stage.label : res.stage) + '」阶段', 'info');
   }
   renderRepertoire();
 };
 
 /**
- * 切换曲目背谱状态
- * @param {string} pieceId 曲目 ID
+ * 渲染曲目学习历程时间线（作品档案 + 曲库卡片共用）
+ * 横向 5 节点：未学 → 分手 → 合手 → 背谱 → 熟练
+ * @param {Object} piece 曲目对象
+ * @returns {string} HTML
+ */
+function renderStageTimeline(piece) {
+  const history = Array.isArray(piece.stageHistory) ? piece.stageHistory : [];
+  // 构建每个阶段对应的到达日期
+  const stageDate = {};
+  if (piece.startedDate) stageDate['separate'] = piece.startedDate;
+  history.forEach(function(h) { if (h && h.stage) stageDate[h.stage] = h.date; });
+
+  const curStage = piece.stage || 'untouched';
+  const curIdx = PIECE_STAGES.findIndex(s => s.key === curStage);
+  const activeIdx = curIdx >= 0 ? curIdx : 0;
+
+  let html = '<div class="stage-timeline">';
+  PIECE_STAGES.forEach(function(s, i) {
+    if (i > 0) html += '<span class="stage-connector"></span>';
+    const active = i <= activeIdx;
+    html += '<div class="stage-node' + (active ? ' active' : '') + '">' +
+      '<span class="stage-dot">' + s.icon + '</span>' +
+      '<span class="stage-label">' + s.label + '</span>' +
+      (stageDate[s.key] ? '<span class="stage-date">' + Utils.formatDate(stageDate[s.key]) + '</span>' : '') +
+    '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+/**
+ * 作品档案：弹窗展示已学习曲目的成长时间线
  * @returns {void}
  */
-window.toggleRepMemorized = function(pieceId) {
-  const newState = RepertoireManager.toggleMemorized(pieceId);
-  Utils.showToast(newState ? '🧠 可以背谱了！' : '📖 还需要看谱', 'success');
-  renderRepertoire();
+window.showPortfolio = function() {
+  const learned = DB.repertoire().filter(p => p.status === 'learned' || p.status === 'learning');
+  // 按开始学习日期倒序（最近的在前）
+  const sorted = learned.slice().sort(function(a, b) {
+    const da = a.completedDate || a.startedDate || '';
+    const db = b.completedDate || b.startedDate || '';
+    return (da < db) ? 1 : ((da > db) ? -1 : 0);
+  });
+
+  const itemsHtml = sorted.map(function(piece) {
+    const stageInfo = PIECE_STAGES.find(s => s.key === (piece.stage || 'untouched')) || PIECE_STAGES[0];
+    return (
+      '<div class="portfolio-item" style="padding:12px 0;border-bottom:1px solid var(--border-2)">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+          '<span style="font-size:1.1rem">' + stageInfo.icon + '</span>' +
+          '<span style="font-weight:600;color:var(--text-1)">' + Utils.escape(piece.name) + '</span>' +
+          (piece.en ? '<span style="font-size:0.72rem;color:var(--text-3)">' + Utils.escape(piece.en) + '</span>' : '') +
+        '</div>' +
+        renderStageTimeline(piece) +
+      '</div>'
+    );
+  }).join('');
+
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+    '<div class="modal" style="max-width:460px">' +
+      '<div class="modal-header"><h2 class="modal-title">🎓 作品档案</h2><button class="modal-close" onclick="closeModal()">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<div style="font-size:0.75rem;color:var(--text-3);margin-bottom:12px">已学习 ' + sorted.length + ' 首曲目</div>' +
+        (itemsHtml || '<div class="empty-state"><div class="empty-icon">🌟</div><p>还没有开始学习的曲目</p></div>') +
+      '</div>' +
+    '</div></div>';
 };
