@@ -55,14 +55,14 @@ function renderRepertoire() {
 
     const piecesHtml = book.pieces.map(piece => {
       const isCardExpanded = repertoireState.expandedPieces[piece.id];
-      // 5 级阶段按钮：显示当前阶段，点击推进到下一级
+      // 5 级阶段按钮：显示当前阶段，点击弹面板选择阶段（可升可降）
       const curStage = piece.stage || 'untouched';
       const stageIdx = PIECE_STAGES.findIndex(s => s.key === curStage);
       const stageInfo = PIECE_STAGES[stageIdx >= 0 ? stageIdx : 0];
       const isTop = stageIdx >= PIECE_STAGES.length - 1;
-      const stageBtn = '<button class="btn btn-sm stage-advance-btn" style="font-size:0.7rem;padding:5px 10px" onclick="advanceRepStage(\'' + piece.id + '\')">' +
+      const stageBtn = '<button class="btn btn-sm stage-advance-btn" style="font-size:0.7rem;padding:5px 10px" onclick="openRepStagePanel(\'' + piece.id + '\')">' +
           stageInfo.icon + ' ' + stageInfo.label +
-          (isTop ? ' ✓' : '<span style="opacity:0.6"> → ' + PIECE_STAGES[stageIdx + 1].icon + '</span>') +
+          (isTop ? ' ✓' : '<span style="opacity:0.6"> ▾</span>') +
         '</button>';
 
       // 背谱由 stage 推导（背谱/熟练 = 已能背谱），不再手动设置
@@ -147,7 +147,7 @@ window.toggleRepCard = function(pieceId) {
 };
 
 /**
- * 推进曲目阶段到下一级（曲库侧手动调整）
+ * 推进曲目阶段到下一级（今日页首次进卡等场景仍在用；曲库按钮已改为弹面板）
  * @param {string} pieceId 曲目 ID
  * @returns {void}
  */
@@ -162,6 +162,84 @@ window.advanceRepStage = function(pieceId) {
     Utils.showToast('🎉 恭喜！已熟练掌握', 'success');
   } else {
     Utils.showToast((stage ? stage.icon + ' ' : '') + '进入「' + (stage ? stage.label : res.stage) + '」阶段', 'info');
+  }
+  renderRepertoire();
+};
+
+/**
+ * 打开阶段选择面板（点曲库阶段按钮，可升可降）
+ * @param {string} pieceId 曲目 ID
+ * @returns {void}
+ */
+window.openRepStagePanel = function(pieceId) {
+  const piece = RepertoireManager.findById(pieceId);
+  if (!piece) return;
+  const curStage = piece.stage || 'untouched';
+  const curIdx = Math.max(0, PIECE_STAGES.findIndex(s => s.key === curStage));
+
+  const optionsHtml = PIECE_STAGES.map(function(s, i) {
+    const active = i === curIdx;
+    const stateHtml = active
+      ? '<span style="font-size:0.65rem;color:var(--accent-primary);border:1px solid rgba(94,106,210,0.35);background:rgba(94,106,210,0.1);padding:1px 6px;border-radius:999px">当前</span>'
+      : '';
+    return (
+      '<button type="button" class="rep-stage-option' + (active ? ' active' : '') + '"' +
+        ' onclick="applyRepStage(\'' + pieceId + '\', \'' + s.key + '\')"' +
+        ' style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid ' + (active ? 'rgba(94,106,210,0.45)' : 'var(--border-2)') + ';' +
+          'background:' + (active ? 'rgba(94,106,210,0.12)' : 'transparent') + ';cursor:pointer;text-align:left">' +
+        '<span style="font-size:1.2rem">' + s.icon + '</span>' +
+        '<span style="flex:1;font-size:0.85rem;font-weight:600;color:var(--text-1)">' + s.label + '</span>' +
+        stateHtml +
+      '</button>'
+    );
+  }).join('');
+
+  const old = document.getElementById('repStagePanelOverlay');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'repStagePanelOverlay';
+  overlay.className = 'modal-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) closeRepStagePanel(); };
+  overlay.innerHTML =
+    '<div class="modal" style="max-width:340px" onclick="event.stopPropagation()">' +
+      '<div class="modal-header">' +
+        '<h2 class="modal-title" style="font-size:1rem">🎓 选择阶段</h2>' +
+        '<button class="modal-close" onclick="closeRepStagePanel()">✕</button>' +
+      '</div>' +
+      '<div class="modal-body" style="padding:12px 16px 16px">' +
+        '<div style="font-size:0.78rem;color:var(--text-3);margin-bottom:10px">' + Utils.escape(piece.name) + ' · 可升可降</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px">' + optionsHtml + '</div>' +
+      '</div>' +
+    '</div>';
+  document.getElementById('modalContainer').appendChild(overlay);
+};
+
+/**
+ * 关闭阶段选择面板
+ */
+window.closeRepStagePanel = function() {
+  const overlay = document.getElementById('repStagePanelOverlay');
+  if (overlay) overlay.remove();
+};
+
+/**
+ * 应用所选阶段（阶段选择面板）
+ * @param {string} pieceId 曲目 ID
+ * @param {string} stageKey 目标阶段
+ */
+window.applyRepStage = function(pieceId, stageKey) {
+  const res = RepertoireManager.setStage(pieceId, stageKey);
+  if (!res.ok) return;
+  closeRepStagePanel();
+  const stage = PIECE_STAGES.find(s => s.key === res.stage);
+  const label = stage ? (stage.icon + ' ' + stage.label) : res.stage;
+  if (res.stage === 'proficient') {
+    Utils.showToast('🎉 恭喜！已熟练掌握', 'success');
+  } else if (res.down) {
+    Utils.showToast('已调整到「' + label + '」', 'info');
+  } else {
+    Utils.showToast(label + '，进入「' + (stage ? stage.label : '') + '」阶段', 'info');
   }
   renderRepertoire();
 };

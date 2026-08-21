@@ -20,7 +20,7 @@ const PIECE_STAGES = [
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v4.0_20260821-0',
+  VERSION: 'v4.0_20260821-1',
 
   // 生成一首曲目的全新默认状态（未学）
   _buildDefaultPiece(piece) {
@@ -195,6 +195,56 @@ const RepertoireManager = {
 
     DB.saveRepertoire(rep);
     return { ok: true, stage: next.key };
+  },
+
+  // 设置曲目阶段（曲库弹面板：可升可降，解决误触后无法回退的问题）
+  // 推进时记录 stageHistory；降级时移除高于该阶段的记录并同步派生 status
+  setStage(id, targetStage) {
+    const targetIdx = PIECE_STAGES.findIndex(s => s.key === targetStage);
+    if (targetIdx < 0) return { ok: false };
+
+    const rep = DB.repertoire();
+    const piece = rep.find(p => p.id === id);
+    if (!piece) return { ok: false };
+
+    if (!piece.stage) {
+      // 老数据无 stage：从 status 推断
+      piece.stage = (piece.status === 'learned') ? 'proficient'
+        : (piece.status === 'learning') ? 'separate' : 'untouched';
+    }
+    if (!Array.isArray(piece.stageHistory)) piece.stageHistory = [];
+
+    if (piece.stage === targetStage) return { ok: true, stage: targetStage };
+
+    const today = Utils.today();
+    const isDown = targetIdx < PIECE_STAGES.findIndex(s => s.key === piece.stage);
+
+    piece.stage = targetStage;
+    if (isDown) {
+      // 降级：移除所有高于目标阶段的记录，时间线回退到目标状态
+      piece.stageHistory = piece.stageHistory.filter(h => h && h.stage && PIECE_STAGES.findIndex(s => s.key === h.stage) <= targetIdx);
+    } else {
+      piece.stageHistory.push({ stage: targetStage, date: today });
+    }
+
+    // 同步派生 status 与日期（与 advanceStage 保持一致的规则）
+    if (targetStage === 'untouched') {
+      piece.status = 'untouched';
+      piece.startedDate = null;
+      piece.completedDate = null;
+    } else if (targetStage === 'proficient') {
+      piece.status = 'learned';
+      if (!piece.completedDate) piece.completedDate = today;
+      if (!piece.startedDate) piece.startedDate = today;
+    } else {
+      piece.status = 'learning';
+      if (!piece.startedDate) piece.startedDate = today;
+      piece.completedDate = null;
+    }
+    piece.memorized = (targetStage === 'memorize' || targetStage === 'proficient');
+
+    DB.saveRepertoire(rep);
+    return { ok: true, stage: targetStage, down: isDown };
   },
 
   // 是否已能背谱：由 stage 推导（背谱 / 熟练 才算可背谱），不再手动设置

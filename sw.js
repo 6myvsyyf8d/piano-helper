@@ -5,7 +5,7 @@
  * Service Worker — 自动更新 + 离线基础支持
  */
 
-const SW_VERSION = 'v4.0_20260821';
+const SW_VERSION = 'v4.0_20260821b';
 const CACHE_NAME = 'piano-v4-' + SW_VERSION;
 
 // 需要预缓存的静态资源
