@@ -20,7 +20,7 @@ const PIECE_STAGES = [
 
 const RepertoireManager = {
   // 曲库版本（升级时递增）
-  VERSION: 'v4.0_20260820-1',
+  VERSION: 'v4.0_20260821-0',
 
   // 生成一首曲目的全新默认状态（未学）
   _buildDefaultPiece(piece) {

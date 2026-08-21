@@ -218,15 +218,17 @@ function pieceCardHTML(index, pieceName, num, focusAreas, details, lessonId) {
     var feedbacks = Feedback.byPiece(pieceName).filter(function(f) {
       return !lessonId || String(f.lessonId) === String(lessonId);
     });
-    if (feedbacks.length) {
+    // 方案A：照片也直接挂在课程曲目上，没有图钉也能查看
+    var lessonPhotoIds = collectLessonPiecePhotoIds(pieceName);
+    if (feedbacks.length || lessonPhotoIds.length) {
       var statusMap = {
         'new': { icon: '🔵', label: '未完成', color: '#5E6AD2' },
         'resolved': { icon: '✅', label: '完成', color: '#4caf7d' }
       };
 
-      // 曲谱照片查看入口：如果任一 feedback 有 sheetPhotoId，显示查看按钮
+      // 曲谱照片查看入口：feedback 有 sheetPhotoId，或课程曲目上挂了照片
       var photoOwner = feedbacks.find(function(f) { return f.sheetPhotoId; });
-      if (photoOwner) {
+      if (photoOwner || lessonPhotoIds.length) {
         var pinCount = feedbacks.filter(function(f) { return f.pinX !== null && f.pinX !== undefined; }).length;
         sheetBtnHtml = '<button type="button" onclick="viewSheetPhoto(\'' + Utils.escape(pieceName) + '\')" ' +
           'style="font-size:0.7rem;padding:4px 10px;border-radius:6px;border:1px solid rgba(94,106,210,0.3);background:rgba(94,106,210,0.08);color:#a5ade8;cursor:pointer">' +
@@ -806,6 +808,26 @@ function _refreshFeedbackRowUI(feedbackId, updated) {
 }
 
 /**
+ * 收集课程数据里挂在曲目上的曲谱照片 ID（方案A：照片可独立于图钉存在）
+ * @param {string} pieceName 曲子名称
+ * @returns {string[]} 去重后的 blob id 列表
+ */
+function collectLessonPiecePhotoIds(pieceName) {
+  var seen = {};
+  var ids = [];
+  (DB.lessons() || []).forEach(function(l) {
+    (l.pieces || []).forEach(function(p) {
+      if (p.name === pieceName && Array.isArray(p.sheetPhotoIds)) {
+        p.sheetPhotoIds.forEach(function(id) {
+          if (id && !seen[id]) { seen[id] = 1; ids.push(id); }
+        });
+      }
+    });
+  });
+  return ids;
+}
+
+/**
  * 查看曲谱照片 + 图钉（可交互：点图钉弹出详情浮层，可听录音/推进状态）
  * @param {string} pieceName 曲子名称
  */
@@ -813,8 +835,12 @@ window.viewSheetPhoto = async function(pieceName) {
   var feedbacks = Feedback.byPiece(pieceName);
 
   // 收集所有唯一的照片 ID（去重，保持首次出现顺序）
+  // 来源：课程曲目上挂的照片（方案A）+ 图钉反馈引用的照片（旧数据兼容）
   var seenIds = new Set();
   var allPhotoIds = [];
+  collectLessonPiecePhotoIds(pieceName).forEach(function(id) {
+    if (!seenIds.has(id)) { seenIds.add(id); allPhotoIds.push(id); }
+  });
   feedbacks.forEach(function(f) {
     if (f.sheetPhotoId && !seenIds.has(f.sheetPhotoId)) {
       seenIds.add(f.sheetPhotoId);

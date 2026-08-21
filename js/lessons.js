@@ -86,6 +86,9 @@ window.showLessonForm = function(lessonId) {
   const isEdit = !!lesson;
   const pieces = lesson ? lesson.pieces : [];
 
+  // 重置课堂记录的会话照片表（每次打开课程表单都是新会话）
+  if (typeof FeedbackOrganizer !== 'undefined') FeedbackOrganizer.resetSession();
+
   // 把现有曲目按 book 字段分组（保留向后兼容老数据）
   const piecesByBook = groupLessonPiecesByBook(pieces);
 
@@ -770,6 +773,25 @@ window.saveLesson = function(lessonId) {
     return;
   }
 
+  // ── 方案A：把课堂记录的照片列表挂到曲目上（不依赖图钉也能保留）──
+  // 优先取本次表单会话里拍的照（新增/编辑都覆盖），再合并课程里已有的照片
+  const sessionPhotoMap = (typeof FeedbackOrganizer !== 'undefined')
+    ? FeedbackOrganizer.getSessionPhotoMap() : {};
+  const oldPieces = lessonId ? ((DB.lessons().find(l => l.id === lessonId) || {}).pieces || []) : [];
+  pieces.forEach(p => {
+    const merged = [];
+    const seen = new Set();
+    [
+      sessionPhotoMap[p.name] || [],
+      (oldPieces.find(op => op.name === p.name) || {}).sheetPhotoIds || []
+    ].forEach(ids => {
+      (ids || []).forEach(id => {
+        if (id && !seen.has(id)) { seen.add(id); merged.push(id); }
+      });
+    });
+    if (merged.length) p.sheetPhotoIds = merged;
+  });
+
   // ── 保存自定义册的书名到 bookMeta ──
   // 对所有 bookNum >= 1000 的册，从 .custom-book-title 读取书名并存入
   let customBookTitles = {};
@@ -898,6 +920,11 @@ async function cleanupLessonMedia(lesson) {
   (lesson.lessonAudios || []).forEach(s => { if (s && s.id) blobIds.add(s.id); });
   if (lesson.lessonAudioId) blobIds.add(lesson.lessonAudioId);
 
+  // 1.5 曲目上挂的曲谱照片（方案A：照片可独立于图钉存在）
+  (lesson.pieces || []).forEach(p => {
+    (p.sheetPhotoIds || []).forEach(id => { if (id) blobIds.add(id); });
+  });
+
   // 2. 收集本课程所有反馈的曲谱照片 / 家长语音 blob
   const fbs = Feedback.byLesson(lesson.id);
   const fbIds = new Set(fbs.map(f => f.id));
@@ -911,11 +938,16 @@ async function cleanupLessonMedia(lesson) {
     DB.saveFeedbacks(DB.feedbacks().filter(f => !fbIds.has(f.id)));
   }
 
-  // 4. 曲谱照片可能被其它反馈共享，仅在无任何剩余引用时才删
+  // 4. 曲谱照片可能被其它反馈/其它课程共享，仅在无任何剩余引用时才删
   const referenced = new Set();
   DB.feedbacks().forEach(f => {
     if (f.sheetPhotoId) referenced.add(f.sheetPhotoId);
     if (f.parentVoiceId) referenced.add(f.parentVoiceId);
+  });
+  DB.lessons().forEach(l => {
+    (l.pieces || []).forEach(p => {
+      (p.sheetPhotoIds || []).forEach(id => { if (id) referenced.add(id); });
+    });
   });
 
   for (const id of blobIds) {

@@ -25,6 +25,10 @@ const FeedbackOrganizer = {
   // 当前进入时关联的反馈列表（同 lessonId + 同曲子）
   _currentFeedbacks: [],
 
+  // 课程表单会话内的照片列表（pieceTitle -> blobId[]）
+  // 新增课程未保存时没有 lessonId，照片先挂在这里，saveLesson 时写入课程数据
+  _sessionPiecePhotos: {},
+
   // 正在编辑的图钉编辑面板状态
   _editingPin: null,    // {pinX, pinY, id?, ...}
   _editingVoiceId: null,
@@ -52,13 +56,23 @@ const FeedbackOrganizer = {
     );
 
     // 收集所有已有照片 ID（去重，保持首次出现顺序）
+    // 方案A：照片列表不再只靠图钉反馈捎带——
+    //   1) 课程曲目数据 sheetPhotoIds（保存过的课程，无图钉也能找回）
+    //   2) 本次课程表单会话内存（新增课程未保存期间，退出课堂记录再进不丢）
+    //   3) 图钉反馈 sheetPhotoId（旧数据兼容）
     const seenIds = new Set();
     const existingPhotoIds = [];
-    this._currentFeedbacks.forEach(function(f) {
-      if (f.sheetPhotoId && !seenIds.has(f.sheetPhotoId)) {
-        seenIds.add(f.sheetPhotoId);
-        existingPhotoIds.push(f.sheetPhotoId);
-      }
+    [
+      this._getLessonPiecePhotoIds(),
+      this._sessionPiecePhotos[this._pieceTitle] || [],
+      this._currentFeedbacks.map(f => f.sheetPhotoId)
+    ].forEach(function(ids) {
+      (ids || []).forEach(function(id) {
+        if (id && !seenIds.has(id)) {
+          seenIds.add(id);
+          existingPhotoIds.push(id);
+        }
+      });
     });
 
     // 初始化 SheetAnnotator
@@ -79,7 +93,11 @@ const FeedbackOrganizer = {
         self._refreshFeedbackList();
       });
       SheetAnnotator.onPhotosChanged(function(blobIds) {
-        // 照片列表变化（删除等），同步更新无 photo 的 feedback
+        // 照片列表变化（增/删/换）：立即锚定照片
+        // - 会话内存（新增课程未保存期间）
+        // - 已保存课程直接写回课程数据（与图钉"全程立即保存"一致）
+        self._sessionPiecePhotos[self._pieceTitle] = (blobIds || []).slice();
+        self._persistLessonPhotos(blobIds || []);
         self._refreshFeedbackList();
       });
       SheetAnnotator.onPinMoved(function(pinId, pinX, pinY) {
@@ -92,6 +110,56 @@ const FeedbackOrganizer = {
       });
       self._render();
     });
+  },
+
+  /**
+   * 读取课程数据中当前曲目的照片列表（已保存课程）
+   * @returns {string[]}
+   */
+  _getLessonPiecePhotoIds() {
+    if (!this._lessonId) return [];
+    const lesson = DB.lessons().find(l => String(l.id) === this._lessonId);
+    if (!lesson || !Array.isArray(lesson.pieces)) return [];
+    const piece = lesson.pieces.find(p => p.name === this._pieceTitle);
+    return (piece && Array.isArray(piece.sheetPhotoIds)) ? piece.sheetPhotoIds.slice() : [];
+  },
+
+  /**
+   * 把当前照片列表写回已保存课程的数据（编辑课程时立即保存）
+   * @param {string[]} blobIds
+   */
+  _persistLessonPhotos(blobIds) {
+    if (!this._lessonId) return;
+    const lessons = DB.lessons();
+    const idx = lessons.findIndex(l => String(l.id) === this._lessonId);
+    if (idx < 0) return;
+    const lesson = lessons[idx];
+    if (!Array.isArray(lesson.pieces)) lesson.pieces = [];
+    const piece = lesson.pieces.find(p => p.name === this._pieceTitle);
+    if (piece) {
+      piece.sheetPhotoIds = blobIds.slice();
+      lessons[idx] = lesson;
+      DB.saveLessons(lessons);
+    }
+  },
+
+  /**
+   * 重置会话照片表（每次打开课程表单时调用，防止上一次表单的残留）
+   */
+  resetSession() {
+    this._sessionPiecePhotos = {};
+  },
+
+  /**
+   * 获取会话照片表副本（saveLesson 调用，写入课程数据）
+   * @returns {Object} pieceTitle -> blobId[]
+   */
+  getSessionPhotoMap() {
+    const copy = {};
+    Object.keys(this._sessionPiecePhotos).forEach(k => {
+      copy[k] = this._sessionPiecePhotos[k].slice();
+    });
+    return copy;
   },
 
   /**
@@ -626,10 +694,15 @@ const FeedbackOrganizer = {
       try { await StorageAdapter.remove(f.parentVoiceId); } catch (e) {}
     }
     Feedback.remove(feedbackId);
-    // 如果这条是照片的 owner，检查是否还有其他 feedback 用同一照片
+    // 如果这条是照片的 owner，检查是否还有其他 feedback 用同一照片，
+    // 以及照片是否仍挂在课程曲目/会话列表上（方案A：照片独立于图钉存在）
     if (f.sheetPhotoId) {
       const otherFbs = Feedback.all().filter(x => x.sheetPhotoId === f.sheetPhotoId && x.id !== feedbackId);
-      if (otherFbs.length === 0) {
+      const anchoredInSession = (this._sessionPiecePhotos[this._pieceTitle] || []).indexOf(f.sheetPhotoId) >= 0;
+      const anchoredInLessons = DB.lessons().some(l =>
+        (l.pieces || []).some(p => (p.sheetPhotoIds || []).indexOf(f.sheetPhotoId) >= 0)
+      );
+      if (otherFbs.length === 0 && !anchoredInSession && !anchoredInLessons) {
         try { await StorageAdapter.remove(f.sheetPhotoId); } catch (e) {}
       }
     }
