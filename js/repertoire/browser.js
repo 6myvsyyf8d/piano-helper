@@ -287,17 +287,18 @@ window.showPortfolio = function() {
     const db = b.completedDate || b.startedDate || '';
     return (da < db) ? 1 : ((da > db) ? -1 : 0);
   });
+  const proficientCount = sorted.filter(p => (p.stage || 'untouched') === 'proficient').length;
 
-  const itemsHtml = sorted.map(function(piece) {
-    const stageInfo = PIECE_STAGES.find(s => s.key === (piece.stage || 'untouched')) || PIECE_STAGES[0];
+  const medalsHtml = sorted.map(function(piece) {
+    const stage = piece.stage || 'untouched';
+    const stageInfo = PIECE_STAGES.find(s => s.key === stage) || PIECE_STAGES[0];
+    const stars = (stage === 'proficient') ? '<div class="medal-stars">⭐</div>' : '';
     return (
-      '<div class="portfolio-item" style="padding:12px 0;border-bottom:1px solid var(--border-2)">' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
-          '<span style="font-size:1.1rem">' + stageInfo.icon + '</span>' +
-          '<span style="font-weight:600;color:var(--text-1)">' + Utils.escape(piece.name) + '</span>' +
-          (piece.en ? '<span style="font-size:0.72rem;color:var(--text-3)">' + Utils.escape(piece.en) + '</span>' : '') +
-        '</div>' +
-        renderStageTimeline(piece) +
+      '<div class="portfolio-medal medal-' + stage + '">' +
+        stars +
+        '<div class="portfolio-medal-circle">' + stageInfo.icon + '</div>' +
+        '<div class="portfolio-medal-name">' + Utils.escape(piece.name) + '</div>' +
+        '<div class="portfolio-medal-stage">' + stageInfo.label + '</div>' +
       '</div>'
     );
   }).join('');
@@ -305,10 +306,14 @@ window.showPortfolio = function() {
   const modal = document.getElementById('modalContainer');
   modal.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
     '<div class="modal" style="max-width:460px">' +
-      '<div class="modal-header"><h2 class="modal-title">🎓 作品档案</h2><button class="modal-close" onclick="closeModal()">✕</button></div>' +
+      '<div class="modal-header"><h2 class="modal-title">🏆 作品档案</h2><button class="modal-close" onclick="closeModal()">✕</button></div>' +
       '<div class="modal-body">' +
-        '<div style="font-size:0.75rem;color:var(--text-3);margin-bottom:12px">已学习 ' + sorted.length + ' 首曲目</div>' +
-        (itemsHtml || '<div class="empty-state"><div class="empty-icon">🌟</div><p>还没有开始学习的曲目</p></div>') +
+        '<div style="text-align:center;margin-bottom:14px">' +
+          '<div style="font-size:1.5rem;font-weight:700;color:var(--text-1)">已收集 ' + sorted.length + ' 首</div>' +
+          (proficientCount ? '<div style="font-size:0.75rem;color:#f5a800;margin-top:2px">🌟 熟练 ' + proficientCount + ' 首</div>' : '') +
+        '</div>' +
+        (medalsHtml ? '<div class="portfolio-medal-wall">' + medalsHtml + '</div>'
+          : '<div class="empty-state"><div class="empty-icon">🏆</div><p>还没有开始学习的曲目，快去练琴吧</p></div>') +
       '</div>' +
     '</div></div>';
 };

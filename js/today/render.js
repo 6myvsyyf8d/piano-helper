@@ -516,7 +516,7 @@ function totalTimerHTML() {
   for (var i = 0; i < 12; i++) {
     ticks += '<span class="today-clock-tick" style="transform:rotate(' + (i * 30) + 'deg)"></span>';
   }
-  return '<div class="total-timer today-clock">' +
+  return '<div class="today-clock">' +
     '<div class="today-clock-face">' +
       '<div class="today-clock-ticks">' + ticks + '</div>' +
       '<div class="today-clock-center">' +
@@ -524,7 +524,7 @@ function totalTimerHTML() {
         '<span class="total-timer-display" id="totalTimerDisplay">00:00</span>' +
       '</div>' +
     '</div>' +
-    '<div class="total-timer-controls today-clock-controls">' +
+    '<div class="today-clock-controls">' +
       '<button id="totalTimerStart" class="btn today-clock-btn start" title="开始">▶</button>' +
       '<button id="totalTimerPause" class="btn today-clock-btn pause" style="display:none" title="暂停">⏸</button>' +
       '<button id="totalTimerStop" class="btn today-clock-btn stop" style="display:none" title="停止">⏹</button>' +
@@ -593,26 +593,17 @@ function renderTodayPage() {
   const todayStr = Utils.today();
   const log = DB.logs().find(l => l.date === todayStr) || null;
 
-  // 使用方法入口
-  const helpBtnHTML = '<div class="today-help">' +
-    '<button onclick="Onboarding.start()" class="today-help-btn">📖 使用方法</button>' +
-  '</div>';
-
   // 本周激励 + 反馈环状图（统计区）
   const encourage = (typeof computeWeeklyEncourage === 'function') ? computeWeeklyEncourage() : { stars: 0, pieces: 0 };
   const statsHTML = '<div class="today-stats">' +
     todayEncourageHTML(encourage) +
     feedbackRateBarHTML() +
   '</div>';
-  // 侧边竖排卡片（星星卡 + 反馈环）
-  const sideHTML = '<div class="today-side">' +
-    todayEncourageHTML(encourage) +
-    feedbackRateBarHTML() +
-  '</div>';
-  // 练习模式顶部：时钟 + 侧边卡片 组合成一行
+  // 练习模式顶部：时钟 + 星星卡 + 反馈环 三个卡片一行（均分）
   const topHTML = '<div class="today-top">' +
     totalTimerHTML() +
-    sideHTML +
+    todayEncourageHTML(encourage) +
+    feedbackRateBarHTML() +
   '</div>';
 
   // 已有今日日志 → 显示已完成记录
@@ -620,7 +611,6 @@ function renderTodayPage() {
     const msStats = computeMilestoneStatsForRange('day');
     const milestonesHTML = buildMilestonesHTML(msStats.maxStars, msStats.maxDuration, msStats.streak, msStats.title, true);
     page.innerHTML = '<div class="today-bright">' +
-      helpBtnHTML +
       statsHTML +
       '<div id="sectionCompleted">' +
         renderTodayCompletedHTML(log) +
@@ -637,7 +627,6 @@ function renderTodayPage() {
           ? lessons.sort((a, b) => b.date.localeCompare(a.date))[0]
           : null;
         page.innerHTML = '<div class="today-bright">' +
-          helpBtnHTML +
           topHTML +
           '<div id="sectionPracticeForm">' +
             '<div id="todayPracticeForm">' +
@@ -666,7 +655,6 @@ function renderTodayPage() {
     : null;
 
   page.innerHTML = '<div class="today-bright">' +
-    helpBtnHTML +
     topHTML +
     '<div id="sectionPracticeForm">' +
       '<div id="todayPracticeForm">' +
