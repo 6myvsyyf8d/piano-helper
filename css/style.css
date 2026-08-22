@@ -1331,6 +1331,7 @@ body::after {
 }
 
 .modal-close {
+  position: relative;
   width: 30px;
   height: 30px;
   display: flex;
@@ -1343,6 +1344,12 @@ body::after {
   font-size: 1.15rem;
   cursor: pointer;
   transition: all 0.25s var(--ease-out);
+}
+/* 扩大触控热区到 44×44px（视觉尺寸保持 30px），符合 Apple 最小可点标准 */
+.modal-close::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
 }
 
 .modal-close:hover {
@@ -1381,6 +1388,8 @@ body::after {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  /* iOS 刘海屏安全区避让：内容顶部下移到状态栏/灵动岛之下，标题与 ✕ 不被遮挡 */
+  padding-top: var(--safe-top, 0px);
 }
 
 .modal-lesson .modal-body {
@@ -2152,6 +2161,7 @@ body::after {
 }
 
 .modal-back {
+  position: relative;
   width: 30px;
   height: 30px;
   display: flex;
@@ -2164,6 +2174,12 @@ body::after {
   font-size: 1rem;
   cursor: pointer;
   margin-right: 10px;
+}
+/* 扩大触控热区到 44×44px（视觉尺寸保持 30px） */
+.modal-back::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
 }
 .modal-back:hover { background: var(--surface-2); color: var(--text-1); }
 
@@ -2224,27 +2240,65 @@ body::after {
 }
 .sheet-pin {
   position: absolute;
-  transform: translate(-50%, -100%);
-  width: 30px;
-  height: 30px;
-  border-radius: 50% 50% 50% 0;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  background: #ff5b6b;
+  /* 图钉头（圆帽）位于落点正上方，针尖（::after）精确指向落点 */
+  --pin-tip: 42px; /* 针尖长度 = 图钉头直径 28px 的 1.5 倍 */
+  transform: translate(-50%, calc(-100% - var(--pin-tip)));
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  background: var(--pin-color, #ff5b6b);
   color: #fff;
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   pointer-events: auto;
   transition: transform 0.2s var(--ease-out);
   padding: 0;
+  z-index: 2;
 }
-.sheet-pin:hover { transform: translate(-50%, -100%) scale(1.15); }
-.sheet-pin.pin-new { background: #ff5b6b; }
-.sheet-pin.pin-working { background: #f5b800; }
-.sheet-pin.pin-resolved { background: #4caf50; }
+/* 图钉针尖：从圆帽底部向下延伸的细长三角，尖端指向落点 */
+.sheet-pin::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: var(--pin-tip) solid var(--pin-color, #ff5b6b);
+  pointer-events: none;
+}
+.sheet-pin:hover { transform: translate(-50%, calc(-100% - var(--pin-tip))) scale(1.12); }
+.sheet-pin.pin-new { --pin-color: #ff5b6b; }
+.sheet-pin.pin-working { --pin-color: #f5b800; }
+.sheet-pin.pin-resolved { --pin-color: #4caf50; }
+/* 拖拽态：放大 1.6 倍并上移 40px，让图钉头浮在手指上方，不被手指遮挡 */
+.sheet-pin.dragging {
+  transform: translate(-50%, calc(-100% - var(--pin-tip) - 40px)) scale(1.6);
+  transition: none;
+  cursor: grabbing;
+  z-index: 10;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+/* 落点箭头：拖拽时在真实落点处显示的指向标记 */
+.sheet-pin-drop-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 15px solid var(--pin-color, #ff5b6b);
+  pointer-events: none;
+  z-index: 9;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
 
 .sheet-photo-actions {
   display: flex;
@@ -2676,21 +2730,44 @@ body::after {
   font-size: 0.72rem;
 }
 
-/* 时刻②：星星飘散动画（打星时） */
-.celebrate-burst-star {
+/* 时刻②：打星动效 - 五彩纸屑 + 爱心（与评分星星区分） */
+.celebrate-confetti {
   position: fixed;
   z-index: 9999;
-  font-size: 15px;
+  width: 7px;
+  height: 11px;
+  border-radius: 2px;
   pointer-events: none;
-  animation: celebrate-burst 5s var(--ease-out) forwards;
+  animation: confetti-burst 5s var(--ease-out) forwards;
+}
+.celebrate-confetti-round {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.celebrate-heart {
+  position: fixed;
+  z-index: 9999;
+  font-size: 16px;
+  line-height: 1;
+  pointer-events: none;
+  animation: heart-burst 5s var(--ease-out) forwards;
 }
 
-@keyframes celebrate-burst {
-  0% { transform: translateY(0) scale(0.4); opacity: 0; }
+@keyframes confetti-burst {
+  0% { transform: translateY(0) rotate(0deg) scale(0.5); opacity: 0; }
   10% { opacity: 1; }
-  25% { transform: translateY(-30px) scale(1); opacity: 1; }
-  75% { transform: translateY(-36px) scale(1); opacity: 1; }
-  100% { transform: translateY(-58px) scale(0.92); opacity: 0; }
+  30% { transform: translateY(-70px) rotate(200deg) scale(1); opacity: 1; }
+  70% { transform: translateY(-100px) rotate(360deg) scale(1); opacity: 1; }
+  100% { transform: translateY(-150px) rotate(520deg) scale(0.8); opacity: 0; }
+}
+
+@keyframes heart-burst {
+  0% { transform: translateY(0) scale(0.3); opacity: 0; }
+  10% { opacity: 1; }
+  30% { transform: translateY(-34px) scale(1); opacity: 1; }
+  70% { transform: translateY(-46px) scale(1); opacity: 1; }
+  100% { transform: translateY(-80px) scale(0.9); opacity: 0; }
 }
 
 /* 时刻③：阶段升级全屏庆祝 */

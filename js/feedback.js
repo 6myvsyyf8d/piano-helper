@@ -116,18 +116,26 @@ const Feedback = {
    */
   create(payload) {
     const now = Date.now();
+    const lessonId = String(payload.lessonId || '');
+    const pieceTitle = payload.pieceTitle || '';
+    // 固定图钉编号：同 lessonId + 同 pieceTitle 内最大 + 1，创建后永不改变
+    const maxNum = this.all()
+      .filter(f => f.pieceTitle === pieceTitle && String(f.lessonId) === lessonId)
+      .reduce(function(m, f) { return Math.max(m, (f.pinNumber || 0)); }, 0);
+
     /** @type {FeedbackItem} */
     const item = {
       id: this._uuid(),
-      lessonId: String(payload.lessonId || ''),
+      lessonId: lessonId,
       markerId: payload.markerId || null,
       timestamp: typeof payload.timestamp === 'number' ? payload.timestamp : null,
-      pieceTitle: payload.pieceTitle || '',
+      pieceTitle: pieceTitle,
       book: payload.book || '',
       sheetPhotoId: payload.sheetPhotoId || null,
       photoPage: payload.photoPage || 1,
       pinX: typeof payload.pinX === 'number' ? payload.pinX : null,
       pinY: typeof payload.pinY === 'number' ? payload.pinY : null,
+      pinNumber: maxNum + 1,
       locationLabel: payload.locationLabel || '',
       category: this.CATEGORIES.some(c => c.key === payload.category) ? payload.category : 'other',
       teacherNote: payload.teacherNote || '',
@@ -145,6 +153,35 @@ const Feedback = {
     DB.saveFeedbacks(list);
     Events.emit('feedback:added', { feedbackId: item.id, pieceTitle: item.pieceTitle, lessonId: item.lessonId });
     return item;
+  },
+
+  /**
+   * 迁移：给旧 feedback 补齐固定图钉编号 pinNumber（同 lessonId + pieceTitle 内递增）
+   * 已有 pinNumber 的记录保持不变，缺失的按 createdAt 升序补号
+   * @returns {boolean} 是否有数据变更
+   */
+  migratePinNumbers() {
+    const list = this.all();
+    let changed = false;
+    const groups = {};
+    list.forEach(f => {
+      const key = String(f.lessonId || '') + '\u0000' + (f.pieceTitle || '');
+      (groups[key] = groups[key] || []).push(f);
+    });
+    Object.keys(groups).forEach(function(key) {
+      const group = groups[key];
+      let n = group.reduce(function(m, f) { return Math.max(m, (f.pinNumber || 0)); }, 0);
+      group
+        .filter(f => !f.pinNumber)
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+        .forEach(function(f) {
+          n++;
+          f.pinNumber = n;
+          changed = true;
+        });
+    });
+    if (changed) DB.saveFeedbacks(list);
+    return changed;
   },
 
   /**

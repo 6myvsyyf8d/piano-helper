@@ -172,7 +172,7 @@ const FeedbackOrganizer = {
         '<div class="modal feedback-organizer-modal">' +
           '<div class="modal-header">' +
             '<button class="modal-back" onclick="FeedbackOrganizer.close()">←</button>' +
-            '<h2 class="modal-title">🎼 曲谱整理</h2>' +
+            '<h2 class="modal-title">🎼 课堂记录</h2>' +
             '<button class="modal-close" onclick="FeedbackOrganizer.close()">✕</button>' +
           '</div>' +
           '<div class="modal-body">' +
@@ -212,7 +212,8 @@ const FeedbackOrganizer = {
       photoPage: f.photoPage || 1,
       status: f.status,
       category: f.category,
-      locationLabel: f.locationLabel
+      locationLabel: f.locationLabel,
+      pinNumber: f.pinNumber
     })));
 
     if (this._currentFeedbacks.length === 0) {
@@ -234,7 +235,7 @@ const FeedbackOrganizer = {
       return (
         '<div class="organizer-feedback-item" data-fb-id="' + f.id + '">' +
           '<div class="organizer-fb-head">' +
-            '<span class="organizer-fb-pin">📌 #' + (idx + 1) + '</span>' +
+            '<span class="organizer-fb-pin">📌 #' + (f.pinNumber || (idx + 1)) + '</span>' +
             '<span class="organizer-fb-loc">' + locLabel + '</span>' +
             '<span class="organizer-fb-cat">' + catIcon + ' ' + catLabel + '</span>' +
           '</div>' +

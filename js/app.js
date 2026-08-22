@@ -212,6 +212,8 @@ if (headerVer) headerVer.textContent = RepertoireManager.VERSION;
     // 数据 Schema 迁移（必须在 RepertoireManager.init / renderAll 之前）
     Schema.migrate();
     RepertoireManager.init();
+    // 补齐旧 feedback 的固定图钉编号 pinNumber（图钉编号持久化）
+    Feedback.migratePinNumbers();
     LogoManager.load();
     renderAll();
 

@@ -211,6 +211,15 @@ window.showSyncPanel = function() {
                 打包所有数据（课程、日志、曲库、反馈、录音、照片、语音）为一个 JSON 文件，换设备时可恢复。
               </div>
               <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
+                <span class="text-xs text-3">每节课互传（勾选课程，含照片/录音，不覆盖目标设备）：</span>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="exportCoursePackage()" style="width:100%;margin-bottom:8px">
+                📦 导出课程包（含照片/录音）
+              </button>
+              <div class="text-xs text-3 mb-12" style="line-height:1.5">
+                勾选要传的课程，导出为 JSON 文件。在另一台设备用「合并导入课程包」导入，已存在的课程自动跳过。
+              </div>
+              <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
                 <span class="text-xs text-3">仅结构化数据（不含媒体，文件更小）：</span>
               </div>
               <button class="btn btn-secondary btn-sm" onclick="exportDataAsJSON()" style="width:100%">
@@ -235,6 +244,15 @@ window.showSyncPanel = function() {
               </button>
               <div class="text-xs text-3 mb-12" style="line-height:1.5">
                 选择之前导出的完整备份 JSON 文件，恢复所有数据（含录音、照片）。
+              </div>
+              <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
+                <span class="text-xs text-3">合并导入课程包（不覆盖已有数据）：</span>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="importCoursePackage()" style="width:100%;margin-bottom:12px">
+                📤 合并导入课程包
+              </button>
+              <div class="text-xs text-3 mb-12" style="line-height:1.5">
+                选择「导出课程包」生成的 JSON 文件，只导入新课程，已存在的课程自动跳过。
               </div>
               <div style="border-top:1px dashed var(--border-2);padding-top:8px;margin-bottom:8px">
                 <span class="text-xs text-3">或粘贴迁移码 / 扫码导入：</span>
@@ -1201,6 +1219,211 @@ async function _restoreFullBackup(data) {
   } catch (e) {
     console.error('恢复完整备份失败:', e);
     Utils.showToast('❌ 恢复失败：' + (e && e.message ? e.message : e), 'error', 5000);
+  }
+}
+
+/**
+ * 导出课程包（含媒体）：勾选课程 → 关联反馈 + 关联照片/录音/语音打包成一个 JSON 文件
+ */
+window.exportCoursePackage = function() {
+  const modal = document.getElementById('modalContainer');
+  const lessons = DB.lessons().slice().sort((a, b) => b.date.localeCompare(a.date));
+  const fbs = DB.feedbacks();
+  const fbCountByLesson = {};
+  fbs.forEach(f => { const k = String(f.lessonId); fbCountByLesson[k] = (fbCountByLesson[k] || 0) + 1; });
+
+  const lessonItems = lessons.map((l, i) => {
+    const pieceNames = (l.pieces || []).map(p => p.name).join('、');
+    const fbCount = fbCountByLesson[String(l.id)] || 0;
+    const label = l.date + (pieceNames ? '：' + pieceNames.slice(0, 20) : '') + (fbCount ? '（' + fbCount + ' 条反馈）' : '');
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:0.72rem">' +
+      '<input type="checkbox" class="coursepkg-chk-lesson" data-idx="' + i + '" style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(label) + '</span></label>';
+  }).join('');
+
+  modal.innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+      '<div class="modal">' +
+        '<div class="modal-header">' +
+          '<h2 class="modal-title">📦 导出课程包</h2>' +
+          '<button class="modal-close" onclick="closeModal()">✕</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<p class="text-xs text-2 mb-8">勾选要传的课程，导出为含照片/录音/语音的 JSON 文件（不覆盖目标设备）。</p>' +
+          '<div class="form-group">' +
+            '<div style="max-height:280px;overflow-y:auto;border:1px solid var(--border-1);border-radius:8px;padding:8px 10px">' +
+              (lessonItems || '<span class="text-xs text-3">暂无课程</span>') +
+            '</div>' +
+          '</div>' +
+          '<button class="btn btn-primary" id="btnConfirmCoursePkg" style="width:100%;margin-top:8px">📦 导出所选课程</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('btnConfirmCoursePkg').addEventListener('click', function() {
+    const checked = document.querySelectorAll('.coursepkg-chk-lesson:checked');
+    const selected = Array.from(checked).map(c => lessons[parseInt(c.dataset.idx)]).filter(Boolean);
+    if (!selected.length) {
+      Utils.showToast('⚠️ 请至少勾选一节课程', 'warning');
+      return;
+    }
+    _doExportCoursePackage(selected);
+  });
+};
+
+/**
+ * 打包勾选的课程（+ 关联反馈 + 关联二进制）并保存文件
+ * @param {Array} selectedLessons
+ */
+async function _doExportCoursePackage(selectedLessons) {
+  Utils.showToast('📦 正在打包课程...', 'info', 6000);
+  try {
+    const selectedIds = new Set(selectedLessons.map(l => String(l.id)));
+    const feedbacks = DB.feedbacks().filter(f => selectedIds.has(String(f.lessonId)));
+
+    // 收集引用的二进制 id（照片/录音/语音）
+    const blobIds = new Set();
+    selectedLessons.forEach(l => {
+      (l.pieces || []).forEach(p => (p.sheetPhotoIds || []).forEach(id => { if (id) blobIds.add(id); }));
+      if (l.lessonAudioId) blobIds.add(l.lessonAudioId);
+      (l.lessonAudios || []).forEach(s => { if (s && s.id) blobIds.add(s.id); });
+    });
+    feedbacks.forEach(f => {
+      if (f.sheetPhotoId) blobIds.add(f.sheetPhotoId);
+      if (f.parentVoiceId) blobIds.add(f.parentVoiceId);
+    });
+
+    const blobs = [];
+    for (const id of blobIds) {
+      try {
+        const rec = await StorageAdapter.get(id);
+        if (!rec || !rec.blob) continue;
+        const buf = await rec.blob.arrayBuffer();
+        blobs.push({ id: rec.id, kind: rec.type || '', mime: rec.blob.type || '', data: _arrayBufferToBase64(buf) });
+      } catch (e) {
+        console.warn('导出媒体失败:', id, e);
+      }
+    }
+
+    const data = {
+      format: 'piano-course-package-v1',
+      exportDate: new Date().toISOString(),
+      version: RepertoireManager.VERSION,
+      lessons: selectedLessons,
+      feedbacks: feedbacks,
+      blobs: blobs
+    };
+    const json = JSON.stringify(data);
+    const fileBlob = new Blob([json], { type: 'application/json' });
+    const filename = 'piano-course-' + Utils.today() + '.json';
+    _saveFile(fileBlob, filename).then(function(r) {
+      closeModal();
+      Utils.showToast(r.ok
+        ? '✅ 课程包已导出（' + selectedLessons.length + ' 节，' + blobs.length + ' 个媒体）'
+        : '已取消导出', r.ok ? 'success' : 'info');
+    });
+  } catch (e) {
+    console.error('课程包导出失败:', e);
+    Utils.showToast('❌ 导出失败：' + (e && e.message ? e.message : e), 'error', 4000);
+  }
+}
+
+/**
+ * 合并导入课程包：选择 JSON 文件 → 只导入新课程（已存在跳过）
+ */
+window.importCoursePackage = function() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(input);
+  input.onchange = async function() {
+    const file = input.files && input.files[0];
+    input.remove();
+    if (!file) return;
+    try {
+      const text = await new Promise(function(resolve, reject) {
+        const r = new FileReader();
+        r.onload = function() { resolve(r.result); };
+        r.onerror = function() { reject(new Error('文件读取失败')); };
+        r.readAsText(file, 'UTF-8');
+      });
+      const data = JSON.parse(text);
+      await _mergeCoursePackage(data);
+    } catch (e) {
+      console.error('合并导入课程包失败:', e);
+      Utils.showToast('❌ 导入失败：' + (e && e.message ? e.message : e), 'error', 5000);
+    }
+  };
+  input.click();
+};
+
+/**
+ * 执行课程包合并导入（跳过已存在的课程，追加新媒体）
+ * @param {Object} data
+ */
+async function _mergeCoursePackage(data) {
+  if (!data || data.format !== 'piano-course-package-v1') {
+    Utils.showToast('❌ 这不是有效的课程包文件', 'error');
+    return;
+  }
+
+  const existingLessonIds = new Set(DB.lessons().map(l => String(l.id)));
+  const existingFbIds = new Set(DB.feedbacks().map(f => String(f.id)));
+
+  const newLessons = (data.lessons || []).filter(l => !existingLessonIds.has(String(l.id)));
+  const skippedLessons = (data.lessons || []).length - newLessons.length;
+  const newLessonIds = new Set(newLessons.map(l => String(l.id)));
+  const newFeedbacks = (data.feedbacks || []).filter(f =>
+    newLessonIds.has(String(f.lessonId)) && !existingFbIds.has(String(f.id))
+  );
+
+  if (!newLessons.length) {
+    Utils.showToast('ℹ️ 课程包内课程都已存在，无需导入（跳过 ' + skippedLessons + ' 节）', 'info');
+    return;
+  }
+
+  const msg = '确定合并导入课程包吗？\n\n' +
+    '- 新增 ' + newLessons.length + ' 节课程\n' +
+    '- 新增 ' + newFeedbacks.length + ' 条反馈\n' +
+    '- 媒体文件 ' + (data.blobs || []).length + ' 个（已存在的自动跳过）\n' +
+    (skippedLessons ? '- 跳过 ' + skippedLessons + ' 节已存在课程\n' : '') +
+    '\n已存在的课程不会被覆盖。';
+  if (!confirm(msg)) return;
+
+  Utils.showToast('📦 正在合并导入...', 'info', 6000);
+  try {
+    if (newLessons.length) {
+      const lessons = DB.lessons();
+      newLessons.forEach(l => lessons.push(l));
+      DB.saveLessons(lessons);
+    }
+    if (newFeedbacks.length) {
+      const fbs = DB.feedbacks();
+      newFeedbacks.forEach(f => fbs.push(f));
+      DB.saveFeedbacks(fbs);
+    }
+    const existingBlobIds = new Set(await StorageAdapter.list());
+    let addedBlob = 0;
+    for (const b of (data.blobs || [])) {
+      if (!b.id || !b.data) continue;
+      if (existingBlobIds.has(b.id)) continue;
+      const buf = _base64ToArrayBuffer(b.data);
+      const blob = new Blob([buf], { type: b.mime || '' });
+      try {
+        await StorageAdapter.set(b.id, blob, b.kind || '');
+        addedBlob++;
+      } catch (e) {
+        console.warn('恢复媒体失败:', b.id, e);
+      }
+    }
+
+    closeModal();
+    renderAll();
+    Utils.showToast('✅ 已合并导入 ' + newLessons.length + ' 节课程（' + addedBlob + ' 个新媒体）', 'success', 5000);
+  } catch (e) {
+    console.error('合并导入课程包失败:', e);
+    Utils.showToast('❌ 导入失败：' + (e && e.message ? e.message : e), 'error', 5000);
   }
 }
 

@@ -30,6 +30,7 @@ const SheetAnnotator = {
   _onPinMoved: null,    // 图钉拖拽移动后的回调 (pinId, pinX, pinY) => void
   _pins: [],            // PinForRender[]
   _dragState: null,     // {pinId, pinEl, pageEl, imgEl, startX, startY, startPinX, startPinY, moved}
+  _dropMarker: null,    // 拖拽期间的落点箭头元素
   _dragBound: false,    // 全局 drag 事件是否已绑定
 
   /**
@@ -180,6 +181,9 @@ const SheetAnnotator = {
     if (!imgEl) return;
     var clientX = e.touches ? e.touches[0].clientX : e.clientX;
     var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    // 拖拽态：放大上移（交给 .dragging），并在真实落点显示指向箭头
+    pinEl.classList.add('dragging');
+    this._dropMarker = this._ensureDropMarker(pinEl);
     this._dragState = {
       pinId: pinId,
       pinEl: pinEl,
@@ -191,8 +195,6 @@ const SheetAnnotator = {
       startPinY: parseFloat(pinEl.style.top) / 100,
       moved: false
     };
-    pinEl.style.cursor = 'grabbing';
-    pinEl.style.zIndex = '10';
   },
 
   /**
@@ -213,6 +215,10 @@ const SheetAnnotator = {
     newPinY = Math.max(0, Math.min(1, newPinY));
     ds.pinEl.style.left = (newPinX * 100) + '%';
     ds.pinEl.style.top = (newPinY * 100) + '%';
+    if (this._dropMarker) {
+      this._dropMarker.style.left = (newPinX * 100) + '%';
+      this._dropMarker.style.top = (newPinY * 100) + '%';
+    }
     ds.moved = true;
   },
 
@@ -222,8 +228,8 @@ const SheetAnnotator = {
   _onPinDragEnd(e) {
     if (!this._dragState) return;
     var ds = this._dragState;
-    ds.pinEl.style.cursor = 'grab';
-    ds.pinEl.style.zIndex = '';
+    ds.pinEl.classList.remove('dragging');
+    this._removeDropMarker();
     if (ds.moved) {
       var newPinX = parseFloat(ds.pinEl.style.left) / 100;
       var newPinY = parseFloat(ds.pinEl.style.top) / 100;
@@ -233,6 +239,37 @@ const SheetAnnotator = {
       this._onPinClick(ds.pinId);
     }
     this._dragState = null;
+  },
+
+  /**
+   * 在真实落点处创建指向箭头（拖拽期间图钉头上移，箭头指示精确落点）
+   * @param {HTMLElement} pinEl
+   * @returns {HTMLElement}
+   */
+  _ensureDropMarker(pinEl) {
+    var layer = pinEl.closest('.sheet-pins-layer');
+    if (!layer) return null;
+    var marker = layer.querySelector('.sheet-pin-drop-marker');
+    if (!marker) {
+      marker = document.createElement('div');
+      marker.className = 'sheet-pin-drop-marker';
+      layer.appendChild(marker);
+    }
+    var color = (getComputedStyle(pinEl).getPropertyValue('--pin-color') || '#ff5b6b').trim();
+    marker.style.setProperty('--pin-color', color);
+    marker.style.left = pinEl.style.left;
+    marker.style.top = pinEl.style.top;
+    return marker;
+  },
+
+  /**
+   * 移除落点箭头
+   */
+  _removeDropMarker() {
+    if (this._dropMarker && this._dropMarker.parentNode) {
+      this._dropMarker.parentNode.removeChild(this._dropMarker);
+    }
+    this._dropMarker = null;
   },
 
   /**
@@ -259,7 +296,7 @@ const SheetAnnotator = {
   },
 
   /**
-   * 渲染图钉层（按 photoPage 分到各页）
+   * 渲染图钉层（按 photoPage 分到各页；编号用固定 pinNumber，不再按页动态重算）
    */
   _renderPins() {
     var layers = document.querySelectorAll('#sheetPhotosContainer .sheet-pins-layer');
@@ -275,29 +312,25 @@ const SheetAnnotator = {
       if (!pinsByPage[page]) pinsByPage[page] = [];
       pinsByPage[page].push(p);
     });
-    // 全局序号：按页码从小到大累加
-    var globalIdx = 0;
     layers.forEach(function(layer) {
       var pageIdx = parseInt(layer.getAttribute('data-page'), 10);
       var pageNum = pageIdx + 1; // 1-based
       var pagePins = pinsByPage[pageNum] || [];
       if (pagePins.length === 0) return;
       layer.innerHTML = pagePins.map(function(p) {
-        globalIdx++;
+        var num = p.pinNumber || 0;
         var cat = Feedback.CATEGORIES.find(function(c) { return c.key === p.category; });
         var icon = cat ? cat.icon : '📌';
         var pinResolved = (p.status === 'resolved');
-        var bg = pinResolved ? '#4caf7d' : '#5E6AD2';
-        var tip = p.locationLabel ? Utils.escape(p.locationLabel) : ('#' + globalIdx);
+        var cls = pinResolved ? 'pin-resolved' : 'pin-new';
+        var tip = p.locationLabel ? Utils.escape(p.locationLabel) : ('#' + num);
         return (
-          '<button type="button" class="sheet-pin"' +
+          '<button type="button" class="sheet-pin ' + cls + '"' +
           ' data-pin-id="' + Utils.escape(p.id) + '"' +
           ' onmousedown="SheetAnnotator._onPinDragStart(event)"' +
           ' ontouchstart="SheetAnnotator._onPinDragStart(event)"' +
-          ' style="position:absolute;left:' + (p.pinX * 100) + '%;top:' + (p.pinY * 100) + '%;transform:translate(-50%,-50%);' +
-          'width:26px;height:26px;border-radius:50%;background:' + bg + ';border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);' +
-          'display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700;cursor:grab"' +
-          ' title="' + tip + '">' + globalIdx + '</button>'
+          ' style="left:' + (p.pinX * 100) + '%;top:' + (p.pinY * 100) + '%;"' +
+          ' title="' + tip + '">' + num + '</button>'
         );
       }).join('');
     });
@@ -518,6 +551,7 @@ const SheetAnnotator = {
     this._photos = [];
     this._pins = [];
     this._dragState = null;
+    this._dropMarker = null;
     this._dragBound = false;
     this._onPlacePin = null;
     this._onPinClick = null;

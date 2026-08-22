@@ -82,25 +82,7 @@ const LessonMarkers = {
    * @returns {string}
    */
   render() {
-    const isEdit = this._lessonId !== null;
-
-    // 编辑模式：显示已有录音信息（只读）
-    if (isEdit) {
-      var audioInfo = this._segments.length
-        ? '✅ 课堂录音 ' + this._formatTime(this._audioDurationSec) + (this._segments.length > 1 ? '（' + this._segments.length + ' 段）' : '')
-        : '无课堂录音';
-      return `
-        <div class="form-group lesson-markers-group">
-          <label class="form-label">⏱ 课堂标记</label>
-          <div class="marker-tap-area">
-            <div class="marker-tap-timer">${audioInfo}</div>
-            <div class="marker-tap-hint">在下方每首曲子卡片内查看标记</div>
-          </div>
-        </div>
-      `;
-    }
-
-    // 新增模式：录音控制（移除"已上课"计时器，仅保留录音时长更有参考价值）
+    // 新增和编辑模式都支持录音（保存=暂存，编辑时可继续追加录音段）
     return `
       <div class="form-group lesson-markers-group">
         <label class="form-label">⏱ 课堂标记</label>
@@ -221,8 +203,6 @@ const LessonMarkers = {
    * 开始背景录音（支持多段：每段在课程时间轴上有独立 startSec）
    */
   async startRecording() {
-    if (this._lessonId !== null) return; // 编辑模式禁用
-
     // 首次录音前知情确认（隐私说明，只弹一次）
     if (typeof window.ensureRecordingConsent === 'function' && !window.ensureRecordingConsent()) return;
 
@@ -511,6 +491,8 @@ const LessonMarkers = {
     if (this._isRecording && this._recordingStartTs) {
       return this._segmentStartSec + Math.floor((Date.now() - this._recordingStartTs) / 1000);
     }
+    // 编辑模式：从已有录音末尾继续（保存=暂存，可继续追加录音段）
+    if (this._lessonId !== null) return this._audioDurationSec;
     if (!this._startTime) return 0;
     return Math.floor((Date.now() - this._startTime) / 1000);
   },

@@ -35,22 +35,39 @@ function stageLadderHTML(stageKey, lightCount) {
    ------------------------------------------ */
 
 /**
- * 在锚点元素上方蹦出几颗小星星
+ * 在锚点元素上方蹦出五彩纸屑 + 爱心（打星评分后，与评分星星区分）
  * @param {Element} anchor 锚点元素
  * @returns {void}
  */
 function burstStars(anchor) {
   if (!anchor) return;
   var rect = anchor.getBoundingClientRect();
-  for (var i = 0; i < 3; i++) {
-    var star = document.createElement('span');
-    star.textContent = '⭐';
-    star.className = 'celebrate-burst-star';
-    star.style.left = (rect.left + rect.width / 2 - 10 + (i - 1) * 18) + 'px';
-    star.style.top = (rect.top - 8) + 'px';
-    star.style.animationDelay = (i * 60) + 'ms';
-    document.body.appendChild(star);
-    setTimeout(function(el) { return function() { el.remove(); }; }(star), 5200);
+  var cx = rect.left + rect.width / 2;
+  var cy = rect.top;
+
+  // 五彩纸屑：10 片彩色纸片，随机颜色/位置/延迟，向上喷出旋转飘落
+  var colors = ['#FF6B9D', '#FFD93D', '#6BCB77', '#4D96FF', '#FF9F45', '#C780FA', '#F473B9', '#5EEAD4'];
+  for (var i = 0; i < 10; i++) {
+    var c = document.createElement('span');
+    c.className = 'celebrate-confetti' + (i % 3 === 0 ? ' celebrate-confetti-round' : '');
+    c.style.left = (cx + (Math.random() * 70 - 35)) + 'px';
+    c.style.top = (cy - 6 + (Math.random() * 10 - 5)) + 'px';
+    c.style.background = colors[i % colors.length];
+    c.style.animationDelay = (Math.random() * 220) + 'ms';
+    document.body.appendChild(c);
+    setTimeout(function(el) { return function() { el.remove(); }; }(c), 5200);
+  }
+
+  // 爱心：2 颗上升
+  for (var j = 0; j < 2; j++) {
+    var h = document.createElement('span');
+    h.textContent = '❤️';
+    h.className = 'celebrate-heart';
+    h.style.left = (cx + (j === 0 ? -16 : 12)) + 'px';
+    h.style.top = (cy - 8) + 'px';
+    h.style.animationDelay = (j * 90) + 'ms';
+    document.body.appendChild(h);
+    setTimeout(function(el) { return function() { el.remove(); }; }(h), 5200);
   }
 }
 
