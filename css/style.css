@@ -2127,6 +2127,8 @@ body::after {
   max-width: 880px;
   max-height: 92vh;
   max-height: 92dvh;
+  /* iOS 刘海屏安全区避让：标题与 ✕ 不被状态栏/灵动岛遮挡 */
+  padding-top: var(--safe-top, 0px);
 }
 
 .modal-back {

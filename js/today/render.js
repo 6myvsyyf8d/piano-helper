@@ -796,21 +796,38 @@ function _refreshFeedbackRowUI(feedbackId, updated) {
 }
 
 /**
- * 收集课程数据里挂在曲目上的曲谱照片 ID（方案A：照片可独立于图钉存在）
+ * 找到包含指定曲目的最近一课（按日期降序）
+ * @param {string} pieceName 曲子名称
+ * @returns {object|null} 最近一课 lesson 对象
+ */
+function findLatestLessonForPiece(pieceName) {
+  var lessons = (DB.lessons() || []).filter(function(l) {
+    return (l.pieces || []).some(function(p) { return p.name === pieceName; });
+  });
+  if (!lessons.length) return null;
+  lessons.sort(function(a, b) {
+    return (b.date || '').localeCompare(a.date || '');
+  });
+  return lessons[0];
+}
+
+/**
+ * 收集最近一课中某曲目的曲谱照片 ID（去重）
+ * 不再合并所有课程的照片，避免同步后出现重复曲谱
  * @param {string} pieceName 曲子名称
  * @returns {string[]} 去重后的 blob id 列表
  */
 function collectLessonPiecePhotoIds(pieceName) {
+  var lesson = findLatestLessonForPiece(pieceName);
+  if (!lesson) return [];
   var seen = {};
   var ids = [];
-  (DB.lessons() || []).forEach(function(l) {
-    (l.pieces || []).forEach(function(p) {
-      if (p.name === pieceName && Array.isArray(p.sheetPhotoIds)) {
-        p.sheetPhotoIds.forEach(function(id) {
-          if (id && !seen[id]) { seen[id] = 1; ids.push(id); }
-        });
-      }
-    });
+  (lesson.pieces || []).forEach(function(p) {
+    if (p.name === pieceName && Array.isArray(p.sheetPhotoIds)) {
+      p.sheetPhotoIds.forEach(function(id) {
+        if (id && !seen[id]) { seen[id] = 1; ids.push(id); }
+      });
+    }
   });
   return ids;
 }
@@ -820,7 +837,12 @@ function collectLessonPiecePhotoIds(pieceName) {
  * @param {string} pieceName 曲子名称
  */
 window.viewSheetPhoto = async function(pieceName) {
-  var feedbacks = Feedback.byPiece(pieceName);
+  // 只显示最近一课的图钉/录音/照片，不合并所有课程
+  var latestLesson = findLatestLessonForPiece(pieceName);
+  var latestLessonId = latestLesson ? String(latestLesson.id) : null;
+  var feedbacks = Feedback.byPiece(pieceName).filter(function(f) {
+    return latestLessonId && String(f.lessonId) === latestLessonId;
+  });
 
   // 收集所有唯一的照片 ID（去重，保持首次出现顺序）
   // 来源：课程曲目上挂的照片（方案A）+ 图钉反馈引用的照片（旧数据兼容）
@@ -944,9 +966,13 @@ window.viewSheetPhoto = async function(pieceName) {
     var fbId = pinEl.getAttribute('data-fb-id');
     var f = Feedback.find(fbId);
     if (!f) return;
-    // 更新 context 中的 feedback（状态可能变了）
+    // 更新 context 中的 feedback（状态可能变了）— 只取最近一课
     var ctx = window._sheetViewerContext;
-    ctx.feedbacks = Feedback.byPiece(ctx.pieceName);
+    var latestLesson = findLatestLessonForPiece(ctx.pieceName);
+    var latestLessonId = latestLesson ? String(latestLesson.id) : null;
+    ctx.feedbacks = Feedback.byPiece(ctx.pieceName).filter(function(f) {
+      return latestLessonId && String(f.lessonId) === latestLessonId;
+    });
 
     var s = statusMap[f.status] || statusMap['new'];
     var cat = Feedback.categoryInfo(f.category);
