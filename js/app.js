@@ -93,11 +93,6 @@ function initScrollEffects() {
    ========================================== */
 function renderAll() {
   // 先更新轻量级 UI（同步，用户立即可见）
-  const streak = StreakManager.calculate();
-  const streakEl = document.getElementById('streakCount');
-  if (streakEl) {
-    streakEl.textContent = streak;
-  }
   updateSyncButtonState();
 
   // 重页面分批渲染（requestAnimationFrame 让出主线程，避免一次性阻塞）

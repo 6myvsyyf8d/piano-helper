@@ -278,6 +278,9 @@ window.showSyncPanel = function() {
 
           <div>
             <h3 class="font-bold mb-8" style="color:var(--accent-red)">⚠️ 危险操作</h3>
+            <button class="btn btn-secondary btn-sm" onclick="showStorageManager()" style="width:100%;margin-bottom:8px">
+              🗂️ 存储管理（清理）
+            </button>
             <button class="btn btn-danger btn-sm" onclick="clearAllData()" style="width:100%">
               🗑 清空所有数据
             </button>
@@ -1426,5 +1429,207 @@ async function _mergeCoursePackage(data) {
     Utils.showToast('❌ 导入失败：' + (e && e.message ? e.message : e), 'error', 5000);
   }
 }
+
+/**
+ * 收集所有被课程/反馈引用的 blob id（照片/录音/语音）
+ * @returns {Set<string>}
+ */
+function _collectReferencedBlobIds() {
+  const referenced = new Set();
+  DB.lessons().forEach(l => {
+    if (l.lessonAudioId) referenced.add(l.lessonAudioId);
+    (l.lessonAudios || []).forEach(s => { if (s && s.id) referenced.add(s.id); });
+    (l.pieces || []).forEach(p => (p.sheetPhotoIds || []).forEach(id => { if (id) referenced.add(id); }));
+  });
+  DB.feedbacks().forEach(f => {
+    if (f.sheetPhotoId) referenced.add(f.sheetPhotoId);
+    if (f.parentVoiceId) referenced.add(f.parentVoiceId);
+  });
+  return referenced;
+}
+
+/**
+ * 清理孤儿 blob（不被任何课程/反馈引用的照片/录音/语音）
+ * @returns {Promise<number>} 删除数量
+ */
+async function _cleanupOrphanBlobs() {
+  const referenced = _collectReferencedBlobIds();
+  const allIds = await StorageAdapter.list();
+  let removed = 0;
+  for (const id of allIds) {
+    if (!referenced.has(id)) {
+      try { await StorageAdapter.remove(id); removed++; } catch (e) { /* ignore */ }
+    }
+  }
+  return removed;
+}
+
+/**
+ * 孤儿文件类型的中文标签
+ */
+const ORPHAN_TYPE_LABELS = {
+  'sheet_photo': { icon: '📷', label: '曲谱照片' },
+  'parent_voice': { icon: '🎤', label: '家长语音' },
+  'lesson_recording': { icon: '🎙', label: '课堂录音' }
+};
+
+function _orphanTypeInfo(type) {
+  return ORPHAN_TYPE_LABELS[type] || { icon: '📁', label: '其他文件' };
+}
+
+function _formatBytes(bytes) {
+  bytes = bytes || 0;
+  if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return bytes + ' B';
+}
+
+/**
+ * 列出所有孤儿 blob（不被任何课程/反馈引用）
+ * @returns {Promise<Array<{id:string,type:string,bytes:number}>>}
+ */
+async function _listOrphanBlobs() {
+  const referenced = _collectReferencedBlobIds();
+  const allIds = await StorageAdapter.list();
+  const orphans = [];
+  for (const id of allIds) {
+    if (referenced.has(id)) continue;
+    try {
+      const rec = await StorageAdapter.get(id);
+      if (rec) {
+        const bytes = (rec.blob && rec.blob.size) ? rec.blob.size : 0;
+        orphans.push({ id: id, type: rec.type || 'other', bytes: bytes });
+      }
+    } catch (e) { /* ignore */ }
+  }
+  return orphans;
+}
+
+/**
+ * 弹出孤儿文件清单，确认后删除
+ * @param {Array} orphans
+ */
+function _showOrphanConfirmDialog(orphans) {
+  const totalBytes = orphans.reduce(function(s, o) { return s + o.bytes; }, 0);
+  const rows = orphans.map(function(o) {
+    const info = _orphanTypeInfo(o.type);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border-2);font-size:0.72rem">' +
+      '<span>' + info.icon + '</span>' +
+      '<span style="color:var(--text-2)">' + info.label + '</span>' +
+      '<span style="flex:1"></span>' +
+      '<span style="color:var(--text-3)">' + _formatBytes(o.bytes) + '</span>' +
+    '</div>';
+  }).join('');
+
+  const modal = document.getElementById('modalContainer');
+  modal.innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+      '<div class="modal" style="max-width:400px">' +
+        '<div class="modal-header"><h2 class="modal-title">🧹 清理孤儿文件</h2><button class="modal-close" onclick="closeModal()">✕</button></div>' +
+        '<div class="modal-body">' +
+          '<div class="text-xs text-2 mb-8">以下 ' + orphans.length + ' 个文件不再被任何课程/反馈引用，共 ' + _formatBytes(totalBytes) + '：</div>' +
+          '<div style="max-height:260px;overflow-y:auto;margin-bottom:12px">' + rows + '</div>' +
+          '<button class="btn btn-danger" id="btnConfirmOrphanDelete" style="width:100%">🗑 删除这 ' + orphans.length + ' 个文件</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('btnConfirmOrphanDelete').addEventListener('click', async function() {
+    const removed = await _cleanupOrphanBlobs();
+    Utils.showToast('✅ 已清理 ' + removed + ' 个孤儿文件', 'success');
+    closeModal();
+    showStorageManager();
+  });
+}
+
+/**
+ * 存储管理面板：用量概览 + 孤儿清理 + 按课程勾选删除
+ */
+window.showStorageManager = function() {
+  const modal = document.getElementById('modalContainer');
+  const lessons = DB.lessons().slice().sort((a, b) => b.date.localeCompare(a.date));
+
+  const lessonItems = lessons.map(l => {
+    const pieceNames = (l.pieces || []).map(p => p.name).join('、');
+    const fbCount = Feedback.byLesson(l.id).length;
+    const label = l.date + (pieceNames ? '：' + pieceNames.slice(0, 18) : '') + (fbCount ? '（' + fbCount + ' 反馈）' : '');
+    return '<label style="display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;font-size:0.72rem;border-bottom:1px solid var(--border-2)">' +
+      '<input type="checkbox" class="storage-chk-lesson" data-id="' + Utils.escape(l.id) + '" style="width:14px;height:14px">' +
+      '<span>' + Utils.escape(label) + '</span></label>';
+  }).join('');
+
+  modal.innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+      '<div class="modal">' +
+        '<div class="modal-header"><h2 class="modal-title">🗂️ 存储管理</h2><button class="modal-close" onclick="closeModal()">✕</button></div>' +
+        '<div class="modal-body">' +
+          '<div class="form-group">' +
+            '<label class="form-label">📊 存储用量</label>' +
+            '<div id="storageUsageBox" style="font-size:0.78rem;color:var(--text-2);line-height:1.8">' +
+              '<span class="text-xs text-3">加载中…</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<button class="btn btn-secondary btn-sm" id="btnCleanupOrphans" style="width:100%">🧹 清理孤儿文件</button>' +
+            '<div class="text-xs text-3 mt-4" style="line-height:1.5">删除不再被任何课程或反馈引用的照片、录音、语音文件。</div>' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label class="form-label">📚 按课程清理（勾选删除，含录音/照片/图钉）</label>' +
+            '<div style="max-height:220px;overflow-y:auto;border:1px solid var(--border-1);border-radius:8px;padding:6px 10px">' +
+              (lessonItems || '<span class="text-xs text-3">暂无课程</span>') +
+            '</div>' +
+            '<button class="btn btn-danger btn-sm" id="btnDeleteSelectedLessons" style="width:100%;margin-top:8px">🗑 删除所选课程</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  // 异步加载用量（分类统计）
+  StorageAdapter.usageByType().then(function(u) {
+    const box = document.getElementById('storageUsageBox');
+    if (!box) return;
+    const mb = function(bytes) { return ((bytes || 0) / 1024 / 1024).toFixed(2) + ' MB'; };
+    const t = u.byType || {};
+    const photo = t['sheet_photo'] || { count: 0, bytes: 0 };
+    const voice = t['parent_voice'] || { count: 0, bytes: 0 };
+    const rec = t['lesson_recording'] || { count: 0, bytes: 0 };
+    box.innerHTML =
+      '<div>总计：<strong>' + mb(u.totalBytes) + '</strong></div>' +
+      '<div>📷 曲谱照片：' + photo.count + ' 个 · ' + mb(photo.bytes) + '</div>' +
+      '<div>🎤 家长语音：' + voice.count + ' 个 · ' + mb(voice.bytes) + '</div>' +
+      '<div>🎙 课堂录音：' + rec.count + ' 个 · ' + mb(rec.bytes) + '</div>';
+  }).catch(function() {
+    const box = document.getElementById('storageUsageBox');
+    if (box) box.textContent = '用量统计失败';
+  });
+
+  document.getElementById('btnCleanupOrphans').addEventListener('click', async function() {
+    const orphans = await _listOrphanBlobs();
+    if (!orphans.length) {
+      Utils.showToast('✅ 没有孤儿文件，无需清理', 'info');
+      return;
+    }
+    _showOrphanConfirmDialog(orphans);
+  });
+
+  document.getElementById('btnDeleteSelectedLessons').addEventListener('click', async function() {
+    const checked = document.querySelectorAll('.storage-chk-lesson:checked');
+    const ids = Array.from(checked).map(c => c.dataset.id);
+    if (!ids.length) {
+      Utils.showToast('⚠️ 请先勾选要删除的课程', 'warning');
+      return;
+    }
+    if (!confirm('确定删除所选 ' + ids.length + ' 节课程吗？\n\n将同时删除关联的课堂录音、曲谱照片、家长语音和图钉反馈。\n此操作不可恢复！')) return;
+    const lessonsNow = DB.lessons();
+    const toDelete = lessonsNow.filter(l => ids.indexOf(l.id) >= 0);
+    DB.saveLessons(lessonsNow.filter(l => ids.indexOf(l.id) < 0));
+    for (const l of toDelete) {
+      await cleanupLessonMedia(l);
+    }
+    closeModal();
+    renderAll();
+    Utils.showToast('✅ 已删除 ' + toDelete.length + ' 节课程', 'success');
+  });
+};
 
 console.log('✅ Lessons, Calendar, Repertoire modules loaded');

@@ -195,6 +195,29 @@ const StorageAdapter = {
         }
         return { count: (records || []).length, bytes };
       });
+  },
+
+  /**
+   * 按类型标签分类统计存储用量（照片/录音/语音）
+   * @returns {Promise<{totalBytes:number, byType:Object<string,{count:number,bytes:number}>}>}
+   */
+  usageByType() {
+    return this._tx(this.STORE_BLOBS, 'readonly', store => store.getAll())
+      .then(records => {
+        const byType = {};
+        let totalBytes = 0;
+        for (const r of records || []) {
+          let bytes = 0;
+          if (r.blob && r.blob.size) bytes = r.blob.size;
+          else if (r.data && r.data.byteLength) bytes = r.data.byteLength;
+          const type = r.type || 'other';
+          if (!byType[type]) byType[type] = { count: 0, bytes: 0 };
+          byType[type].count++;
+          byType[type].bytes += bytes;
+          totalBytes += bytes;
+        }
+        return { totalBytes, byType };
+      });
   }
 };
 
