@@ -98,6 +98,13 @@ const FeedbackOrganizer = {
         // - 已保存课程直接写回课程数据（与图钉"全程立即保存"一致）
         self._sessionPiecePhotos[self._pieceTitle] = (blobIds || []).slice();
         self._persistLessonPhotos(blobIds || []);
+        // 清理引用已删除照片的图钉：防止照片删除后仍从 feedback.sheetPhotoId 复活
+        var validIds = new Set((blobIds || []).filter(Boolean));
+        self._currentFeedbacks.forEach(function(f) {
+          if (f.sheetPhotoId && !validIds.has(f.sheetPhotoId)) {
+            Feedback.update(f.id, { sheetPhotoId: null });
+          }
+        });
         self._refreshFeedbackList();
       });
       SheetAnnotator.onPinMoved(function(pinId, pinX, pinY) {
@@ -695,15 +702,43 @@ const FeedbackOrganizer = {
       try { await StorageAdapter.remove(f.parentVoiceId); } catch (e) {}
     }
     Feedback.remove(feedbackId);
-    // 如果这条是照片的 owner，检查是否还有其他 feedback 用同一照片，
-    // 以及照片是否仍挂在课程曲目/会话列表上（方案A：照片独立于图钉存在）
+
+    // 标记关联 marker 为已整理（reviewed=true），防止 saveLesson 的自动生成逻辑
+    // 在下一次保存课程时把这条已删除的图钉重新创建出来
+    if (f.markerId && this._lessonId) {
+      const lessons = DB.lessons();
+      const li = lessons.findIndex(l => String(l.id) === String(this._lessonId));
+      if (li >= 0) {
+        const marker = (lessons[li].audioMarkers || []).find(m => m.id === f.markerId);
+        if (marker && !marker.reviewed) {
+          marker.reviewed = true;
+          DB.saveLessons(lessons);
+        }
+      }
+    }
+
+    // 照片清理：删除图钉后，如果该照片不再被任何 feedback / 会话引用，
+    // 则从课程曲目的 sheetPhotoIds 中移除该引用（否则照片会残留并在重新打开时复活）
     if (f.sheetPhotoId) {
       const otherFbs = Feedback.all().filter(x => x.sheetPhotoId === f.sheetPhotoId && x.id !== feedbackId);
       const anchoredInSession = (this._sessionPiecePhotos[this._pieceTitle] || []).indexOf(f.sheetPhotoId) >= 0;
-      const anchoredInLessons = DB.lessons().some(l =>
+      if (otherFbs.length === 0 && !anchoredInSession) {
+        const lessons = DB.lessons();
+        let changed = false;
+        lessons.forEach(l => {
+          (l.pieces || []).forEach(p => {
+            const ids = p.sheetPhotoIds || [];
+            const idx = ids.indexOf(f.sheetPhotoId);
+            if (idx >= 0) { ids.splice(idx, 1); changed = true; }
+          });
+        });
+        if (changed) DB.saveLessons(lessons);
+      }
+      // 全部清理后再判断是否还挂在任何课程/会话上，若无则删除 blob
+      const stillAnchored = DB.lessons().some(l =>
         (l.pieces || []).some(p => (p.sheetPhotoIds || []).indexOf(f.sheetPhotoId) >= 0)
       );
-      if (otherFbs.length === 0 && !anchoredInSession && !anchoredInLessons) {
+      if (otherFbs.length === 0 && !anchoredInSession && !stillAnchored) {
         try { await StorageAdapter.remove(f.sheetPhotoId); } catch (e) {}
       }
     }
