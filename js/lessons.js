@@ -9,8 +9,84 @@
 "use strict";
 
 /* ------------------------------------------
-   课程列表渲染
+   课程列表渲染（按月折叠分组）
    ------------------------------------------ */
+
+/** 折叠状态持久化的 localStorage key */
+const LESSON_COLLAPSE_KEY = 'piano_lesson_month_collapsed';
+
+/**
+ * 读取用户手动折叠过的月份集合
+ * @returns {Set<string>} 已折叠的月份 key（YYYY-MM）
+ */
+function loadLessonCollapsedState() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LESSON_COLLAPSE_KEY) || '[]');
+    return new Set(Array.isArray(raw) ? raw : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+/**
+ * 折叠/展开某个月份分组
+ * @param {string} monthKey 月份 key（YYYY-MM）
+ * @returns {void}
+ */
+window.toggleLessonMonth = function(monthKey) {
+  const group = document.querySelector('.lesson-month-group[data-month="' + monthKey + '"]');
+  if (!group) return;
+  const nowCollapsed = group.classList.toggle('collapsed');
+
+  // 持久化：记录用户手动折叠的月份
+  const set = loadLessonCollapsedState();
+  if (nowCollapsed) set.add(monthKey); else set.delete(monthKey);
+  try { localStorage.setItem(LESSON_COLLAPSE_KEY, JSON.stringify([...set])); } catch (e) { /* ignore */ }
+};
+
+/**
+ * 日期字符串 → 星期标签（如「周六」）
+ * @param {string} dateStr YYYY-MM-DD
+ * @returns {string}
+ */
+function weekdayLabel(dateStr) {
+  const wd = ['日', '一', '二', '三', '四', '五', '六'];
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return '周' + wd[d.getDay()];
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
+ * 渲染单节课的紧凑摘要卡
+ * @param {Lesson} lesson 课程对象
+ * @returns {string} HTML
+ */
+function renderLessonMiniCard(lesson) {
+  const pieceNames = (lesson.pieces || []).map(p => p && p.name).filter(Boolean);
+  const chips = pieceNames.slice(0, 4).map(name =>
+    `<span class="lesson-mini-chip">${Utils.escape(name)}</span>`
+  ).join('');
+  const more = pieceNames.length > 4
+    ? `<span class="lesson-mini-chip lesson-mini-chip-more">+${pieceNames.length - 4}</span>`
+    : '';
+  const note = lesson.notes
+    ? `<div class="lesson-mini-note">💬 ${Utils.escape(lesson.notes).slice(0, 60)}${lesson.notes.length > 60 ? '…' : ''}</div>`
+    : '';
+  return `
+    <div class="lesson-mini-card" onclick="showLessonForm('${lesson.id}')" role="button" aria-label="编辑 ${Utils.formatDate(lesson.date)} 的课程">
+      <div class="lesson-mini-top">
+        <span class="lesson-mini-date">${Utils.formatDate(lesson.date)}<span class="lesson-mini-weekday"> ${weekdayLabel(lesson.date)}</span></span>
+        <span class="badge lesson-mini-count">${lesson.pieces.length} 首</span>
+      </div>
+      ${pieceNames.length ? `<div class="lesson-mini-pieces">🎵 ${chips}${more}</div>` : ''}
+      ${note}
+    </div>
+  `;
+}
+
 function renderLessons() {
   const page = document.getElementById('page-lessons');
   if (!page) return;
@@ -33,30 +109,38 @@ function renderLessons() {
     return;
   }
 
-  const lessonsHtml = lessons.map(lesson => {
-    const pieceNames = lesson.pieces.map(p => p.name).join('、');
-    const focusTags = lesson.focusAreas && lesson.focusAreas.length
-      ? lesson.focusAreas.map(tag => `<span class="badge badge-info">${Utils.escape(tag)}</span>`).join('')
-      : '';
+  // 按月份分组（YYYY-MM），降序排列
+  const monthGroups = [];
+  lessons.forEach(lesson => {
+    const key = lesson.date.slice(0, 7);
+    let group = monthGroups.find(g => g.key === key);
+    if (!group) {
+      group = { key, lessons: [] };
+      monthGroups.push(group);
+    }
+    group.lessons.push(lesson);
+  });
+
+  // 折叠状态：默认最近一个月展开、其余收起；用户手动折叠过的月份以持久化状态为准
+  const collapsed = loadLessonCollapsedState();
+
+  const groupsHtml = monthGroups.map((group, gi) => {
+    const [year, month] = group.key.split('-');
+    const monthLabel = `${year}年${parseInt(month, 10)}月`;
+    const isCollapsed = gi === 0 ? collapsed.has(group.key) : !collapsed.has(group.key);
+    const cardsHtml = group.lessons.map(renderLessonMiniCard).join('');
     return `
-      <div class="card card-highlight" onclick="showLessonForm('${lesson.id}')" style="cursor:pointer">
-        <div class="flex-between mb-8">
-          <span class="font-bold">📅 ${Utils.formatDate(lesson.date)}</span>
-          <span class="text-xs text-3">${lesson.pieces.length} 首曲目</span>
+      <div class="lesson-month-group${isCollapsed ? ' collapsed' : ''}" data-month="${group.key}">
+        <button type="button" class="lesson-month-header" onclick="toggleLessonMonth('${group.key}')" aria-expanded="${!isCollapsed}">
+          <span class="lesson-month-label">📅 ${monthLabel}</span>
+          <span class="lesson-month-meta">
+            <span class="lesson-month-count">${group.lessons.length} 次课</span>
+            <span class="lesson-month-chevron">▾</span>
+          </span>
+        </button>
+        <div class="lesson-month-body">
+          ${cardsHtml}
         </div>
-        <div class="text-sm text-2 mb-8">
-          🎵 ${Utils.escape(pieceNames)}
-        </div>
-        ${focusTags ? `
-          <div class="tag-row mb-8">
-            ${focusTags}
-          </div>
-        ` : ''}
-        ${lesson.notes ? `
-          <div class="text-xs text-3" style="line-height:1.5;margin-top:8px">
-            💬 ${Utils.escape(lesson.notes).slice(0, 80)}${lesson.notes.length > 80 ? '...' : ''}
-          </div>
-        ` : ''}
       </div>
     `;
   }).join('');
@@ -68,7 +152,7 @@ function renderLessons() {
         ➕ 新课程
       </button>
     </div>
-    ${lessonsHtml}
+    ${groupsHtml}
   `;
 }
 
@@ -244,9 +328,7 @@ function renderBookCard(bookNum, bookPieces) {
   const displayName = RepertoireManager.getBookDisplayName(bookNum);
 
   // 灰色样式（已删除册）
-  const cardStyle = isDeleted
-    ? 'background:rgba(255,107,107,0.05);border-left:3px solid var(--accent-red);opacity:0.7'
-    : 'background:rgba(255,255,255,0.03);border-left:3px solid var(--accent-primary)';
+  const cardClass = 'lesson-book-card mb-12' + (isDeleted ? ' lesson-book-card-deleted' : '');
 
   // 该册下的所有曲目卡片
   const piecesHtml = bookPieces.map((piece, idx) =>
@@ -255,24 +337,24 @@ function renderBookCard(bookNum, bookPieces) {
 
   // 已删除册的提示
   const deletedBadge = isDeleted
-    ? '<span class="text-xs" style="color:var(--accent-red);margin-left:6px">⚠️ 此册已从曲库移除</span>'
+    ? '<span class="lesson-book-deleted-badge">⚠️ 此册已从曲库移除</span>'
     : '';
 
   // 书名显示：自定义册用可编辑输入框，曲库册用纯文本
   const titleHtml = isCustom
-    ? '<input type="text" class="form-input custom-book-title" data-book="' + bookNum + '" value="' + Utils.escape(displayName) + '" placeholder="例如：拜厄钢琴基本教程" style="padding:6px 10px;font-size:0.9rem;background:rgba(255,255,255,0.06);border:1px solid var(--border-1)">'
-    : '<span class="font-bold text-sm">📖 ' + Utils.escape(displayName) + deletedBadge + '</span>';
+    ? '<input type="text" class="form-input custom-book-title" data-book="' + bookNum + '" value="' + Utils.escape(displayName) + '" placeholder="例如：拜厄钢琴基本教程">'
+    : '<span class="lesson-book-title">📖 ' + Utils.escape(displayName) + deletedBadge + '</span>';
 
   // 添加曲目按钮（已删除册不允许加新曲目）
   const addPieceBtn = isDeleted
     ? ''
-    : '<button type="button" class="btn btn-sm btn-secondary" onclick="addLessonPiece(' + bookNum + ')" style="font-size:0.7rem;padding:4px 10px;width:100%;margin-top:6px">＋ 添加这册的曲目</button>';
+    : '<button type="button" class="btn btn-sm btn-secondary lesson-book-add-piece" onclick="addLessonPiece(' + bookNum + ')">＋ 添加这册的曲目</button>';
 
   return `
-    <div class="lesson-book-card mb-12" data-book-num="${bookNum}" style="${cardStyle};padding:12px;border-radius:8px">
-      <div class="flex-between mb-8">
-        <span style="flex:1;min-width:0">${titleHtml}</span>
-        <button type="button" class="btn btn-sm btn-danger" onclick="removeLessonBookCard(${bookNum})" style="font-size:0.65rem;padding:3px 8px" title="移除整张卡片">✕</button>
+    <div class="${cardClass}" data-book-num="${bookNum}">
+      <div class="lesson-book-header">
+        <span class="lesson-book-title-wrap">${titleHtml}</span>
+        <button type="button" class="btn btn-sm btn-danger" onclick="removeLessonBookCard(${bookNum})" title="移除整张卡片">✕</button>
       </div>
       <div class="lesson-book-pieces" data-book-pieces="${bookNum}">
         ${piecesHtml || '<p class="text-xs text-3 text-center p-8">点击下方按钮添加曲目</p>'}
@@ -283,7 +365,7 @@ function renderBookCard(bookNum, bookPieces) {
 }
 
 /**
- * 渲染单首曲目的 HTML（册卡片内）
+ * 渲染单首曲目的 HTML（册卡片内，横排紧凑布局）
  * @param {Object} piece 曲目对象
  * @param {number} idx 在该册中的索引
  * @param {number} bookNum 所属册号
@@ -300,36 +382,31 @@ function lessonPieceCardHTML(piece, idx, bookNum, isDeleted) {
   // - 曲库册：下拉选择器
   let nameField;
   if (isCustom) {
-    nameField = '<input type="text" class="form-input piece-name-input" value="' + Utils.escape(piece.name || '') + '" placeholder="例如：拜厄第12首" style="padding:8px 10px;font-size:0.85rem">';
+    nameField = '<input type="text" class="form-input piece-name-input" value="' + Utils.escape(piece.name || '') + '" placeholder="例如：拜厄第12首">';
   } else if (isDeleted) {
-    nameField = '<input class="form-input piece-name-input" value="' + Utils.escape(piece.name || '') + '" disabled style="padding:8px 10px;font-size:0.85rem;opacity:0.7">';
+    nameField = '<input class="form-input piece-name-input" value="' + Utils.escape(piece.name || '') + '" disabled placeholder="曲目已移除">';
   } else {
     nameField = SuzukiSelectHelper.buildPieceSelect(bookNum, 'book' + bookNum, idx, piece.repId, piece.name);
   }
 
   return `
-    <div class="card mb-8 lesson-piece-card" data-book="${bookNum}" data-piece-idx="${idx}" style="padding:10px">
-      <div class="flex-between mb-8">
-        <span class="font-bold text-xs">#${idx + 1}</span>
-        <button type="button" class="btn btn-sm btn-danger" onclick="removeLessonPiece(this)" style="font-size:0.6rem;padding:2px 6px">✕</button>
-      </div>
-
-      <div class="form-group" style="margin-bottom:8px">
-        ${nameField}
-      </div>
-
-      <div class="form-group" style="margin-bottom:8px">
-        <label class="form-label" style="font-size:0.7rem;margin-bottom:4px">📝 老师要求</label>
-        <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳、第二段力度变化..." style="min-height:80px;font-size:0.8rem">${Utils.escape(piece.details || '')}</textarea>
-      </div>
-
-      <div class="form-group" style="margin-bottom:0">
-        <label class="form-label" style="font-size:0.7rem;margin-bottom:4px">⭐ 回课评分</label>
-        <div class="star-rating" data-piece-idx="${idx}" data-book="${bookNum}">
-          ${[1,2,3,4,5].map(s => `
-            <button type="button" class="star-btn${s <= scoreStars ? ' active' : ''}" data-star="${s}" onclick="setLessonPieceStar(${bookNum}, ${idx}, ${s})">⭐</button>
-          `).join('')}
+    <div class="lesson-piece-card" data-book="${bookNum}" data-piece-idx="${idx}">
+      <div class="lesson-piece-top">
+        <span class="lesson-piece-index">#${idx + 1}</span>
+        <div class="lesson-piece-name">${nameField}</div>
+        <div class="lesson-piece-score">
+          <div class="star-rating" data-piece-idx="${idx}" data-book="${bookNum}">
+            ${[1,2,3,4,5].map(s => `
+              <button type="button" class="star-btn${s <= scoreStars ? ' active' : ''}" data-star="${s}" onclick="setLessonPieceStar(${bookNum}, ${idx}, ${s})">⭐</button>
+            `).join('')}
+          </div>
         </div>
+        <button type="button" class="btn btn-sm btn-danger lesson-piece-delete" onclick="removeLessonPiece(this)" title="删除这首曲目">✕</button>
+      </div>
+
+      <div class="lesson-piece-details">
+        <label class="lesson-piece-details-label">📝 老师要求</label>
+        <textarea class="form-input piece-details" placeholder="例如：注意手型、节奏要稳、第二段力度变化...">${Utils.escape(piece.details || '')}</textarea>
       </div>
 
       <div class="piece-markers-area" style="margin-top:8px"></div>

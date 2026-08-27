@@ -9,6 +9,210 @@
 
 "use strict";
 
+// 曲目进度筛选状态
+let _statsPieceFilter = 'all';
+
+// 阶段样式配置
+const STAGE_STYLE = {
+  'separate':   { color: '#8ED4A6', label: '分手', icon: '🖐️' },
+  'together':   { color: '#9BB9DC', label: '合手', icon: '🤝' },
+  'memorize':   { color: '#BAB8E0', label: '背谱', icon: '🧠' },
+  'proficient': { color: '#FFD700', label: '熟练', icon: '🌟' }
+};
+
+// 计算各阶段花费天数
+function _computeStageDurations(piece) {
+  const history = piece.stageHistory || [];
+  if (history.length === 0) return [];
+  const today = Utils.today();
+  const durations = [];
+  for (let i = 0; i < history.length; i++) {
+    const startDate = history[i].date;
+    const endDate = (i < history.length - 1) ? history[i + 1].date : today;
+    const days = Math.floor((new Date(endDate + 'T00:00:00') - new Date(startDate + 'T00:00:00')) / 86400000);
+    durations.push({
+      stage: history[i].stage,
+      days: Math.max(0, days),
+      isCurrent: (i === history.length - 1) && piece.stage !== 'proficient'
+    });
+  }
+  return durations;
+}
+
+// 渲染曲目进度比较图
+function _renderPieceProgress(rep, logs) {
+  const pieceDays = {};
+  for (const log of logs) {
+    if (!log.entries) continue;
+    for (const e of log.entries) {
+      if (!e.repId) continue;
+      if (!pieceDays[e.repId]) pieceDays[e.repId] = new Set();
+      pieceDays[e.repId].add(log.date);
+    }
+  }
+
+  const allPieces = rep.map(piece => {
+    const stageDurations = _computeStageDurations(piece);
+    const totalStageDays = stageDurations.reduce((sum, d) => sum + d.days, 0);
+    return {
+      id: piece.id,
+      name: piece.name,
+      book: piece.book,
+      bookName: RepertoireManager.getBookDisplayName(piece.book),
+      stage: piece.stage || 'untouched',
+      stageDurations,
+      hasHistory: stageDurations.length > 0,
+      practiceDays: pieceDays[piece.id] ? pieceDays[piece.id].size : 0,
+      totalMinutes: piece.totalMinutes || 0,
+      lastPracticeDate: piece.lastPracticeDate || '',
+      totalStageDays
+    };
+  });
+
+  const bookGroups = {};
+  for (const p of allPieces) {
+    if (!bookGroups[p.book]) bookGroups[p.book] = [];
+    bookGroups[p.book].push(p);
+  }
+  const bookNums = Object.keys(bookGroups).map(Number).sort((a, b) => a - b);
+
+  const filter = _statsPieceFilter;
+  const filteredBooks = filter === 'all' ? bookNums : [Number(filter)];
+
+  const stageStats = {};
+  for (const p of allPieces) {
+    if (!p.hasHistory) continue;
+    for (const d of p.stageDurations) {
+      if (!stageStats[d.stage]) stageStats[d.stage] = { totalDays: 0, count: 0 };
+      stageStats[d.stage].totalDays += d.days;
+      stageStats[d.stage].count++;
+    }
+  }
+
+  let longestStage = null;
+  let longestAvg = 0;
+  for (const stage in stageStats) {
+    const avg = stageStats[stage].totalDays / stageStats[stage].count;
+    if (avg > longestAvg) { longestAvg = avg; longestStage = stage; }
+  }
+
+  const longPieces = [];
+  for (const p of allPieces) {
+    if (!p.hasHistory) continue;
+    for (const d of p.stageDurations) {
+      if (d.isCurrent && stageStats[d.stage]) {
+        const avg = stageStats[d.stage].totalDays / stageStats[d.stage].count;
+        if (d.days > avg * 1.5 && d.days > 3) longPieces.push({ name: p.name, stage: d.stage });
+      }
+    }
+  }
+
+  let totalLearned = 0;
+  for (const p of allPieces) { if (p.stage === 'proficient') totalLearned++; }
+
+  // 筛选标签
+  let filterTags = '<span class="stats-filter-tag' + (filter === 'all' ? ' active' : '') + '" onclick="switchPieceFilter(\'all\')">📋 全部</span>';
+  for (const b of bookNums) {
+    filterTags += '<span class="stats-filter-tag' + (filter == b ? ' active' : '') + '" onclick="switchPieceFilter(' + b + ')">📖 ' + Utils.escape(RepertoireManager.getBookDisplayName(b)) + '</span>';
+  }
+
+  // 图例
+  const legendHTML = '<div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap">' +
+    Object.keys(STAGE_STYLE).map(key => {
+      const s = STAGE_STYLE[key];
+      return '<span style="font-size:0.6rem;color:' + s.color + ';display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:' + s.color + ';display:inline-block"></span>' + s.label + '</span>';
+    }).join('') + '</div>';
+
+  // 横条
+  let barsHTML = '';
+  for (const b of filteredBooks) {
+    const group = bookGroups[b];
+    if (!group) continue;
+    barsHTML += '<div style="font-size:0.65rem;color:var(--text-3);margin:14px 0 10px;font-weight:600;padding-left:2px">📖 ' + Utils.escape(RepertoireManager.getBookDisplayName(b)) + ' · ' + group.length + '首</div>';
+    for (const p of group) {
+      barsHTML += _renderPieceBar(p, longPieces);
+    }
+  }
+
+  // 趋势洞察
+  let insightHTML = '';
+  if (longestStage || longPieces.length > 0 || rep.length > 0) {
+    insightHTML = '<div style="margin-top:16px;padding:12px 14px;background:linear-gradient(135deg,rgba(94,106,210,0.08),rgba(94,106,210,0.03));border-radius:12px;border:1px solid rgba(94,106,210,0.15)">' +
+      '<div style="font-size:0.68rem;color:var(--accent-primary);font-weight:700;margin-bottom:6px">💡 趋势洞察</div>' +
+      '<div style="font-size:0.62rem;color:var(--text-3);line-height:1.7">';
+    if (longestStage) {
+      const si = STAGE_STYLE[longestStage];
+      insightHTML += '<div>• ' + (si ? si.icon + ' ' + si.label : longestStage) + '阶段平均花费 <span style="color:var(--text-2);font-weight:600">' + (Math.round(longestAvg * 10) / 10) + '天</span>，是各阶段中耗时最长的</div>';
+    }
+    if (longPieces.length > 0) {
+      const si = STAGE_STYLE[longPieces[0].stage];
+      insightHTML += '<div>• <span style="color:var(--accent-red)">' + Utils.escape(longPieces.map(p => p.name).join('、')) + '</span> 在' + (si ? si.label : '') + '阶段偏长，可能需要老师指导</div>';
+    }
+    if (rep.length > 0) {
+      const rate = Math.round(totalLearned / rep.length * 100);
+      insightHTML += '<div>• 总完成率 <span style="color:var(--accent-green);font-weight:600">' + rate + '%</span>（' + totalLearned + '/' + rep.length + '首熟练）</div>';
+    }
+    insightHTML += '</div></div>';
+  }
+
+  return '<div class="card">' +
+    '<div class="card-header"><h3 class="card-title">🎵 曲目进度</h3></div>' +
+    '<div style="display:flex;gap:7px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px">' + filterTags + '</div>' +
+    legendHTML + barsHTML + insightHTML +
+    '</div>';
+}
+
+// 渲染单首曲子横条
+function _renderPieceBar(p, longPieces) {
+  const stageInfo = PIECE_STAGES.find(s => s.key === p.stage) || PIECE_STAGES[0];
+  const totalDays = p.totalStageDays || p.practiceDays || 0;
+  const isLong = longPieces.some(lp => lp.name === p.name);
+  const stageColor = STAGE_STYLE[p.stage] ? STAGE_STYLE[p.stage].color : 'var(--text-3)';
+
+  let barHTML;
+  if (!p.hasHistory) {
+    barHTML = '<div style="display:flex;height:22px;border-radius:6px;overflow:hidden;gap:1px">' +
+      '<div style="width:12%;background:rgba(255,255,255,0.08);border-radius:6px 0 0 6px"></div>' +
+      '<div style="flex:1;background:rgba(255,255,255,0.04);border-radius:0 6px 6px 0;display:flex;align-items:center;justify-content:center;border:1px dashed rgba(255,255,255,0.08)"><span style="font-size:0.5rem;color:var(--text-4);opacity:0.5">无阶段记录</span></div>' +
+      '</div>';
+  } else {
+    const maxDays = Math.max(p.totalStageDays, 1);
+    const segments = p.stageDurations.map(d => {
+      const style = STAGE_STYLE[d.stage];
+      if (!style) return '';
+      const width = Math.max(4, (d.days / maxDays) * 88);
+      const isCurrent = d.isCurrent;
+      const isComplete = d.stage === 'proficient';
+      let content = '';
+      if (isCurrent) content = '<span style="font-size:0.5rem;color:#fff">↑</span>';
+      else if (isComplete) content = '<span style="font-size:0.45rem;color:#050506;font-weight:700">✓</span>';
+      const extra = isCurrent ? 'box-shadow:inset 0 0 0 1px ' + style.color + ';border-radius:0 6px 6px 0' : '';
+      return '<div style="width:' + width + '%;background:' + style.color + ';' + extra + ';display:flex;align-items:center;justify-content:center;opacity:0.85">' + content + '</div>';
+    }).join('');
+    barHTML = '<div style="display:flex;height:22px;border-radius:6px;overflow:hidden;gap:1px">' +
+      '<div style="width:12%;background:rgba(255,255,255,0.08);border-radius:6px 0 0 6px"></div>' + segments + '</div>';
+  }
+
+  let daysLabel = '';
+  if (p.hasHistory) {
+    daysLabel = p.stageDurations.map(d => {
+      const style = STAGE_STYLE[d.stage];
+      if (!style) return '';
+      const label = style.icon + ' ' + style.label;
+      if (d.isCurrent) return label + d.days + '天↑' + (isLong ? ' <span style="color:var(--accent-red)">⏰</span>' : '');
+      return label + d.days + '天';
+    }).filter(s => s).join('  ');
+  }
+
+  return '<div style="margin-bottom:10px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">' +
+      '<span style="font-size:0.75rem;color:var(--text-1);font-weight:500">' + Utils.escape(p.name) + '</span>' +
+      '<span style="font-size:0.58rem;color:' + stageColor + ';font-weight:600">' + stageInfo.icon + ' ' + stageInfo.label + ' · ' + totalDays + '天</span>' +
+    '</div>' + barHTML +
+    (daysLabel ? '<div style="font-size:0.5rem;color:var(--text-3);margin-top:3px;padding:0 2px;text-align:right">' + daysLabel + '</div>' : '') +
+  '</div>';
+}
+
 function renderStats() {
   const page = document.getElementById('page-stats');
   if (!page) return;
@@ -129,137 +333,8 @@ function renderStats() {
     </div>
   `;
 
-  // ── Card 2: 曲目进度 ──
-  const learned = rep.filter(p => p.status === 'learned').length;
-  const learning = rep.filter(p => p.status === 'learning').length;
-  const untouched = rep.filter(p => p.status === 'untouched').length;
-  const totalRep = rep.length;
-
-  // 使用更精确的百分比计算，确保总和为100%
-  var rawLearned = totalRep ? learned / totalRep * 100 : 0;
-  var rawLearning = totalRep ? learning / totalRep * 100 : 0;
-  var rawUntouched = totalRep ? untouched / totalRep * 100 : 0;
-  var learnedPct = Math.round(rawLearned);
-  var learningPct = Math.round(rawLearning);
-  var untouchedPct = Math.round(rawUntouched);
-  // 修正四舍五入误差，确保总和为100
-  var diff = 100 - (learnedPct + learningPct + untouchedPct);
-  if (diff !== 0 && totalRep > 0) {
-    // 将误差加到最大的一段上
-    if (learned >= learning && learned >= untouched) learnedPct += diff;
-    else if (learning >= untouched) learningPct += diff;
-    else untouchedPct += diff;
-  }
-
-  var barLabels = [
-    { label: '已学会', count: learned, pct: learnedPct, color: 'var(--accent-green)' },
-    { label: '学习中', count: learning, pct: learningPct, color: 'var(--accent-yellow)' },
-    { label: '未学', count: untouched, pct: untouchedPct, color: 'var(--border-2)' }
-  ];
-  // 过滤掉数量为0的项，进度条和标签保持一致
-  var activeLabels = barLabels.filter(function(b) { return b.count > 0; });
-
-  const progressHTML = `
-    <div class="card">
-      <div class="card-header"><h3 class="card-title">📖 曲目进度</h3></div>
-      <div style="display:flex;height:24px;border-radius:12px;overflow:hidden;margin-bottom:12px;gap:2px">
-        ${activeLabels.map(b =>
-          '<div style="height:100%;width:' + b.pct + '%;background:' + b.color + ';border-radius:12px;transition:width 0.5s var(--ease-out)"></div>'
-        ).join('')}
-      </div>
-      <div style="display:flex;gap:20px;font-size:0.78rem;color:var(--text-2);flex-wrap:wrap">
-        ${activeLabels.map(b => '<span>● ' + b.label + ' <strong style="color:var(--text-1)">' + b.count + '</strong> 首</span>').join('')}
-      </div>
-      <div style="margin-top:8px;font-size:0.7rem;color:var(--text-4)">共 ${totalRep} 首曲目</div>
-    </div>
-  `;
-
-  // ── Card 3: 曲目练习排名（曲库范围） ──
-  // 先从日志中统计每首曲目的练习数据
-  var pieceStats = {};
-  for (var i = 0; i < logs.length; i++) {
-    var log = logs[i];
-    var entries = log.entries;
-    for (var j = 0; j < entries.length; j++) {
-      var e = entries[j];
-      if (!e.repId) continue;
-      var stat = pieceStats[e.repId];
-      if (!stat) {
-        stat = { repId: e.repId, days: 0, count: 0, totalMin: 0, lastDate: '' };
-        pieceStats[e.repId] = stat;
-      }
-      stat.count++;
-      stat.totalMin += e.durationMin || 0;
-      if (e.durationMin > 0 || e.rating > 0) stat.days++;
-      if (log.date > (stat.lastDate || '')) stat.lastDate = log.date;
-    }
-  }
-
-  // 遍历曲库，为每个曲目生成统计条目（未练过的显示为0）
-  var pieceList = rep.map(function(piece) {
-    var stat = pieceStats[piece.id];
-    return {
-      name: piece.name,
-      bookInfo: piece.book ? RepertoireManager.getBookDisplayName(piece.book) : '',
-      status: piece.status,
-      count: stat ? stat.count : 0,
-      days: stat ? stat.days : 0,
-      totalMin: stat ? stat.totalMin : 0,
-      lastDate: stat ? stat.lastDate : ''
-    };
-  }).sort(function(a, b) {
-    // 优先按练习次数降序，次数相同按曲名排序
-    if (b.count !== a.count) return b.count - a.count;
-    return a.name.localeCompare(b.name);
-  });
-
-  function daysSince(dateStr) {
-    if (!dateStr) return '—';
-    var diff = Math.floor((now - new Date(dateStr + 'T00:00:00')) / 86400000);
-    return diff === 0 ? '今天' : diff + '天前';
-  }
-
-  var statusLabel = function(status) {
-    if (status === 'learned') return '<span style="font-size:0.6rem;color:var(--accent-green);background:rgba(142,212,166,0.15);padding:1px 5px;border-radius:4px">已学会</span>';
-    if (status === 'learning') return '<span style="font-size:0.6rem;color:var(--accent-yellow);background:rgba(245,216,154,0.15);padding:1px 5px;border-radius:4px">学习中</span>';
-    return '<span style="font-size:0.6rem;color:var(--text-4);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:4px">未学</span>';
-  };
-
-  var rankingHTML = `
-    <div class="card">
-      <div class="card-header"><h3 class="card-title">🎵 曲目练习排名</h3></div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:0.78rem">
-          <thead>
-            <tr style="color:var(--text-3);font-size:0.68rem;text-align:left;border-bottom:1px solid var(--border-2)">
-              <th style="padding:8px 4px;width:24px">#</th>
-              <th style="padding:8px 4px">曲名</th>
-              <th style="padding:8px 4px">册名</th>
-              <th style="padding:8px 4px;text-align:center">状态</th>
-              <th style="padding:8px 4px;text-align:center">次数</th>
-              <th style="padding:8px 4px;text-align:center">天数</th>
-              <th style="padding:8px 4px;text-align:center">分钟</th>
-              <th style="padding:8px 4px;text-align:right">最近</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${pieceList.map((p, i) => `
-              <tr style="border-bottom:1px solid var(--border-2);opacity:${p.count > 0 ? '1' : '0.5'}">
-                <td style="padding:8px 4px;color:var(--text-4)">${i + 1}</td>
-                <td style="padding:8px 4px;font-weight:600">${Utils.escape(p.name)}</td>
-                <td style="padding:8px 4px;color:var(--text-3);font-size:0.72rem">${Utils.escape(p.bookInfo) || '—'}</td>
-                <td style="padding:8px 4px;text-align:center">${statusLabel(p.status)}</td>
-                <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${p.count}</td>
-                <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${p.days}</td>
-                <td style="padding:8px 4px;text-align:center;color:var(--text-2)">${Math.round(p.totalMin * 10) / 10}</td>
-                <td style="padding:8px 4px;text-align:right;color:var(--text-3);font-size:0.7rem">${daysSince(p.lastDate)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
+  // ── Card 2: 曲目进度比较图（替换原进度条+排名表格）──
+  const pieceProgressHTML = _renderPieceProgress(rep, logs);
 
   // ── Card 4: 注意事项雷达图 ──
   var focusKeywords = ['手型', '节奏', '音准', '指法', '力度', '速度', '乐感', '视奏', '背谱', '踏板', '手腕', '手臂', '触键', '表情', '呼吸'];
@@ -528,7 +603,7 @@ function renderStats() {
     </div>
   `;
 
-  page.innerHTML = overviewHTML + starsHTML + streakHTML + progressHTML + milestonesHTML + rankingHTML + concernsHTML + cleanToolHTML;
+  page.innerHTML = overviewHTML + pieceProgressHTML + starsHTML + streakHTML + milestonesHTML + concernsHTML + cleanToolHTML;
 }
 
 // ── 数据清洗预览 ──
@@ -576,6 +651,12 @@ window.runDataClean = function() {
       renderStats();
     }, 1500);
   }, 100);
+};
+
+// ── 曲目进度筛选切换 ──
+window.switchPieceFilter = function(book) {
+  _statsPieceFilter = book;
+  renderStats();
 };
 
 console.log('✅ Stats module loaded');

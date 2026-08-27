@@ -55,55 +55,59 @@ function renderRepertoire() {
 
     const piecesHtml = book.pieces.map(piece => {
       const isCardExpanded = repertoireState.expandedPieces[piece.id];
-      // 5 级阶段按钮：显示当前阶段，点击弹面板选择阶段（可升可降）
+      // 5 级阶段徽章：显示当前阶段（彩色），点击弹面板选择阶段（可升可降）
       const curStage = piece.stage || 'untouched';
       const stageIdx = PIECE_STAGES.findIndex(s => s.key === curStage);
       const stageInfo = PIECE_STAGES[stageIdx >= 0 ? stageIdx : 0];
       const isTop = stageIdx >= PIECE_STAGES.length - 1;
-      const stageBtn = '<button class="btn btn-sm stage-advance-btn" style="font-size:0.7rem;padding:5px 10px" onclick="openRepStagePanel(\'' + piece.id + '\')">' +
+      const stageBadge = '<button type="button" class="rep-stage-badge rep-stage-' + curStage + ' stage-advance-btn" ' +
+          'onclick="event.stopPropagation();openRepStagePanel(\'' + piece.id + '\')">' +
           stageInfo.icon + ' ' + stageInfo.label +
-          (isTop ? ' ✓' : '<span style="opacity:0.6"> ▾</span>') +
+          (isTop ? ' ✓' : ' ▾') +
         '</button>';
 
-      // 背谱由 stage 推导（背谱/熟练 = 已能背谱），不再手动设置
+      // 背谱由 stage 推导（背谱/熟练 = 已能背谱），随展开详情显示
       const memBadge = (curStage === 'memorize' || curStage === 'proficient')
-        ? '<span class="btn btn-sm" style="font-size:0.7rem;padding:5px 10px;background:rgba(142,212,166,0.12);color:var(--accent-green);border:1px solid rgba(142,212,166,0.3);pointer-events:none">🧠 已能背谱</span>'
+        ? '<span class="rep-piece-mem">🧠 已能背谱</span>'
+        : '';
+
+      const detailHtml = (isCardExpanded && (piece.status === 'learned' || piece.status === 'learning'))
+        ? '<div class="rep-piece-detail">' + memBadge + renderStageTimeline(piece) + '</div>'
         : '';
 
       return `
-        <div class="card mb-8 ${isCardExpanded ? 'expanded' : ''}" id="repCard${piece.id}" style="cursor:pointer;margin-left:20px;border-left:2px solid var(--border-2)">
-          <div class="flex-between" onclick="toggleRepCard('${piece.id}')">
-            <span style="flex:1;min-width:0">
-              <div class="font-bold">${piece.num}. ${Utils.escape(piece.en || piece.name)}</div>
-              <div class="text-xs text-3">${Utils.escape(piece.name)} · ${Utils.escape(piece.composer || '')}</div>
-            </span>
-            <span class="flex-row gap-4" onclick="event.stopPropagation()">
-              ${stageBtn}
-              ${memBadge}
-            </span>
+        <div class="rep-piece-row${isCardExpanded ? ' expanded' : ''}" id="repCard${piece.id}" onclick="toggleRepCard('${piece.id}')">
+          <span class="rep-piece-index">${Utils.escape(piece.num || '')}</span>
+          <div class="rep-piece-main">
+            <span class="rep-piece-name">${Utils.escape(piece.en || piece.name)}</span>
+            <span class="rep-piece-sub">${Utils.escape(piece.name)}${piece.composer ? ' · ' + Utils.escape(piece.composer) : ''}</span>
           </div>
-          ${isCardExpanded && (piece.status === 'learned' || piece.status === 'learning') ? `
-            <div class="text-xs text-2 mt-8" style="padding-top:8px;border-top:1px solid var(--border-2)">
-              ${renderStageTimeline(piece)}
-            </div>
-          ` : ''}
+          ${stageBadge}
+          <span class="rep-piece-chevron">${isCardExpanded ? '▾' : '▸'}</span>
         </div>
+        ${detailHtml}
       `;
     }).join('');
 
     return `
-      <div class="card mb-16">
-        <div class="flex-between" onclick="toggleRepertoireBook(${book.num})" style="cursor:pointer">
-          <span style="flex:1">
-            <div class="font-bold text-lg">📖 ${Utils.escape(book.title)}</div>
-            <div class="text-xs text-3 mt-4">${book.subtitle}</div>
-          </span>
-          <span style="display:flex;align-items:center;gap:12px">
-            <span class="text-sm text-2">${progress}% · ${learned}/${total}</span>
-            <span style="font-size:1.2rem;color:var(--text-3);transition:transform 0.3s;transform:rotate(${isExpanded ? '90deg' : '0'})">▶</span>
-          </span>
+      <div class="rep-book">
+        <div class="rep-book-head" onclick="toggleRepertoireBook(${book.num})">
+          <div class="rep-book-main">
+            <div class="rep-book-title-row">
+              <span class="rep-book-title">📖 ${Utils.escape(book.title)}</span>
+              <span class="rep-book-chevron">${isExpanded ? '▾' : '▸'}</span>
+            </div>
+            <div class="rep-book-meta">
+              <span class="rep-book-count">${total} 首</span>
+              <span class="rep-book-learned">· 已学 ${learned}</span>
+              <div class="rep-book-progress">
+                <div class="rep-book-progress-track"><div class="rep-book-progress-fill" style="width:${progress}%"></div></div>
+                <span class="rep-book-percent">${progress}%</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div id="bookList${book.num}" style="display:${isExpanded ? 'block' : 'none'};margin-top:12px">
+        <div class="rep-book-list${isExpanded ? '' : ' rep-collapsed'}" id="bookList${book.num}">
           ${piecesHtml}
         </div>
       </div>
