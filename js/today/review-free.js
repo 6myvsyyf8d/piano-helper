@@ -65,37 +65,83 @@ function getReviewInterval(piece) {
 }
 
 /**
+ * 解析日期字符串为本地当日 00:00 Date（安全容错）
+ * @param {string|null} d
+ * @returns {Date|null}
+ */
+function _parseDay(d) {
+  if (!d) return null;
+  const t = new Date(d + 'T00:00:00');
+  return isNaN(t.getTime()) ? null : t;
+}
+
+/**
+ * 曲目「有效基准日期」的级联推断：
+ * 优先用最近一次实际练习(lastPracticeDate)，否则用达到熟练的日期(completedDate)，
+ * 再否则用开始日期(startedDate)，最后兜底为今天（保证从不出现空池/NaN）。
+ * @param {Repertoire} piece
+ * @returns {Date}
+ */
+function _effectivePracticeDate(piece) {
+  const today = new Date(Utils.today() + 'T00:00:00');
+  return (
+    _parseDay(piece.lastPracticeDate) ||
+    _parseDay(piece.completedDate) ||
+    _parseDay(piece.startedDate) ||
+    today
+  );
+}
+
+/**
  * 计算一首曲目的遗忘曲线复习状态
  * score = 距上次练习天数 ÷ 复习间隔；score ≥ 1 即已到期
- * @returns {{interval:number, daysSince:number|null, score:number, overdue:boolean, label:string}}
+ * 从未实际完成今日练习的曲目，会用 completedDate / startedDate 级联推断日期，
+ * 保证从合手/背谱/熟练阶段起就可以进入复习池。
+ * @returns {{interval:number, daysSince:number, score:number, overdue:boolean, label:string, inferredDate:string, inferredFrom:string}}
  */
 function computeReviewStatus(piece) {
   const interval = getReviewInterval(piece);
-  if (!piece.lastPracticeDate) {
-    return { interval, daysSince: null, score: Infinity, overdue: true, label: '🔴 从未练习' };
-  }
   const today = new Date(Utils.today() + 'T00:00:00');
-  const lastDate = new Date(piece.lastPracticeDate + 'T00:00:00');
-  const daysSince = Math.floor((today - lastDate) / 86400000);
+  let inferredFrom = 'lastPracticeDate';
+  if (!piece.lastPracticeDate) {
+    if (piece.completedDate) inferredFrom = 'completedDate';
+    else if (piece.startedDate) inferredFrom = 'startedDate';
+    else inferredFrom = 'today';
+  }
+  const effDate = _effectivePracticeDate(piece);
+  const daysSince = Math.max(0, Math.floor((today - effDate) / 86400000));
   const score = daysSince / interval;
   let label;
-  if (daysSince > interval) {
+  if (inferredFrom !== 'lastPracticeDate') {
+    label = '🆕 ' + daysSince + ' 天未练（已纳入复习）';
+  } else if (daysSince > interval) {
     label = '🟠 已逾期 ' + (daysSince - interval) + ' 天';
   } else if (daysSince === interval) {
     label = '🟢 该复习';
   } else {
     label = '⚪ ' + (interval - daysSince) + ' 天后复习';
   }
-  return { interval, daysSince, score, overdue: daysSince >= interval, label };
+  return {
+    interval,
+    daysSince,
+    score,
+    overdue: score >= 1,
+    label,
+    inferredDate: effDate.toISOString().slice(0, 10),
+    inferredFrom
+  };
 }
 
 /**
  * 构建复习候选池（按遗忘曲线优先级降序）
- * 已到期（score ≥ 1）排前，组内按 score + 未背谱 0.5 加权 降序
+ * 筛选条件：阶段 ∈ {together(合手), memorize(背谱), proficient(熟练)}
+ * 去重：与今日练习表单中其它已经出现的曲目不重复（课程曲目/自由练习曲目/当日已练）
+ * 排序：已到期（score ≥ 1）排前，组内按 score 降序（严格符合遗忘曲线，不再加阶段加权）
  * @param {string[]} excludeNames 要排除的曲名列表（当日课程曲目）
+ * @param {string[]} [extraExcludeNames] 额外要排除的曲名（自由练习、阶段卡等）
  * @returns {Array<{piece: Repertoire, priority: number, overdue: boolean}>}
  */
-function buildReviewCandidates(excludeNames) {
+function buildReviewCandidates(excludeNames, extraExcludeNames) {
   const rep = DB.repertoire();
 
   // 读取翻卡范围设定
@@ -113,34 +159,57 @@ function buildReviewCandidates(excludeNames) {
     todayLog.entries.forEach(e => { if (e.repId) todayPracticedIds.add(e.repId); });
   }
 
+  // 去重池：名字集合（课程曲目 + 额外曲目）
+  const excludeNameSet = new Set(excludeNames || []);
+  (extraExcludeNames || []).forEach(function(n) { excludeNameSet.add(n); });
+
   const candidates = [];
+  const REVIEWABLE_STAGES = new Set(['together', 'memorize', 'proficient']);
 
   for (const piece of rep) {
-    // 必须是已学会
-    if (piece.status !== 'learned') continue;
-    // 从未练习的曲子不参与复习（复习前提是练过）
-    if (!piece.lastPracticeDate) continue;
+    // 阶段必须在合手/背谱/熟练
+    if (!REVIEWABLE_STAGES.has(piece.stage)) continue;
     // 范围筛选
     if (rangeIds && !rangeIds.has(piece.id)) continue;
-    // 排除当日课程曲目
-    if (excludeNames.includes(piece.name)) continue;
-    // 排除当日已练
+    // 与其它曲目卡不重复（课程曲目 / 自由练习 / 阶段卡）
+    if (excludeNameSet.has(piece.name)) continue;
+    // 当日已练过的不重复
     if (todayPracticedIds.has(piece.id)) continue;
 
     const st = computeReviewStatus(piece);
-    // 未到「背谱」阶段的曲子优先复习（背谱由 stage 推导，不再依赖手动状态）
-    const notMemorized = (piece.stage !== 'memorize' && piece.stage !== 'proficient');
-    const priority = st.score + (notMemorized ? 0.5 : 0);
-
-    candidates.push({ piece, priority, overdue: st.overdue });
+    // 严格按遗忘曲线排序：score 越大优先级越高（越久没练 → 越该复习）
+    candidates.push({ piece, priority: st.score, overdue: st.overdue, _reviewStatus: st });
   }
 
-  // 已到期整体排前，组内按加权分数降序
+  // 已到期整体排前，组内按 score 降序
   candidates.sort((a, b) => {
     if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
     return b.priority - a.priority;
   });
   return candidates;
+}
+
+/**
+ * 收集当前表单里「自由练习」已经添加的曲名（用于复习去重，不与其它曲目卡重复）
+ * @returns {string[]}
+ */
+function _collectFreePieceNames() {
+  const names = [];
+  const nameEls = document.querySelectorAll('#freeList .free-piece-name');
+  nameEls.forEach(function(el) {
+    const v = (el.value || el.textContent || '').trim();
+    if (v && v !== '自由练习') names.push(v);
+  });
+  // TodayState 兜底（DOM 尚未渲染时用内存中的）
+  for (var idx in (window.TodayState && TodayState.pieces || {})) {
+    const p = TodayState.pieces[idx];
+    if (!p || !p.pieceName) continue;
+    if (!p.category || p.category === 'free') {
+      const n = p.pieceName.trim();
+      if (n && n !== '自由练习' && names.indexOf(n) === -1) names.push(n);
+    }
+  }
+  return names;
 }
 
 /**
@@ -163,14 +232,22 @@ function generateReviewList(lesson) {
   if (body) body.style.display = 'block';
 
   const lessonNames = (lesson && lesson.pieces) ? lesson.pieces.map(p => p.name) : [];
-  const candidates = buildReviewCandidates(lessonNames);
+  const freeNames = _collectFreePieceNames();
+  const candidates = buildReviewCandidates(lessonNames, freeNames);
   const countEl = document.getElementById('reviewCount');
 
   // 不足 4 首提示
   if (candidates.length < 4) {
     if (countEl) countEl.textContent = candidates.length + '首可选';
     if (candidates.length === 0) {
-      reviewList.innerHTML = '<p class="text-sm text-2 text-center p-12">🎉 暂无可复习曲目（全部曲目今日已练或未学会）</p>';
+      reviewList.innerHTML =
+        '<p class="text-sm text-2 text-center p-8">🎉 暂无可复习曲目</p>' +
+        '<div class="text-xs text-3 text-center" style="max-width:360px;margin:0 auto 24px;line-height:1.7">' +
+          '可能原因：<br>' +
+          '1) 全部曲目今日已练；<br>' +
+          '2) 阶段未达「合手 / 背谱 / 熟练」；<br>' +
+          '3) 已出现于课堂曲目或自由练习中（复习卡不重复显示）。' +
+        '</div>';
       return;
     }
     reviewList.innerHTML =
@@ -674,6 +751,13 @@ window.addFreePiece = function(name) {
   freePieceCount++;
   var countEl = document.getElementById('freeCount');
   if (countEl) countEl.textContent = freePieceCount + '首';
+
+  // 加了自由练习曲后，重新抽复习卡（保证复习卡不与自由练习曲目重复）
+  var ls = window._currentLesson || null;
+  var existingLog = TodayState.existingLog;
+  if (!existingLog && document.getElementById('reviewList')) {
+    generateReviewList(ls);
+  }
 };
 
 window.removeFreePiece = function(index) {
@@ -693,6 +777,13 @@ window.removeFreePiece = function(index) {
   if (freeList && freeList.children.length === 0) {
     freeList.innerHTML = '<p class="text-xs text-3 text-center p-12">点击下方按钮添加练习曲目</p>';
   }
+
+  // 移除自由练习后，也重新抽复习卡（释放被去重的候选曲目）
+  var ls = window._currentLesson || null;
+  var existingLog = TodayState.existingLog;
+  if (!existingLog && document.getElementById('reviewList')) {
+    generateReviewList(ls);
+  }
 };
 
 /* ------------------------------------------
@@ -705,11 +796,18 @@ window.removeFreePiece = function(index) {
  */
 window.showReviewRangePanel = function() {
   const rep = DB.repertoire();
-  const learnedPieces = rep.filter(p => p.status === 'learned');
+  // 仅显示合手/背谱/熟练三个阶段的曲目（与 buildReviewCandidates 的复习阶段口径一致）
+  const REVIEWABLE_STAGES = new Set(['together', 'memorize', 'proficient']);
+  const reviewablePieces = rep.filter(p => REVIEWABLE_STAGES.has(p.stage));
+  const STAGE_LABEL = {
+    'together':   { label: '合手',   color: 'rgba(138,143,152,0.55)' },
+    'memorize':   { label: '背谱',   color: 'rgba(94,106,210,0.6)'  },
+    'proficient': { label: '熟练',   color: 'rgba(245,216,154,0.7)' }
+  };
 
   // 按册分组
   const bookGroups = {};
-  learnedPieces.forEach(p => {
+  reviewablePieces.forEach(p => {
     if (!bookGroups[p.book]) bookGroups[p.book] = [];
     bookGroups[p.book].push(p);
   });
@@ -728,9 +826,13 @@ window.showReviewRangePanel = function() {
 
     var piecesHtml = pieces.map(function(p) {
       var checked = savedIds.has(p.id) ? 'checked' : '';
+      var sl = STAGE_LABEL[p.stage] || { label: '', color: '' };
+      var stageTag = sl.label
+        ? '<span style="margin-left:auto;padding:1px 6px;border-radius:4px;font-size:0.62rem;border:1px solid ' + sl.color + ';color:' + sl.color + '">' + sl.label + '</span>'
+        : '';
       return '<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.72rem">' +
         '<input type="checkbox" class="range-chk-piece" data-id="' + p.id + '" ' + checked + ' style="width:14px;height:14px">' +
-        '<span>' + p.num + '. ' + Utils.escape(p.en || p.name) + '</span></label>';
+        '<span>' + p.num + '. ' + Utils.escape(p.en || p.name) + '</span>' + stageTag + '</label>';
     }).join('');
 
     return '<div style="margin-bottom:8px">' +
@@ -746,24 +848,32 @@ window.showReviewRangePanel = function() {
   }).join('');
 
   var modal = document.getElementById('modalContainer');
-  modal.innerHTML =
-    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
-      '<div class="modal">' +
-        '<div class="modal-header">' +
-          '<h2 class="modal-title">⚙️ 翻卡范围设定</h2>' +
-          '<button class="modal-close" onclick="closeModal()">✕</button>' +
-        '</div>' +
-        '<div class="modal-body">' +
-          '<p class="text-xs text-2 mb-8">勾选参与翻卡复习的曲目（仅显示已学会的曲目）</p>' +
-          '<div style="display:flex;gap:4px;margin-bottom:12px">' +
-            '<button class="btn btn-sm btn-secondary" onclick="var chks=document.querySelectorAll(\'.range-chk-piece\');chks.forEach(function(c){c.checked=true})" style="font-size:0.7rem;padding:2px 8px">全选</button>' +
-            '<button class="btn btn-sm btn-secondary" onclick="var chks=document.querySelectorAll(\'.range-chk-piece\');chks.forEach(function(c){c.checked=false})" style="font-size:0.7rem;padding:2px 8px">清空</button>' +
-          '</div>' +
-          (booksHtml || '<p class="text-sm text-3 text-center p-12">暂无已学会曲目</p>') +
-          '<button class="btn btn-primary" id="btnSaveReviewRange" style="width:100%;margin-top:12px">💾 保存并重新抽卡</button>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
+  // 用数组 join 避免多行 '+' 字符串拼接潜在的编码/解析截断问题
+  var tipCountLine = (reviewablePieces.length < rep.length)
+    ? ('<br>共 ' + rep.length + ' 首已登记曲目，其中可参与复习的共 <b>' + reviewablePieces.length + '</b> 首。')
+    : '';
+  modal.innerHTML = [
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">',
+      '<div class="modal">',
+        '<div class="modal-header">',
+          '<h2 class="modal-title">⚙️ 翻卡范围设定</h2>',
+          '<button class="modal-close" onclick="closeModal()">✕</button>',
+        '</div>',
+        '<div class="modal-body">',
+          '<div id="reviewRangeTip" style="padding:8px 10px;margin-bottom:10px;border-radius:8px;background:rgba(94,106,210,0.08);border:1px solid rgba(94,106,210,0.18);font-size:0.72rem;line-height:1.6;color:var(--text-2)">',
+            'ℹ️ 仅 <b style="color:#a5ade8">合手 / 背谱 / 熟练</b> 三个阶段的曲目会进入抽卡复习（阶段以曲库中的当前进度为准）。',
+            tipCountLine,
+          '</div>',
+          '<div style="display:flex;gap:4px;margin-bottom:12px">',
+            '<button class="btn btn-sm btn-secondary" onclick="var chks=document.querySelectorAll(\'.range-chk-piece\');chks.forEach(function(c){c.checked=true})" style="font-size:0.7rem;padding:2px 8px">全选</button>',
+            '<button class="btn btn-sm btn-secondary" onclick="var chks=document.querySelectorAll(\'.range-chk-piece\');chks.forEach(function(c){c.checked=false})" style="font-size:0.7rem;padding:2px 8px">清空</button>',
+          '</div>',
+          (booksHtml || '<p class="text-sm text-3 text-center p-12">暂无可复习曲目，请先在曲库中将阶段推进到「合手」及以上</p>'),
+          '<button class="btn btn-primary" id="btnSaveReviewRange" style="width:100%;margin-top:12px">💾 保存并重新抽卡</button>',
+        '</div>',
+      '</div>',
+    '</div>'
+  ].join('');
 
   // 为每个曲目复选框添加 data-book 属性和联动逻辑
   document.querySelectorAll('.range-chk-piece').forEach(function(chk) {

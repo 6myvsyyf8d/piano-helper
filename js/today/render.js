@@ -581,12 +581,43 @@ function todayEncourageHTML(encourage) {
    ------------------------------------------ */
 
 /**
+ * 每日重置课堂记录的"完成"状态（方案A）
+ * 今日页"完成"是每日待办语义：把非今日完成的 feedback 重置回未完成（new）。
+ * 仅在有变化时写一次 localStorage；课程端图钉因共用 status 字段也会随之每日复位。
+ */
+function dailyResetFeedbackStatus() {
+  try {
+    const todayStr = Utils.today();
+    const list = Feedback.all();
+    let changed = false;
+    list.forEach(function(f) {
+      if (f.status !== Feedback.STATUS_RESOLVED) return; // 只处理已完成
+      // 完成时间是今天 → 保留；昨天/更早/无时间戳 → 重置
+      var resolvedDate = Utils.dateStr(f.resolvedAt);
+      if (resolvedDate === todayStr) return;
+      f.status = Feedback.STATUS_NEW;
+      f.resolvedAt = null;
+      f.resolvedBy = null;
+      changed = true;
+    });
+    if (changed) {
+      DB.saveFeedbacks(list);
+      console.log('[dailyResetFeedbackStatus] 已重置 ' + changed + ' 条昨日完成记录');
+    }
+  } catch (e) {
+    console.error('[dailyResetFeedbackStatus] error:', e);
+  }
+}
+
+/**
  * 渲染整个今日页
  * 直接操作 #page-today 的 innerHTML
  * @returns {void}
  */
 function renderTodayPage() {
   console.log('[renderTodayPage] 渲染今日页');
+  // 方案A：进入今日页时，把昨天及更早的"完成"状态重置回未完成（每日待办语义）
+  dailyResetFeedbackStatus();
   const page = document.getElementById('page-today');
   if (!page) return;
 
@@ -927,8 +958,6 @@ window.viewSheetPhoto = async function(pieceName) {
       pinsByPage[page].push(p);
     });
 
-    // 全局序号：按页码从小到大累加
-    var globalIdx = 0;
     // 为每个照片页渲染图钉
     var photoWraps = container.querySelectorAll('.sheet-photo-wrap');
     photoWraps.forEach(function(wrap) {
@@ -945,15 +974,14 @@ window.viewSheetPhoto = async function(pieceName) {
       }
 
       pinsLayer.innerHTML = pagePins.map(function(f) {
-        globalIdx++;
-        var s = statusMap[f.status] || statusMap['new'];
+        var resolved = (f.status === 'resolved');
+        var cls = 'sheet-pin ' + (resolved ? 'pin-resolved' : 'pin-new');
+        var num = (f.pinNumber != null && f.pinNumber !== '') ? f.pinNumber : '';
         var left = (f.pinX * 100).toFixed(1);
         var top = (f.pinY * 100).toFixed(1);
-        return '<div data-fb-id="' + f.id + '"' +
-          ' onclick="window._openSheetPinPopup(this)"' +
-          ' style="position:absolute;left:' + left + '%;top:' + top + '%;transform:translate(-50%,-50%);' +
-          'width:26px;height:26px;border-radius:50%;background:' + s.color + ';border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);' +
-          'display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer">' + globalIdx + '</div>';
+        return '<button type="button" data-fb-id="' + f.id + '"' +
+          ' onclick="window._openSheetPinPopup(this)" class="' + cls + '"' +
+          ' style="left:' + left + '%;top:' + top + '%;cursor:default">' + num + '</button>';
       }).join('');
     });
   }
