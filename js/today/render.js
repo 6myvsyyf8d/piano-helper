@@ -384,7 +384,7 @@ function buildPracticeFormHTML(lesson) {
   if (!lesson) {
     return renderCategorySectionOpen(
       'review',
-      '🔁 复习 <span id="reviewCount" style="font-size:0.75rem;color:var(--text-3);font-weight:400"></span> <button onclick="showReviewRangePanel()" style="font-size:0.65rem;padding:1px 6px;border:1px solid var(--border-2);border-radius:6px;background:transparent;color:var(--text-3);cursor:pointer">⚙️ 范围</button>',
+      '🔁 复习 <span id="reviewCount" style="font-size:0.75rem;color:var(--text-3);font-weight:400"></span>',
       '<div id="reviewList"><p class="text-sm text-2 text-center p-12">加载中...</p></div>'
     ) + renderCategorySectionOpen(
       'free',
@@ -419,7 +419,7 @@ function buildPracticeFormHTML(lesson) {
 
   html += renderCategorySectionOpen(
     'review',
-    '🔁 复习 <span id="reviewCount" style="font-size:0.75rem;color:var(--text-3);font-weight:400"></span> <button onclick="showReviewRangePanel()" style="font-size:0.65rem;padding:1px 6px;border:1px solid var(--border-2);border-radius:6px;background:transparent;color:var(--text-3);cursor:pointer">⚙️ 范围</button>',
+    '🔁 复习 <span id="reviewCount" style="font-size:0.75rem;color:var(--text-3);font-weight:400"></span>',
     '<div id="reviewList"><p class="text-sm text-2 text-center p-12">加载中...</p></div>'
   );
 

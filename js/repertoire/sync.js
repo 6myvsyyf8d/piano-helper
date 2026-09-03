@@ -969,10 +969,9 @@ window.clearAllData = function() {
   DB.saveBookMeta({});
   localStorage.removeItem('piano_logo');
   localStorage.removeItem('piano_rep_version');
-  localStorage.removeItem('piano_review_range');
-  // 清理按日期存的翻卡跳过次数（key 前缀 piano_review_skip_count_）
+  // 清理按日期存的翻卡跳过次数（key 前缀 review_skip_count_）
   for (let k in localStorage) {
-    if (k.indexOf('piano_review_skip_count_') === 0) localStorage.removeItem(k);
+    if (k.indexOf('review_skip_count_') === 0) localStorage.removeItem(k);
   }
 
   // 清空 IndexedDB 中的全部二进制数据（课堂录音、曲谱照片、家长语音）
