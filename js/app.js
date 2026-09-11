@@ -232,6 +232,25 @@ if (headerVer) headerVer.textContent = RepertoireManager.VERSION;
     initScrollEffects();
     console.log("✅ Startup ready");
 
+    // 课程草稿：切后台/关闭页面时自动保存表单状态
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && document.getElementById('lessonForm')) {
+        saveLessonDraft();
+      }
+    });
+    window.addEventListener('pagehide', () => {
+      if (document.getElementById('lessonForm')) {
+        saveLessonDraft();
+      }
+    });
+
+    // 课程草稿：启动时检测并恢复
+    setTimeout(() => {
+      if (typeof restoreLessonDraft === 'function' && restoreLessonDraft()) {
+        console.log('📝 课程草稿已恢复');
+      }
+    }, 500);
+
     if ('serviceWorker' in navigator) {
       let newWorker = null;
 

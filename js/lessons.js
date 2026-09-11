@@ -163,15 +163,31 @@ function renderLessons() {
 /**
  * 显示课程表单（按册分组）
  * @param {string} [lessonId] - 编辑时传入课程 ID，新增时不传
+ * @param {Object} [draft] - 草稿数据（从 localStorage 恢复时传入）
  * @returns {void}
  */
-window.showLessonForm = function(lessonId) {
-  const lesson = lessonId ? DB.lessons().find(l => l.id === lessonId) : null;
-  const isEdit = !!lesson;
+window.showLessonForm = function(lessonId, draft) {
+  let lesson = null;
+  let isEdit = false;
+
+  if (draft) {
+    // 草稿恢复模式：用草稿数据构建 pseudo-lesson，但 isEdit=false
+    lesson = draft;
+    isEdit = false;
+  } else {
+    lesson = lessonId ? DB.lessons().find(l => l.id === lessonId) : null;
+    isEdit = !!lesson;
+  }
   const pieces = lesson ? lesson.pieces : [];
 
   // 重置课堂记录的会话照片表（每次打开课程表单都是新会话）
-  if (typeof FeedbackOrganizer !== 'undefined') FeedbackOrganizer.resetSession();
+  if (typeof FeedbackOrganizer !== 'undefined') {
+    FeedbackOrganizer.resetSession();
+    // 草稿恢复：回填会话照片
+    if (draft && draft.sessionPhotos) {
+      FeedbackOrganizer._sessionPiecePhotos = draft.sessionPhotos;
+    }
+  }
 
   // 把现有曲目按 book 字段分组（保留向后兼容老数据）
   const piecesByBook = groupLessonPiecesByBook(pieces);
@@ -184,6 +200,14 @@ window.showLessonForm = function(lessonId) {
 
   // 初始化课堂标记模块（Phase 1）
   LessonMarkers.init(lesson);
+  // 草稿恢复：覆盖 LessonMarkers 状态（init 会用 lesson 的值，但草稿的 markers/segments 更新）
+  if (draft) {
+    if (draft.audioMarkers) LessonMarkers._markers = draft.audioMarkers.map(m => ({ ...m }));
+    if (draft.lessonAudios) LessonMarkers._segments = draft.lessonAudios.map(s => ({ ...s }));
+    if (draft.lessonAudioId != null) LessonMarkers._lessonAudioId = draft.lessonAudioId;
+    if (draft.audioDurationSec != null) LessonMarkers._audioDurationSec = draft.audioDurationSec;
+    if (draft._startTime) LessonMarkers._startTime = draft._startTime;
+  }
   const markersHtml = LessonMarkers.render();
 
   const modal = document.getElementById('modalContainer');
@@ -777,6 +801,113 @@ window.setLessonPieceStar = function(bookNum, pieceIdx, star) {
 };
 
 /* ------------------------------------------
+   课程草稿自动保存/恢复（防止切后台丢失新建课程数据）
+   ------------------------------------------ */
+
+const DRAFT_KEY = 'piano_lesson_draft';
+
+/**
+ * 从 DOM 收集当前课程表单状态并保存为草稿
+ * 在 visibilitychange→hidden / pagehide 时调用
+ */
+function saveLessonDraft() {
+  const form = document.getElementById('lessonForm');
+  if (!form) return;
+
+  const date = document.getElementById('lessonDate') ? document.getElementById('lessonDate').value : '';
+  const notes = document.getElementById('lessonNotes') ? document.getElementById('lessonNotes').value.trim() : '';
+
+  // 复用 saveLesson 的曲目收集逻辑
+  const pieces = [];
+  document.querySelectorAll('.lesson-book-card').forEach(bookCard => {
+    const bookNum = parseInt(bookCard.dataset.bookNum);
+    bookCard.querySelectorAll('.lesson-piece-card').forEach(pieceCard => {
+      const nameSelect = pieceCard.querySelector('.piece-name-select');
+      const nameInput = pieceCard.querySelector('.piece-name-input');
+      const detailsEl = pieceCard.querySelector('.piece-details');
+      const repIdInput = pieceCard.querySelector('.piece-repid');
+      const scoreInput = pieceCard.querySelector('.piece-score');
+
+      let name = '', repId = '';
+      if (nameSelect) {
+        repId = nameSelect.value.trim();
+        const opt = nameSelect.options[nameSelect.selectedIndex];
+        name = opt ? (opt.dataset.name || '') : '';
+      } else if (nameInput) {
+        name = nameInput.value.trim();
+        if (!RepertoireManager.isCustomBook(bookNum)) {
+          const rp = RepertoireManager.findByName(name);
+          if (rp) repId = rp.id;
+        }
+      }
+      if (!name) return;
+
+      pieces.push({
+        name, details: detailsEl ? detailsEl.value.trim() : '',
+        book: bookNum, category: 'suzuki',
+        repId: repId || (repIdInput ? repIdInput.value : ''),
+        score: scoreInput ? scoreInput.value : ''
+      });
+    });
+  });
+
+  // 自定义册书名
+  const customBookTitles = {};
+  document.querySelectorAll('.custom-book-title').forEach(el => {
+    customBookTitles[el.dataset.book] = el.value.trim();
+  });
+
+  // 会话照片
+  const sessionPhotos = (typeof FeedbackOrganizer !== 'undefined')
+    ? FeedbackOrganizer.getSessionPhotoMap() : {};
+
+  const draft = {
+    date, notes, pieces, customBookTitles, sessionPhotos,
+    audioMarkers: LessonMarkers.getMarkers(),
+    lessonAudios: LessonMarkers.getLessonAudios(),
+    lessonAudioId: LessonMarkers.getLessonAudioId(),
+    audioDurationSec: LessonMarkers.getAudioDurationSec(),
+    _startTime: LessonMarkers._startTime,
+    savedAt: Date.now()
+  };
+
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch(e) {
+    console.warn('saveLessonDraft failed:', e);
+  }
+}
+
+/**
+ * 检查并恢复课程草稿
+ * @returns {boolean} 是否恢复了草稿
+ */
+function restoreLessonDraft() {
+  let draft = null;
+  try {
+    draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+  } catch(e) {}
+  if (!draft) return false;
+
+  // 草稿超过 7 天自动清理
+  if (draft.savedAt && Date.now() - draft.savedAt > 7 * 24 * 3600 * 1000) {
+    localStorage.removeItem(DRAFT_KEY);
+    return false;
+  }
+
+  showLessonForm(null, draft);
+  Utils.showToast('📝 已恢复未保存的课程草稿', 'info');
+  return true;
+}
+
+/**
+ * 清除课程草稿
+ */
+function clearLessonDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+/* ------------------------------------------
    保存 / 删除课程
    ------------------------------------------ */
 
@@ -977,6 +1108,7 @@ window.saveLesson = function(lessonId) {
   });
 
   closeModal();
+  clearLessonDraft();
   renderAll();
   Utils.showToast('✅ 课程已保存', 'success');
 
