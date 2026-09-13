@@ -232,16 +232,15 @@ if (headerVer) headerVer.textContent = RepertoireManager.VERSION;
     initScrollEffects();
     console.log("✅ Startup ready");
 
-    // 课程草稿：切后台/关闭页面时自动保存表单状态
+    // 草稿自动保存：切后台/关闭页面时保存课程表单 + 今日练习状态
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && document.getElementById('lessonForm')) {
-        saveLessonDraft();
-      }
+      if (!document.hidden) return;
+      if (document.getElementById('lessonForm')) saveLessonDraft();
+      if (document.getElementById('todayPracticeForm') && typeof saveTodayDraft === 'function') saveTodayDraft();
     });
     window.addEventListener('pagehide', () => {
-      if (document.getElementById('lessonForm')) {
-        saveLessonDraft();
-      }
+      if (document.getElementById('lessonForm')) saveLessonDraft();
+      if (document.getElementById('todayPracticeForm') && typeof saveTodayDraft === 'function') saveTodayDraft();
     });
 
     // 课程草稿：启动时检测并恢复

@@ -616,6 +616,8 @@ function dailyResetFeedbackStatus() {
  */
 function renderTodayPage() {
   console.log('[renderTodayPage] 渲染今日页');
+  // 切 tab 回今日页时，先把未保存的练习状态存为草稿（SPA 内 tab 切换不触发 visibilitychange）
+  if (typeof saveTodayDraft === 'function') saveTodayDraft();
   // 方案A：进入今日页时，把昨天及更早的"完成"状态重置回未完成（每日待办语义）
   dailyResetFeedbackStatus();
   const page = document.getElementById('page-today');
@@ -673,6 +675,8 @@ function renderTodayPage() {
         '</div>';
         // 注意：即使没有课程，也要绑定事件（计时器、自由练习等仍需工作）
         bindTodayEvents(lesson, log);
+        // 编辑模式下也恢复草稿（prefillEditUI 在 100ms 后执行，延迟到它之后）
+        setTimeout(function() { if (typeof restoreTodayDraft === 'function') restoreTodayDraft(); }, 150);
       });
     }
     return;
@@ -702,6 +706,8 @@ function renderTodayPage() {
 
   // 绑定事件（即使没有课程也要绑定，确保计时器、自由练习等功能正常）
   bindTodayEvents(lesson, null);
+  // 恢复未保存的练习草稿
+  setTimeout(function() { if (typeof restoreTodayDraft === 'function') restoreTodayDraft(); }, 50);
 }
 
 // app.js 兼容别名

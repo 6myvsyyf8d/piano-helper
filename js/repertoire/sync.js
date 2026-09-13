@@ -975,6 +975,8 @@ window.clearAllData = function() {
   }
   // 清理课程草稿
   localStorage.removeItem('piano_lesson_draft');
+  // 清理今日练习草稿
+  localStorage.removeItem('piano_today_draft');
 
   // 清空 IndexedDB 中的全部二进制数据（课堂录音、曲谱照片、家长语音）
   if (typeof StorageAdapter !== 'undefined' && typeof StorageAdapter.list === 'function') {

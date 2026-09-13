@@ -372,6 +372,7 @@ function submitPracticeLog(entries, totalMin, isEdit) {
 
   // 重新渲染今日页
   TodayState.reset();
+  clearTodayDraft();
   renderTodayPage();
 }
 
